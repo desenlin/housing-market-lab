@@ -12,11 +12,11 @@ import argparse
 import csv
 import hashlib
 import json
-import math
 import os
 import re
 import shutil
 import tempfile
+import unicodedata
 import urllib.error
 import urllib.request
 import zipfile
@@ -43,6 +43,14 @@ ZCTA_URL = (
     "https://www2.census.gov/geo/tiger/GENZ2020/shp/"
     "cb_2020_us_zcta520_500k.zip"
 )
+
+# Census place files are statewide and do not carry a single county field.
+# These broad extents disambiguate same-named places before exact Zillow-name
+# matching; they include each county's offshore islands and border communities.
+COUNTY_EXTENTS = {
+    "Orange County": (-118.25, 33.15, -117.30, 34.10),
+    "Los Angeles County": (-119.10, 32.65, -117.50, 34.95),
+}
 
 METRIC_META = {
     "zhvi": {
@@ -301,45 +309,56 @@ def shape_records(zip_url: str, temp_dir: Path) -> tuple[list[str], list[tuple[d
     ]
 
 
-def projected_paths(items: list[tuple[str, str, Any]]) -> list[dict[str, str]]:
-    points = [point for _, _, shape in items for point in shape.points]
-    if not points:
-        return []
-    min_lon = min(point[0] for point in points)
-    max_lon = max(point[0] for point in points)
-    min_lat = min(point[1] for point in points)
-    max_lat = max(point[1] for point in points)
-    cosine = math.cos(math.radians((min_lat + max_lat) / 2))
-    width = max((max_lon - min_lon) * cosine, 0.001)
-    height = max(max_lat - min_lat, 0.001)
-    scale = min(760 / width, 520 / height)
-    draw_width = width * scale
-    draw_height = height * scale
-    offset_x = (800 - draw_width) / 2
-    offset_y = (560 - draw_height) / 2
+def rounded_coordinates(value: Any) -> Any:
+    """Keep browser map payloads compact without changing visible boundaries."""
+    if isinstance(value, (list, tuple)):
+        if value and isinstance(value[0], (int, float)):
+            return [round(float(coordinate), 5) for coordinate in value]
+        return [rounded_coordinates(item) for item in value]
+    return value
 
-    def project(point: tuple[float, float]) -> tuple[float, float]:
-        return (
-            offset_x + (point[0] - min_lon) * cosine * scale,
-            offset_y + (max_lat - point[1]) * scale,
-        )
 
+def geojson_regions(items: list[tuple[str, str, Any]]) -> list[dict[str, Any]]:
     output = []
     for region_id, name, shape in items:
-        parts = list(shape.parts) + [len(shape.points)]
-        commands = []
-        for start, end in zip(parts[:-1], parts[1:]):
-            ring = shape.points[start:end]
-            if len(ring) < 3:
-                continue
-            x, y = project(ring[0])
-            commands.append(f"M{x:.1f},{y:.1f}")
-            commands.extend(
-                f"L{px:.1f},{py:.1f}" for px, py in map(project, ring[1:])
-            )
-            commands.append("Z")
-        output.append({"id": region_id, "name": name, "path": "".join(commands)})
+        geometry = shape.__geo_interface__
+        output.append(
+            {
+                "id": region_id,
+                "name": name,
+                "geometry": {
+                    "type": geometry["type"],
+                    "coordinates": rounded_coordinates(geometry["coordinates"]),
+                },
+            }
+        )
     return output
+
+
+def geographic_bounds(items: list[tuple[str, str, Any]]) -> list[list[float]]:
+    points = [point for _, _, shape in items for point in shape.points]
+    if not points:
+        return [[32.5, -125.0], [42.0, -114.0]]
+    return [
+        [round(min(point[1] for point in points), 5), round(min(point[0] for point in points), 5)],
+        [round(max(point[1] for point in points), 5), round(max(point[0] for point in points), 5)],
+    ]
+
+
+def shape_center_is_in_county(shape: Any, county: str) -> bool:
+    min_lon, min_lat, max_lon, max_lat = COUNTY_EXTENTS[county]
+    shape_min_lon, shape_min_lat, shape_max_lon, shape_max_lat = shape.bbox
+    center_lon = (shape_min_lon + shape_max_lon) / 2
+    center_lat = (shape_min_lat + shape_max_lat) / 2
+    return min_lon <= center_lon <= max_lon and min_lat <= center_lat <= max_lat
+
+
+def normalized_geography_name(value: str) -> str:
+    return "".join(
+        character
+        for character in unicodedata.normalize("NFKD", value)
+        if not unicodedata.combining(character)
+    ).casefold()
 
 
 def build_maps(
@@ -353,7 +372,9 @@ def build_maps(
     for geography in ("city", "zip"):
         region_by_county = defaultdict(dict)
         for region in payloads[geography]["regions"]:
-            region_by_county[region["county"]][region["name"]] = region["id"]
+            region_by_county[region["county"]][
+                normalized_geography_name(region["name"])
+            ] = (region["id"], region["name"])
         county_maps: dict[str, Any] = {}
         for county in config["counties"]:
             targets = region_by_county[county]
@@ -361,11 +382,14 @@ def build_maps(
             records = place_records if geography == "city" else zcta_records
             for attrs, shape in records:
                 name = attrs.get("NAME") if geography == "city" else attrs.get(zcta_field)
-                if name in targets:
-                    selected.append((targets[name], name, shape))
+                target = targets.get(normalized_geography_name(name))
+                if target and (
+                    geography == "zip" or shape_center_is_in_county(shape, county)
+                ):
+                    selected.append((target[0], target[1], shape))
             county_maps[county] = {
-                "viewBox": "0 0 800 560",
-                "regions": projected_paths(selected),
+                "bounds": geographic_bounds(selected),
+                "regions": geojson_regions(selected),
                 "mapped": len(selected),
                 "available": len(targets),
             }

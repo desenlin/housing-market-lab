@@ -1,10 +1,19 @@
 cff-version: 1.2.0
-message: "If you use this teaching project, please cite it as below."
+message: "If you use this application for instruction or research, please cite it as below."
 title: "Housing Market Lab"
 type: software
+version: 0.2.0
+date-released: 2026-09-02
 authors:
   - family-names: "Lin"
     given-names: "Desen"
 repository-code: "https://github.com/desenlin/housing-market-lab"
-url: "https://desenlin.github.io/housing-market-lab/"
+url: "https://desenlin.com/housing-market-lab/"
 license: MIT
+abstract: "Interactive housing-market analytics for Orange and Los Angeles counties, with metropolitan comparisons."
+keywords:
+  - housing markets
+  - real estate
+  - Zillow
+  - Orange County
+  - Los Angeles County

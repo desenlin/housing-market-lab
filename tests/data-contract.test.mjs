@@ -24,6 +24,11 @@ test("latest pointer resolves to a complete release", async () => {
   assert.ok(zip.metrics.zori.dates.length > 100);
   assert.equal(cityMap.counties["Orange County"].mapped, 39);
   assert.equal(zipMap.counties["Los Angeles County"].mapped, 274);
+  assert.ok(cityMap.counties["Orange County"].regions.every((region) => region.geometry));
+  assert.ok(zipMap.counties["Los Angeles County"].regions.every((region) => region.geometry));
+  const [[minLat, minLon], [maxLat, maxLon]] = cityMap.counties["Los Angeles County"].bounds;
+  assert.ok(maxLat - minLat < 2);
+  assert.ok(maxLon - minLon < 2);
 });
 
 test("metro comparison contains the intended unique markets", async () => {

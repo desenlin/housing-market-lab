@@ -1,21 +1,37 @@
 # Housing Market Lab
 
-A zero-cost, static housing-market data product for teaching and exploratory research. The first release focuses on city/community and ZIP-level data in Orange and Los Angeles counties, plus a concise metro comparison view.
+[![Validate data and deploy Pages](https://github.com/desenlin/housing-market-lab/actions/workflows/pages.yml/badge.svg)](https://github.com/desenlin/housing-market-lab/actions/workflows/pages.yml)
+[![MIT licensed code](https://img.shields.io/badge/code-MIT-12355b.svg)](LICENSE)
+[![CC BY 4.0 educational content](https://img.shields.io/badge/content-CC%20BY%204.0-ff7a1a.svg)](https://creativecommons.org/licenses/by/4.0/)
 
-Live site: <https://desenlin.github.io/housing-market-lab/>
+Interactive housing-market analytics for instruction and exploratory academic research. The current release focuses on city/community and ZIP-level observations in Orange and Los Angeles counties, with a separate metropolitan comparison view.
 
-## What it shows
+**Live application:** <https://desenlin.com/housing-market-lab/>
 
-- Zillow Home Value Index (ZHVI)
-- Zillow Observed Rent Index (ZORI)
+Created by **Desen Lin, California State University, Fullerton**.
+
+## What the application provides
+
+- Zillow Home Value Index (ZHVI) and Zillow Observed Rent Index (ZORI)
 - A derived price–rent multiple
-- Metro inventory, days to pending, price-cut share, and sale-to-list ratio
-- Levels, year-over-year changes, and indexed time paths
-- Clickable Census place and ZCTA maps
+- Current levels and explicitly labeled changes from one year earlier
+- User-selected one-, three-, and five-year or maximum chart windows
+- Indexed comparisons with a user-selected starting month
+- City/community and ZIP rankings sortable by current value or 12-month growth
+- Interactive OpenStreetMap context maps with pan, zoom, automatic county fitting, hover details, and selectable boundaries
+- Metro inventory, days to pending, price-cut share, and sale-to-list comparisons
 
-The interface is a static Next.js/Vinext export. It uses no database, paid API, map-tile service, analytics account, or server process.
+The application is a static Next.js/Vinext export. It uses no database, paid API, paid map service, analytics account, or continuously running server.
 
-## Architecture
+## Data sources and references
+
+- [Zillow Research housing data](https://www.zillow.com/research/data/) supplies the market time series.
+- [US Census Bureau cartographic boundary files](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html) supply place and ZCTA boundaries.
+- [OpenStreetMap](https://www.openstreetmap.org/copyright) supplies contextual basemap tiles. Map data © OpenStreetMap contributors.
+
+Definitions, transformations, boundary vintages, coverage rules, and provider caveats are documented in [DATA_SOURCES.md](DATA_SOURCES.md). Zillow data are redistributed only as compact, geographically filtered, chart-ready releases rather than complete source files.
+
+## Reproducible release architecture
 
 ```mermaid
 flowchart TD
@@ -28,7 +44,9 @@ flowchart TD
   G --> H[GitHub Pages]
 ```
 
-Raw source files are temporary. Processed releases live in `public/data/releases/<release-id>/`; the site reads the release named by `public/data/latest.json`. That pointer is changed only after every source and coverage check succeeds.
+Raw source files are temporary. Processed releases live in `public/data/releases/<release-id>/`; the application reads the release named by `public/data/latest.json`. The pointer changes only after every source, schema, coverage, mapping, and size check succeeds.
+
+The Pages workflow runs on pushes, manual dispatch, and two monthly refresh attempts. A failed provider download or validation does not replace the prior working release.
 
 ## Local development
 
@@ -41,27 +59,34 @@ python pipeline/update_data.py
 npm run dev
 ```
 
-For repeated pipeline work, `--cache-dir .cache/zillow` reuses local downloads. Do not use that option for a production refresh.
+For repeated pipeline development, `--cache-dir .cache/zillow` reuses local downloads. Production refreshes intentionally download fresh source files.
 
 Build and test:
 
 ```bash
+npm run lint
 npm test
 python -m unittest discover tests
 ```
 
-## Automated releases
+GitHub Pages must use **GitHub Actions** as its deployment source in repository **Settings → Pages**.
 
-The Pages workflow runs on pushes, manual dispatch, and two monthly attempts. Scheduled/manual jobs download fresh data. A successful change is committed before the static site is built. If download, schema, coverage, mapping, or size validation fails, neither the pointer nor deployed site is replaced.
+## Citation
 
-GitHub Pages must use **GitHub Actions** as its deployment source in repository Settings → Pages.
+Please cite the application when it is used in instruction, research, or derivative work:
 
-## Adding another provider
+> Lin, D. (2026). *Housing Market Lab* [Computer software]. https://desenlin.com/housing-market-lab/
 
-Keep provider-specific download and field translation inside the pipeline. Normalize each source to the existing contract—region metadata, metric metadata, dates, and values—before combining it with the published bundle. This keeps the React interface independent of Zillow or a future Redfin file layout.
+GitHub also provides structured citation metadata from [CITATION.cff](CITATION.cff) through the repository’s **Cite this repository** control. For a reproducible empirical reference, report the release identifier and bundle fingerprint displayed under **Data & methods** in the application.
 
-## Data and attribution
+## Academic-use disclaimer
 
-Data provided by Zillow Group. See [DATA_SOURCES.md](DATA_SOURCES.md) for definitions, transformation choices, caveats, and source links. This independent academic project is not endorsed by Zillow Group.
+This project is provided for instruction and academic research. It is not financial, investment, legal, valuation, or real-estate advice and should not be relied on for transactions or commercial decision-making.
 
-Code is released under the MIT License. Provider data remains subject to its provider's terms.
+The filtered data releases are intended for instructional and noncommercial academic-research use. Zillow, Census, and OpenStreetMap data remain subject to their respective provider licenses and terms. This repository does not grant commercial-use rights to third-party data or imply endorsement by any provider or California State University, Fullerton.
+
+## Licenses and attribution
+
+The original software code in this repository is licensed under the [MIT License](LICENSE). Original educational content is licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/), unless otherwise noted. When reusing or adapting original project materials, credit Desen Lin and link to this repository.
+
+Third-party data, cartographic boundaries, institutional names, and trademarks are excluded from those licenses. Data provided by Zillow Group. Map data © OpenStreetMap contributors.

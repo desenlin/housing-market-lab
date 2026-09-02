@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Check, Copy, ExternalLink, Info, Plus, X } from "lucide-react";
+import { Check, Copy, ExternalLink, Info, Plus, RotateCcw, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +31,8 @@ type MetricKey =
   | "price_cut_share"
   | "sale_to_list";
 type ViewKey = "level" | "yoy" | "index";
+type TimeRange = "1y" | "3y" | "5y" | "max";
+type RankKey = "growth" | "level";
 
 type Metric = {
   dates: string[];
@@ -60,10 +62,17 @@ type MapData = {
   counties: Record<
     string,
     {
-      viewBox: string;
+      bounds: [[number, number], [number, number]];
       mapped: number;
       available: number;
-      regions: { id: string; name: string; path: string }[];
+      regions: {
+        id: string;
+        name: string;
+        geometry: {
+          type: "Polygon" | "MultiPolygon";
+          coordinates: unknown;
+        };
+      }[];
     }
   >;
 };
@@ -99,6 +108,14 @@ const REGIONAL_METRICS: { key: MetricKey; label: string }[] = [
   { key: "sale_to_list", label: "Mean sale-to-list ratio" },
 ];
 const COLORS = ["#ff7a1a", "#12355b", "#2f7d6d", "#9b4f96", "#c7a227"];
+const MAP_COLORS = ["#eff6ff", "#bfdbfe", "#60a5fa", "#2563eb", "#12355b"];
+const MAP_DIVERGING = ["#b5473c", "#e9a28d", "#f5f7f7", "#78b9ad", "#126b5b"];
+const TIME_RANGES: { key: TimeRange; label: string; months: number | null }[] = [
+  { key: "1y", label: "1 year", months: 12 },
+  { key: "3y", label: "3 years", months: 36 },
+  { key: "5y", label: "5 years", months: 60 },
+  { key: "max", label: "Max", months: null },
+];
 
 function lastValue(values: Value[]) {
   for (let index = values.length - 1; index >= 0; index -= 1) {
@@ -132,7 +149,12 @@ function metricSeries(dataset: Dataset, region: Region, metric: MetricKey) {
   };
 }
 
-function transformValues(values: Value[], view: ViewKey): Value[] {
+function transformValues(
+  values: Value[],
+  view: ViewKey,
+  dates: string[] = [],
+  indexBaseMonth = "",
+): Value[] {
   if (view === "level") return values;
   if (view === "yoy") {
     return values.map((value, index) => {
@@ -142,10 +164,36 @@ function transformValues(values: Value[], view: ViewKey): Value[] {
         : null;
     });
   }
-  const base = values.find((value): value is number => value != null);
+  const requestedIndex = indexBaseMonth
+    ? dates.findIndex((date) => date.startsWith(indexBaseMonth))
+    : -1;
+  const baseIndex = values.findIndex(
+    (value, index) => value != null && (requestedIndex < 0 || index >= requestedIndex),
+  );
+  const base = baseIndex >= 0 ? values[baseIndex] : null;
   return values.map((value) =>
     value != null && base != null && base !== 0 ? (value / base) * 100 : null,
   );
+}
+
+function metricDates(dataset: Dataset, metric: MetricKey) {
+  return metric === "price_rent"
+    ? dataset.metrics.zori?.dates ?? []
+    : dataset.metrics[metric]?.dates ?? [];
+}
+
+function normalizedBaseMonth(dates: string[], requested: string) {
+  const months = dates.map((date) => date.slice(0, 7));
+  if (!months.length) return "";
+  if (!requested) return months[0];
+  if (requested <= months[0]) return months[0];
+  if (requested >= months.at(-1)!) return months.at(-1)!;
+  return months.find((month) => month >= requested) ?? months[0];
+}
+
+function timeRangeStart(length: number, range: TimeRange) {
+  const months = TIME_RANGES.find((item) => item.key === range)?.months;
+  return months == null ? 0 : Math.max(0, length - months);
 }
 
 function formatValue(value: number | null, unit: string, view: ViewKey, compact = false) {
@@ -195,16 +243,71 @@ function LabelledSelect({
   );
 }
 
+function TimeRangeControl({
+  value,
+  onChange,
+}: {
+  value: TimeRange;
+  onChange: (value: TimeRange) => void;
+}) {
+  return (
+    <div className="time-range" aria-label="Chart time period">
+      <span>Time period</span>
+      <div role="group" aria-label="Choose chart time period">
+        {TIME_RANGES.map((option) => (
+          <button
+            type="button"
+            key={option.key}
+            className={value === option.key ? "active" : ""}
+            aria-pressed={value === option.key}
+            onClick={() => onChange(option.key)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function IndexBaseControl({
+  value,
+  dates,
+  onChange,
+}: {
+  value: string;
+  dates: string[];
+  onChange: (value: string) => void;
+}) {
+  if (!dates.length) return null;
+  return (
+    <label className="index-base">
+      <span>Index starting month</span>
+      <input
+        type="month"
+        min={dates[0].slice(0, 7)}
+        max={dates.at(-1)!.slice(0, 7)}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
 function SeriesChart({
   dataset,
   regions,
   metric,
   view,
+  timeRange,
+  indexBaseMonth,
 }: {
   dataset: Dataset;
   regions: Region[];
   metric: MetricKey;
   view: ViewKey;
+  timeRange: TimeRange;
+  indexBaseMonth: string;
 }) {
   const chart = useMemo(() => {
     if (!regions.length) return { rows: [], unit: "number" };
@@ -212,21 +315,29 @@ function SeriesChart({
     const series = regions.map((region) => {
       const current = metricSeries(dataset, region, metric);
       const byDate = new Map(
-        current.dates.map((date, index) => [date, transformValues(current.values, view)[index]]),
+        current.dates.map((date, index) => [
+          date,
+          transformValues(current.values, view, current.dates, indexBaseMonth)[index],
+        ]),
       );
       return { region, byDate };
     });
+    const rows = first.dates.map((date) => ({
+      date,
+      ...Object.fromEntries(series.map(({ region, byDate }) => [region.id, byDate.get(date) ?? null])),
+    }));
+    const rangeStart = timeRangeStart(rows.length, timeRange);
+    const indexStart = view === "index"
+      ? Math.max(0, rows.findIndex((row) => row.date.startsWith(indexBaseMonth)))
+      : 0;
     return {
       unit: first.unit,
-      rows: first.dates.map((date) => ({
-        date,
-        ...Object.fromEntries(series.map(({ region, byDate }) => [region.id, byDate.get(date) ?? null])),
-      })),
+      rows: rows.slice(Math.max(rangeStart, indexStart)),
     };
-  }, [dataset, regions, metric, view]);
+  }, [dataset, regions, metric, view, timeRange, indexBaseMonth]);
 
   return (
-    <div className="h-[360px] w-full" aria-label="Housing market time-series chart">
+    <div className="h-[360px] min-w-0 w-full" aria-label="Housing market time-series chart">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chart.rows} margin={{ top: 12, right: 12, left: 8, bottom: 8 }}>
           <CartesianGrid stroke="#dbe3e8" strokeDasharray="3 4" vertical={false} />
@@ -277,7 +388,9 @@ function CountyMap({
   mapData,
   dataset,
   metric,
+  metricLabel,
   view,
+  indexBaseMonth,
   selectedId,
   onSelect,
 }: {
@@ -285,57 +398,212 @@ function CountyMap({
   mapData: MapData;
   dataset: Dataset;
   metric: MetricKey;
+  metricLabel: string;
   view: ViewKey;
+  indexBaseMonth: string;
   selectedId: string;
   onSelect: (id: string) => void;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<import("leaflet").Map | null>(null);
+  const layerRef = useRef<import("leaflet").GeoJSON | null>(null);
+  const leafletRef = useRef<typeof import("leaflet") | null>(null);
+  const onSelectRef = useRef(onSelect);
+  const lastFitKey = useRef("");
+  const [mapReady, setMapReady] = useState(false);
   const shapes = mapData.counties[county];
-  const values = shapes.regions.map((shape) => {
-    const region = dataset.regions.find((item) => item.id === shape.id);
-    const raw = region ? metricSeries(dataset, region, metric).values : [];
-    const displayView = view === "index" ? "level" : view;
-    return { id: shape.id, value: lastValue(transformValues(raw, displayView))?.value ?? null };
-  });
-  const finite = values.map((item) => item.value).filter((value): value is number => value != null);
-  const low = Math.min(...finite);
-  const high = Math.max(...finite);
-  const color = (id: string) => {
-    const value = values.find((item) => item.id === id)?.value;
-    if (value == null || !Number.isFinite(low) || !Number.isFinite(high)) return "#e6ecef";
-    const ratio = high === low ? 0.5 : (value - low) / (high - low);
-    const start = [216, 231, 236];
-    const end = [18, 53, 91];
-    return `rgb(${start.map((part, index) => Math.round(part + (end[index] - part) * ratio)).join(",")})`;
-  };
+  const dates = metricDates(dataset, metric);
+
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+  }, [onSelect]);
+
+  const values = useMemo(
+    () =>
+      shapes.regions.map((shape) => {
+        const region = dataset.regions.find((item) => item.id === shape.id);
+        const series = region ? metricSeries(dataset, region, metric) : null;
+        const transformed = series
+          ? transformValues(series.values, view, series.dates, indexBaseMonth)
+          : [];
+        const yoy = series
+          ? lastValue(transformValues(series.values, "yoy", series.dates))?.value ?? null
+          : null;
+        return {
+          id: shape.id,
+          name: shape.name,
+          value: lastValue(transformed)?.value ?? null,
+          yoy,
+          unit: series?.unit ?? "number",
+        };
+      }),
+    [dataset, indexBaseMonth, metric, shapes.regions, view],
+  );
+  const valueById = useMemo(
+    () => new Map(values.map((item) => [item.id, item])),
+    [values],
+  );
+  const finite = values
+    .map((item) => item.value)
+    .filter((value): value is number => value != null && Number.isFinite(value));
+  const low = finite.length ? Math.min(...finite) : 0;
+  const high = finite.length ? Math.max(...finite) : 0;
+  const palette = view === "yoy" ? MAP_DIVERGING : MAP_COLORS;
+  const fillById = useMemo(() => {
+    const currentPalette = view === "yoy" ? MAP_DIVERGING : MAP_COLORS;
+    return new Map(values.map((item) => {
+      const value = item.value;
+      if (value == null || !Number.isFinite(value)) return [item.id, "#dce3e6"];
+      let ratio = high === low ? 0.5 : (value - low) / (high - low);
+      if (view === "yoy") {
+        const span = Math.max(Math.abs(low), Math.abs(high), 0.001);
+        ratio = (value + span) / (span * 2);
+      }
+      const index = Math.min(
+        currentPalette.length - 1,
+        Math.max(0, Math.floor(ratio * currentPalette.length)),
+      );
+      return [item.id, currentPalette[index]];
+    }));
+  }, [high, low, values, view]);
+  const selected = valueById.get(selectedId);
+  const geographyLabel = dataset.geography === "zip" ? "ZIP code" : "City/community";
+  const viewLabel = view === "level"
+    ? "current level"
+    : view === "yoy"
+      ? "change from one year earlier"
+      : `index (${shortDate(`${indexBaseMonth}-01`)} = 100)`;
+
+  useEffect(() => {
+    let cancelled = false;
+    async function initializeMap() {
+      if (!containerRef.current || mapRef.current) return;
+      const L = await import("leaflet");
+      if (cancelled || !containerRef.current) return;
+      leafletRef.current = L;
+      const map = L.map(containerRef.current, {
+        zoomControl: true,
+        scrollWheelZoom: true,
+        minZoom: 7,
+        maxZoom: 18,
+      });
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
+      }).addTo(map);
+      mapRef.current = map;
+      setMapReady(true);
+    }
+    initializeMap();
+    return () => {
+      cancelled = true;
+      mapRef.current?.remove();
+      mapRef.current = null;
+      leafletRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const L = leafletRef.current;
+    const map = mapRef.current;
+    if (!mapReady || !L || !map) return;
+    if (layerRef.current) layerRef.current.remove();
+    const featureCollection = {
+      type: "FeatureCollection" as const,
+      features: shapes.regions.map((shape) => ({
+        type: "Feature" as const,
+        properties: { id: shape.id, name: shape.name },
+        geometry: shape.geometry,
+      })),
+    };
+    const overlay = L.geoJSON(featureCollection as GeoJSON.FeatureCollection, {
+      style: (feature) => {
+        const id = String(feature?.properties?.id ?? "");
+        const isSelected = id === selectedId;
+        return {
+          color: isSelected ? "#ff7a1a" : "#ffffff",
+          weight: isSelected ? 3 : 1.2,
+          opacity: 1,
+          fillColor: fillById.get(id) ?? "#dce3e6",
+          fillOpacity: isSelected ? 0.88 : 0.72,
+        };
+      },
+      onEachFeature: (feature, layer) => {
+        const id = String(feature.properties?.id ?? "");
+        const item = valueById.get(id);
+        const tooltip = document.createElement("div");
+        const name = document.createElement("strong");
+        name.textContent = item?.name ?? String(feature.properties?.name ?? id);
+        const measure = document.createElement("span");
+        measure.textContent = `${geographyLabel} · ${formatValue(item?.value ?? null, item?.unit ?? "number", view)}`;
+        const growth = document.createElement("span");
+        growth.textContent = `Change from one year earlier: ${formatValue(item?.yoy ?? null, item?.unit ?? "number", "yoy")}`;
+        tooltip.append(name, measure, growth);
+        layer.bindTooltip(tooltip, { sticky: true, direction: "top" });
+        layer.on("click", () => onSelectRef.current(id));
+      },
+    }).addTo(map);
+    layerRef.current = overlay;
+    const fitKey = `${county}:${dataset.geography}`;
+    if (lastFitKey.current !== fitKey) {
+      map.fitBounds(L.latLngBounds(shapes.bounds), { padding: [18, 18], maxZoom: 11 });
+      lastFitKey.current = fitKey;
+    }
+    map.invalidateSize({ pan: false });
+  }, [
+    county,
+    dataset.geography,
+    geographyLabel,
+    high,
+    indexBaseMonth,
+    low,
+    mapReady,
+    selectedId,
+    shapes,
+    fillById,
+    valueById,
+    view,
+  ]);
+
+  function resetMap() {
+    const L = leafletRef.current;
+    if (L && mapRef.current) {
+      mapRef.current.fitBounds(L.latLngBounds(shapes.bounds), { padding: [18, 18], maxZoom: 11 });
+    }
+  }
 
   return (
     <div className="map-panel">
       <div className="map-heading">
         <div>
-          <h3>{county.replace(" County", "")}</h3>
-          <p>{shapes.mapped} mapped of {shapes.available} data regions</p>
+          <p className="section-kicker">Map · {geographyLabel}</p>
+          <h3>{county}</h3>
+          <p><strong>{metricLabel}</strong> · {viewLabel} · {dates.length ? shortDate(dates.at(-1)!) : "latest observation"}</p>
         </div>
-        <span>Lower <i className="map-gradient" /> Higher</span>
+        <div className="map-tools">
+          <button type="button" onClick={resetMap}><RotateCcw /> Reset map</button>
+          <span>
+            {formatValue(low, values[0]?.unit ?? "number", view)}
+            <i className="map-gradient" style={{ background: `linear-gradient(90deg, ${palette.join(",")})` }} />
+            {formatValue(high, values[0]?.unit ?? "number", view)}
+          </span>
+        </div>
       </div>
-      <svg viewBox={shapes.viewBox} role="img" aria-label={`${county} housing metric map`}>
-        {shapes.regions.map((shape) => (
-          <path
-            key={shape.id}
-            d={shape.path}
-            fill={color(shape.id)}
-            className={shape.id === selectedId ? "map-region selected" : "map-region"}
-            onClick={() => onSelect(shape.id)}
-            tabIndex={0}
-            role="button"
-            aria-label={`Select ${shape.name}`}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") onSelect(shape.id);
-            }}
-          >
-            <title>{shape.name}</title>
-          </path>
-        ))}
-      </svg>
+      {selected && (
+        <div className="map-selection" aria-live="polite">
+          <strong>{selected.name}</strong>
+          <span>{geographyLabel}</span>
+          <span>{metricLabel}: {formatValue(selected.value, selected.unit, view)}</span>
+          <span>Change from one year earlier: {formatValue(selected.yoy, selected.unit, "yoy")}</span>
+        </div>
+      )}
+      <div
+        ref={containerRef}
+        className="leaflet-map"
+        role="region"
+        aria-label={`${county} ${geographyLabel.toLowerCase()} map of ${metricLabel.toLowerCase()}`}
+      />
+      <p className="map-coverage">{shapes.mapped} mapped of {shapes.available} data regions. Hover or tap a boundary for details; click to update the focus series.</p>
     </div>
   );
 }
@@ -361,10 +629,15 @@ export default function MarketLab() {
   const [county, setCounty] = useState("Orange County");
   const [metric, setMetric] = useState<MetricKey>("zhvi");
   const [view, setView] = useState<ViewKey>("level");
+  const [timeRange, setTimeRange] = useState<TimeRange>("max");
+  const [indexBaseRequest, setIndexBaseRequest] = useState("2015-01");
+  const [rankBy, setRankBy] = useState<RankKey>("growth");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [addId, setAddId] = useState("");
   const [regionalMetric, setRegionalMetric] = useState<MetricKey>("zhvi");
   const [regionalView, setRegionalView] = useState<ViewKey>("index");
+  const [regionalTimeRange, setRegionalTimeRange] = useState<TimeRange>("max");
+  const [regionalIndexBaseRequest, setRegionalIndexBaseRequest] = useState("2015-01");
   const [regionalIds, setRegionalIds] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
 
@@ -404,6 +677,8 @@ export default function MarketLab() {
         const queryCounty = query.get("county");
         const queryMetric = query.get("metric");
         const queryView = query.get("view");
+        const queryRange = query.get("range");
+        const queryBase = query.get("base");
         const restoredGeo = queryGeo === "zip" ? "zip" : "city";
         const restoredCounty = COUNTY_OPTIONS.includes(queryCounty ?? "") ? queryCounty! : "Orange County";
         const restoredDataset = restoredGeo === "zip" ? (zip as Dataset) : (city as Dataset);
@@ -421,6 +696,8 @@ export default function MarketLab() {
         setCounty(restoredCounty);
         if (LOCAL_METRICS.some((item) => item.key === queryMetric)) setMetric(queryMetric as MetricKey);
         if (["level", "yoy", "index"].includes(queryView ?? "")) setView(queryView as ViewKey);
+        if (["1y", "3y", "5y", "max"].includes(queryRange ?? "")) setTimeRange(queryRange as TimeRange);
+        if (/^\d{4}-\d{2}$/.test(queryBase ?? "")) setIndexBaseRequest(queryBase!);
         if (restoredIds.length) setSelectedIds(restoredIds);
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : "The data release could not be loaded.");
@@ -430,6 +707,10 @@ export default function MarketLab() {
   }, []);
 
   const dataset = datasets?.[geography];
+  const localDates = dataset ? metricDates(dataset, metric) : [];
+  const indexBaseMonth = normalizedBaseMonth(localDates, indexBaseRequest);
+  const regionalDates = datasets ? metricDates(datasets.metro, regionalMetric) : [];
+  const regionalIndexBaseMonth = normalizedBaseMonth(regionalDates, regionalIndexBaseRequest);
   const eligible = useMemo(
     () =>
       dataset?.regions.filter((region) => county === "Both" || region.county === county) ?? [],
@@ -442,7 +723,9 @@ export default function MarketLab() {
   const primary = selectedRegions[0];
   const primarySeries = dataset && primary ? metricSeries(dataset, primary, metric) : null;
   const primaryLast = primarySeries ? lastValue(primarySeries.values) : null;
-  const primaryYoy = primarySeries ? lastValue(transformValues(primarySeries.values, "yoy")) : null;
+  const primaryYoy = primarySeries
+    ? lastValue(transformValues(primarySeries.values, "yoy", primarySeries.dates))
+    : null;
   const fiveYear = (() => {
     if (!primarySeries || !primaryLast) return null;
     const prior = primarySeries.values[primaryLast.index - 60];
@@ -454,12 +737,16 @@ export default function MarketLab() {
       .map((region) => {
         const series = metricSeries(dataset, region, metric);
         const level = lastValue(series.values)?.value ?? null;
-        const yoy = lastValue(transformValues(series.values, "yoy"))?.value ?? null;
+        const yoy = lastValue(transformValues(series.values, "yoy", series.dates))?.value ?? null;
         return { region, level, yoy, unit: series.unit };
       })
       .filter((item) => item.level != null)
-      .sort((a, b) => (b.level ?? -Infinity) - (a.level ?? -Infinity));
-  }, [dataset, eligible, metric]);
+      .sort((a, b) =>
+        rankBy === "growth"
+          ? (b.yoy ?? -Infinity) - (a.yoy ?? -Infinity)
+          : (b.level ?? -Infinity) - (a.level ?? -Infinity),
+      );
+  }, [dataset, eligible, metric, rankBy]);
   const rank = primary ? ranked.findIndex((item) => item.region.id === primary.id) + 1 : 0;
   const unit = primarySeries?.unit ?? "number";
 
@@ -503,6 +790,8 @@ export default function MarketLab() {
     url.searchParams.set("county", county);
     url.searchParams.set("metric", metric);
     url.searchParams.set("view", view);
+    url.searchParams.set("range", timeRange);
+    if (view === "index") url.searchParams.set("base", indexBaseMonth);
     url.searchParams.set("regions", selectedIds.join(","));
     await navigator.clipboard.writeText(url.toString());
     setCopied(true);
@@ -526,8 +815,9 @@ export default function MarketLab() {
       <header className="site-header">
         <div className="header-inner">
           <div>
-            <p className="eyebrow">Desen Lin · Academic data project</p>
+            <p className="eyebrow">Real Estate Analytics</p>
             <h1>Housing Market Lab</h1>
+            <p className="byline">Created by Desen Lin, California State University, Fullerton.</p>
             <p className="deck">A focused view of Southern California’s housing market—and the cycles around it.</p>
           </div>
           <div className="release-stamp">
@@ -592,17 +882,27 @@ export default function MarketLab() {
             <Kpi label={currentMetricLabel} value={formatValue(primaryLast?.value ?? null, unit, "level")} note={primaryLast ? `As of ${shortDate(primarySeries!.dates[primaryLast.index])}` : "No observation"} />
             <Kpi label="Year over year" value={formatValue(primaryYoy?.value ?? null, unit, "yoy")} note="Versus the same month one year ago" />
             <Kpi label="Five-year change" value={formatValue(fiveYear, unit, "yoy")} note="Longer view of the recent cycle" />
-            <Kpi label={`${county === "Both" ? "Two-county" : county.replace(" County", "")} rank`} value={rank ? `${rank} of ${ranked.length}` : "—"} note={`Ranked by current ${currentMetricLabel.toLowerCase()}`} />
+            <Kpi
+              label={`${county === "Both" ? "Two-county" : county.replace(" County", "")} rank`}
+              value={rank ? `${rank} of ${ranked.length}` : "—"}
+              note={rankBy === "growth" ? "Ranked by change from one year earlier" : `Ranked by current ${currentMetricLabel.toLowerCase()}`}
+            />
           </section>
 
           <section className="analysis-grid">
             <Card className="chart-card">
               <CardHeader className="chart-header">
                 <div><p className="section-kicker">Time</p><CardTitle>{currentMetricLabel}</CardTitle></div>
-                <p>{view === "level" ? "Monthly level" : view === "yoy" ? "Percent change from one year earlier" : "Each series begins at 100"}</p>
+                <div className="chart-options">
+                  <TimeRangeControl value={timeRange} onChange={setTimeRange} />
+                  {view === "index" && (
+                    <IndexBaseControl value={indexBaseMonth} dates={localDates} onChange={setIndexBaseRequest} />
+                  )}
+                  <p>{view === "level" ? "Monthly level" : view === "yoy" ? "Percent change from one year earlier" : `${shortDate(`${indexBaseMonth}-01`)} = 100`}</p>
+                </div>
               </CardHeader>
               <CardContent className="p-3 pt-0 sm:p-5 sm:pt-0">
-                <SeriesChart dataset={dataset} regions={selectedRegions} metric={metric} view={view} />
+                <SeriesChart dataset={dataset} regions={selectedRegions} metric={metric} view={view} timeRange={timeRange} indexBaseMonth={indexBaseMonth} />
                 {metric !== "zhvi" && selectedRegions.some((region) => metricSeries(dataset, region, metric).values.every((value) => value == null)) && (
                   <p className="data-note">Some regions are omitted where Zillow does not publish a usable rent history.</p>
                 )}
@@ -610,13 +910,24 @@ export default function MarketLab() {
             </Card>
 
             <Card className="ranking-card">
-              <CardHeader><p className="section-kicker">Place</p><CardTitle>Current ranking</CardTitle></CardHeader>
+              <CardHeader>
+                <div className="ranking-title">
+                  <div><p className="section-kicker">Place</p><CardTitle>Market ranking</CardTitle></div>
+                  <LabelledSelect label="Sort by" value={rankBy} onChange={(next) => setRankBy(next as RankKey)}>
+                    <NativeSelectOption value="growth">12-month growth</NativeSelectOption>
+                    <NativeSelectOption value="level">Current value</NativeSelectOption>
+                  </LabelledSelect>
+                </div>
+                <div className="rank-columns" aria-hidden="true">
+                  <span>#</span><span>Place</span><span>{currentMetricLabel}</span><span>Change from<br />one year earlier</span>
+                </div>
+              </CardHeader>
               <CardContent className="ranking-list">
-                {ranked.slice(0, 12).map((item, index) => (
+                {ranked.map((item, index) => (
                   <button key={item.region.id} onClick={() => selectPrimary(item.region.id)} className={item.region.id === primary?.id ? "rank-row active" : "rank-row"}>
                     <span className="rank-number">{index + 1}</span>
                     <span className="rank-name">{item.region.name}<small>{item.region.context}</small></span>
-                    <strong>{formatValue(item.level, item.unit, "level", true)}</strong>
+                    <strong>{formatValue(item.level, item.unit, "level")}</strong>
                     <span className={(item.yoy ?? 0) < 0 ? "negative" : "positive"}>{formatValue(item.yoy, item.unit, "yoy")}</span>
                   </button>
                 ))}
@@ -626,7 +937,7 @@ export default function MarketLab() {
 
           <section className={county === "Both" ? "maps-grid two" : "maps-grid"}>
             {(county === "Both" ? ["Orange County", "Los Angeles County"] : [county]).map((currentCounty) => (
-              <CountyMap key={currentCounty} county={currentCounty} mapData={maps[geography]} dataset={dataset} metric={metric} view={view} selectedId={primary?.id ?? ""} onSelect={selectPrimary} />
+              <CountyMap key={currentCounty} county={currentCounty} mapData={maps[geography]} dataset={dataset} metric={metric} metricLabel={currentMetricLabel} view={view} indexBaseMonth={indexBaseMonth} selectedId={primary?.id ?? ""} onSelect={selectPrimary} />
             ))}
           </section>
         </TabsContent>
@@ -646,7 +957,11 @@ export default function MarketLab() {
                 <NativeSelectOption value="yoy">Year-over-year change</NativeSelectOption>
                 <NativeSelectOption value="index">Indexed to 100</NativeSelectOption>
               </LabelledSelect>
+              {regionalView === "index" && (
+                <IndexBaseControl value={regionalIndexBaseMonth} dates={regionalDates} onChange={setRegionalIndexBaseRequest} />
+              )}
             </div>
+            <TimeRangeControl value={regionalTimeRange} onChange={setRegionalTimeRange} />
             <div className="metro-checks">
               {datasets.metro.regions.map((region) => {
                 const checked = regionalIds.includes(region.id);
@@ -655,8 +970,8 @@ export default function MarketLab() {
             </div>
           </section>
           <Card className="chart-card regional-chart">
-            <CardHeader className="chart-header"><div><p className="section-kicker">Metro comparison</p><CardTitle>{REGIONAL_METRICS.find((item) => item.key === regionalMetric)?.label}</CardTitle></div><p>Choose up to five metros</p></CardHeader>
-            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0"><SeriesChart dataset={datasets.metro} regions={regionalRegions} metric={regionalMetric} view={regionalView} /></CardContent>
+            <CardHeader className="chart-header"><div><p className="section-kicker">Metro comparison</p><CardTitle>{REGIONAL_METRICS.find((item) => item.key === regionalMetric)?.label}</CardTitle></div><p>{regionalView === "index" ? `${shortDate(`${regionalIndexBaseMonth}-01`)} = 100` : "Choose up to five metros"}</p></CardHeader>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0"><SeriesChart dataset={datasets.metro} regions={regionalRegions} metric={regionalMetric} view={regionalView} timeRange={regionalTimeRange} indexBaseMonth={regionalIndexBaseMonth} /></CardContent>
           </Card>
         </TabsContent>
 
@@ -666,23 +981,36 @@ export default function MarketLab() {
             <p>The project favors a curated teaching dataset over a mirror of every provider variable. Each release can be cited, reproduced, and retained if a future download fails.</p>
           </section>
           <section className="method-grid">
-            <Card><CardHeader><CardTitle>Measures</CardTitle></CardHeader><CardContent className="method-copy"><p><strong>ZHVI</strong> estimates the typical mid-tier home value. <strong>ZORI</strong> tracks typical observed asking rent. The price–rent multiple is ZHVI divided by twelve months of ZORI.</p><p>Year-over-year change uses the observation from twelve months earlier. Indexed views set the first available observation to 100.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Geographies</CardTitle></CardHeader><CardContent className="method-copy"><p>City/community and ZIP views retain Zillow’s market labels for Orange and Los Angeles counties. ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs.</p><p>Clicking the map changes the focus series; the chart and ranking use the provider’s data geography.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Measures</CardTitle></CardHeader><CardContent className="method-copy"><p><strong>ZHVI</strong> estimates the typical mid-tier home value. <strong>ZORI</strong> tracks typical observed asking rent. The price–rent multiple is ZHVI divided by twelve months of ZORI.</p><p>Year-over-year change compares each observation with the same month one year earlier. In indexed views, the user-selected starting month equals 100.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Geographies</CardTitle></CardHeader><CardContent className="method-copy"><p>City/community and ZIP views retain Zillow’s market labels for Orange and Los Angeles counties. ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs.</p><p>OpenStreetMap provides geographic context. Hovering or tapping shows the geography and measure; clicking changes the focus series.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Automation downloads source files into temporary storage, checks dates and minimum coverage, creates compact JSON, then advances a small <code>latest.json</code> pointer only after every validation succeeds.</p><p>If an update fails, the published site continues using the prior validated release.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Cost &amp; portability</CardTitle></CardHeader><CardContent className="method-copy"><p>The site is a static export: no database, server, paid API, account, or map-tile service. GitHub Actions performs periodic updates and GitHub Pages serves the files.</p><p>A 50 MB processed-data guardrail catches accidental growth before release.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Cost &amp; portability</CardTitle></CardHeader><CardContent className="method-copy"><p>The site is a static export with no database, application server, paid API, or paid map service. GitHub Actions performs periodic updates and GitHub Pages serves the files.</p><p>OpenStreetMap tiles are requested only for the map a visitor is viewing. A 50 MB processed-data guardrail catches accidental growth before release.</p></CardContent></Card>
           </section>
+          <Card className="disclaimer-card">
+            <CardHeader><CardTitle>Academic-use disclaimer</CardTitle></CardHeader>
+            <CardContent className="method-copy">
+              <p>This project is provided for instruction and academic research. It is not financial, investment, legal, valuation, or real-estate advice, and should not be relied on for transactions or commercial decision-making.</p>
+              <p>Third-party data remain subject to their providers’ licenses and terms. This project does not grant commercial-use rights to Zillow, Census, or OpenStreetMap data.</p>
+            </CardContent>
+          </Card>
           <Card className="provenance-card">
             <CardHeader><CardTitle>Current release provenance</CardTitle></CardHeader>
             <CardContent>
               <dl className="provenance-grid"><div><dt>Release</dt><dd>{manifest.release}</dd></div><div><dt>Created</dt><dd>{new Date(manifest.created_at).toLocaleString()}</dd></div><div><dt>Coverage</dt><dd>{manifest.counts.city} city/community · {manifest.counts.zip} ZIP · {manifest.counts.metro} metro</dd></div><div><dt>Bundle fingerprint</dt><dd><code>{manifest.bundle_sha256.slice(0, 16)}…</code></dd></div></dl>
-              <p className="attribution">{manifest.attribution}. This independent academic visualization is not endorsed by Zillow Group.</p>
-              <a className="source-link" href={manifest.data_page} target="_blank" rel="noreferrer">View Zillow Research source data <ExternalLink /></a>
+              <p className="attribution">{manifest.attribution}. Map data © OpenStreetMap contributors. This independent academic visualization is not endorsed by Zillow Group or OpenStreetMap.</p>
+              <div className="source-links">
+                <a className="source-link" href={manifest.data_page} target="_blank" rel="noreferrer">View Zillow Research source data <ExternalLink /></a>
+                <a className="source-link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">View OpenStreetMap attribution <ExternalLink /></a>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      <footer><p>Housing Market Lab · Built for transparent, exploratory teaching and research.</p><p>{manifest.attribution}</p></footer>
+      <footer>
+        <p>Created by Desen Lin, California State University, Fullerton.</p>
+        <p>For instruction and academic research · Not financial advice · Third-party data terms apply</p>
+      </footer>
     </main>
   );
 }

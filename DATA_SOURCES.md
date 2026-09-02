@@ -25,12 +25,18 @@ Values are rounded only in the compact published files: currency and counts to w
 - 2025 California Places, 1:500,000 cartographic boundary file
 - 2020 national ZCTAs, 1:500,000 cartographic boundary file
 
-The pipeline matches place names or five-digit ZCTA codes to provider regions and converts polygons into local SVG paths. ZCTAs approximate—but do not exactly reproduce—USPS delivery ZIP codes. Maps are selection and pattern-finding aids; the chart values come from the provider records, not from the boundary files.
+The pipeline matches place names or five-digit ZCTA codes to provider regions and publishes compact GeoJSON boundaries. ZCTAs approximate—but do not exactly reproduce—USPS delivery ZIP codes. Maps are selection and pattern-finding aids; the chart values come from the provider records, not from the boundary files.
+
+## OpenStreetMap
+
+The interactive maps request the standard OpenStreetMap tile layer at `https://tile.openstreetmap.org/{z}/{x}/{y}.png` only for the area and zoom level a visitor views. The application does not prefetch, scrape, proxy, or archive map tiles. Visible attribution is retained on every map.
+
+Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright). Tile use is subject to the [OpenStreetMap Foundation tile usage policy](https://operations.osmfoundation.org/policies/tiles/).
 
 ## Transformations
 
 - **Year over year:** `value[t] / value[t-12] - 1`
-- **Indexed:** `100 × value[t] / first_nonmissing_value`
+- **Indexed:** `100 × value[t] / value[user-selected starting month]`
 - **Price–rent multiple:** `ZHVI[t] / (12 × ZORI[t])`
 
 The derived price–rent multiple compares a typical value index with an observed-rent index. It is an educational market indicator, not a capitalization rate, investment return, or matched-property valuation.
@@ -40,3 +46,7 @@ The derived price–rent multiple compares a typical value index with an observe
 A release is rejected unless all required files download, date columns are ordered and sufficiently long, local coverage remains above conservative floors, and the processed public data remains under 50 MB. The prior `latest.json` pointer stays in place on failure.
 
 Data provided by Zillow Group. This repository does not redistribute the complete provider files.
+
+## Intended use and disclaimer
+
+The application and filtered releases are provided for instruction and noncommercial academic research. They are not financial, investment, legal, valuation, or real-estate advice and should not be used for transaction decisions. Third-party data remain subject to their respective licenses and terms; this repository does not grant commercial-use rights to provider data.
