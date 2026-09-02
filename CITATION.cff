@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this teaching project, please cite it as below."
+title: "Housing Market Lab"
+type: software
+authors:
+  - family-names: "Lin"
+    given-names: "Desen"
+repository-code: "https://github.com/desenlin/housing-market-lab"
+url: "https://desenlin.github.io/housing-market-lab/"
+license: MIT

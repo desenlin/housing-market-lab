@@ -1,0 +1,95 @@
+{
+  "data_page": "https://www.zillow.com/research/data/",
+  "counties": ["Orange County", "Los Angeles County"],
+  "metros": [
+    {"label": "Los Angeles", "match": "Los Angeles, CA"},
+    {"label": "Riverside", "match": "Riverside, CA"},
+    {"label": "San Diego", "match": "San Diego, CA"},
+    {"label": "San Francisco", "match": "San Francisco, CA"},
+    {"label": "San Jose", "match": "San Jose, CA"},
+    {"label": "Phoenix", "match": "Phoenix, AZ"},
+    {"label": "Austin", "match": "Austin, TX"}
+  ],
+  "sources": [
+    {
+      "id": "city_zhvi",
+      "metric": "zhvi",
+      "geography": "city",
+      "required": true,
+      "filename_regex": "City_zhvi_.*_sm_sa_month\\.csv$",
+      "last_url": "https://files.zillowstatic.com/research/public_csvs/zhvi/City_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
+    },
+    {
+      "id": "zip_zhvi",
+      "metric": "zhvi",
+      "geography": "zip",
+      "required": true,
+      "filename_regex": "Zip_zhvi_.*_sm_sa_month\\.csv$",
+      "last_url": "https://files.zillowstatic.com/research/public_csvs/zhvi/Zip_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
+    },
+    {
+      "id": "city_zori",
+      "metric": "zori",
+      "geography": "city",
+      "required": true,
+      "filename_regex": "City_zori_.*_sm_month\\.csv$",
+      "last_url": "https://files.zillowstatic.com/research/public_csvs/zori/City_zori_uc_sfrcondomfr_sm_month.csv"
+    },
+    {
+      "id": "zip_zori",
+      "metric": "zori",
+      "geography": "zip",
+      "required": true,
+      "filename_regex": "Zip_zori_.*_sm_month\\.csv$",
+      "last_url": "https://files.zillowstatic.com/research/public_csvs/zori/Zip_zori_uc_sfrcondomfr_sm_month.csv"
+    },
+    {
+      "id": "metro_zhvi",
+      "metric": "zhvi",
+      "geography": "metro",
+      "required": true,
+      "filename_regex": "Metro_zhvi_.*_sm_sa_month\\.csv$",
+      "last_url": "https://files.zillowstatic.com/research/public_csvs/zhvi/Metro_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
+    },
+    {
+      "id": "metro_zori",
+      "metric": "zori",
+      "geography": "metro",
+      "required": true,
+      "filename_regex": "Metro_zori_.*_sm_month\\.csv$",
+      "last_url": "https://files.zillowstatic.com/research/public_csvs/zori/Metro_zori_uc_sfrcondomfr_sm_month.csv"
+    },
+    {
+      "id": "metro_inventory",
+      "metric": "inventory",
+      "geography": "metro",
+      "required": true,
+      "filename_regex": "Metro_invt_fs_.*_sm_month\\.csv$",
+      "last_url": "https://files.zillowstatic.com/research/public_csvs/invt_fs/Metro_invt_fs_uc_sfrcondo_sm_month.csv"
+    },
+    {
+      "id": "metro_days_pending",
+      "metric": "days_pending",
+      "geography": "metro",
+      "required": true,
+      "filename_regex": "Metro_med_doz_pending_.*_sm_month\\.csv$",
+      "last_url": "https://files.zillowstatic.com/research/public_csvs/med_doz_pending/Metro_med_doz_pending_uc_sfrcondo_sm_month.csv"
+    },
+    {
+      "id": "metro_price_cut",
+      "metric": "price_cut_share",
+      "geography": "metro",
+      "required": true,
+      "filename_regex": "Metro_perc_listings_price_cut_.*_sm_month\\.csv$",
+      "last_url": "https://files.zillowstatic.com/research/public_csvs/perc_listings_price_cut/Metro_perc_listings_price_cut_uc_sfrcondo_sm_month.csv"
+    },
+    {
+      "id": "metro_sale_to_list",
+      "metric": "sale_to_list",
+      "geography": "metro",
+      "required": true,
+      "filename_regex": "Metro_mean_sale_to_list_.*_sm_month\\.csv$",
+      "last_url": "https://files.zillowstatic.com/research/public_csvs/mean_sale_to_list/Metro_mean_sale_to_list_uc_sfrcondo_sm_month.csv"
+    }
+  ]
+}
