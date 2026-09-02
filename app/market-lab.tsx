@@ -48,7 +48,7 @@ type Region = {
   name: string;
   county: string | null;
   context: string | null;
-  series: Record<string, Value[]>;
+  series: Record<string, Value[] | { o: number; v: Value[] }>;
 };
 
 type Dataset = {
@@ -124,23 +124,36 @@ function lastValue(values: Value[]) {
   return null;
 }
 
+function expandedSeries(series: Value[] | { o: number; v: Value[] } | undefined, length: number) {
+  if (!series) return [];
+  if (Array.isArray(series)) return series;
+  const values: Value[] = Array(length).fill(null);
+  series.v.forEach((value, index) => {
+    if (series.o + index < length) values[series.o + index] = value;
+  });
+  return values;
+}
+
 function metricSeries(dataset: Dataset, region: Region, metric: MetricKey) {
   if (metric !== "price_rent") {
+    const dates = dataset.metrics[metric]?.dates ?? [];
     return {
-      dates: dataset.metrics[metric]?.dates ?? [],
-      values: region.series[metric] ?? [],
+      dates,
+      values: expandedSeries(region.series[metric], dates.length),
       unit: dataset.metrics[metric]?.unit ?? "number",
     };
   }
   const rent = dataset.metrics.zori;
   const value = dataset.metrics.zhvi;
   if (!rent || !value) return { dates: [], values: [], unit: "multiple" };
-  const valueByDate = new Map(value.dates.map((date, index) => [date, region.series.zhvi?.[index]]));
+  const homeValues = expandedSeries(region.series.zhvi, value.dates.length);
+  const rents = expandedSeries(region.series.zori, rent.dates.length);
+  const valueByDate = new Map(value.dates.map((date, index) => [date, homeValues[index]]));
   return {
     dates: rent.dates,
     values: rent.dates.map((date, index) => {
       const homeValue = valueByDate.get(date);
-      const monthlyRent = region.series.zori?.[index];
+      const monthlyRent = rents[index];
       return homeValue != null && monthlyRent != null && monthlyRent > 0
         ? homeValue / (monthlyRent * 12)
         : null;

@@ -259,7 +259,18 @@ def combine_geography(
                     "series": {},
                 },
             )
-            target["series"][item["metric"]] = region["values"]
+            values = region["values"]
+            if geography == "zip":
+                start = next(index for index, value in enumerate(values) if value is not None)
+                end = len(values) - next(
+                    index for index, value in enumerate(reversed(values)) if value is not None
+                )
+                target["series"][item["metric"]] = {
+                    "o": start,
+                    "v": values[start:end],
+                }
+            else:
+                target["series"][item["metric"]] = values
     regions = sorted(
         region_map.values(),
         key=lambda item: ((item.get("county") or ""), item["name"]),
@@ -484,14 +495,20 @@ def main() -> None:
             print("No provider revisions or new observations; current release retained.")
             return
 
-        release_id = fetched_at.date().isoformat()
+        release_date = fetched_at.date().isoformat()
+        existing_ids = {
+            path.name for path in (PUBLIC_DATA / "releases").glob(f"{release_date}*")
+        }
+        if release_date not in existing_ids:
+            release_id = release_date
+        else:
+            suffixes = [
+                int(match.group(1))
+                for item in existing_ids
+                if (match := re.fullmatch(rf"{re.escape(release_date)}-r(\d+)", item))
+            ]
+            release_id = f"{release_date}-r{max(suffixes, default=1) + 1}"
         release_dir = PUBLIC_DATA / "releases" / release_id
-        if release_dir.exists():
-            suffix = 2
-            while (PUBLIC_DATA / "releases" / f"{release_id}-r{suffix}").exists():
-                suffix += 1
-            release_id = f"{release_id}-r{suffix}"
-            release_dir = PUBLIC_DATA / "releases" / release_id
 
         latest_by_metric = {
             item["id"]: source_manifest[item["id"]]["latest_observation"]

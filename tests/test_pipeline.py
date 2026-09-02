@@ -1,6 +1,6 @@
 import unittest
 
-from pipeline.update_data import compact_json, normalized_geography_name, parse_value
+from pipeline.update_data import combine_geography, compact_json, normalized_geography_name, parse_value
 
 
 class PipelineHelpersTest(unittest.TestCase):
@@ -18,6 +18,24 @@ class PipelineHelpersTest(unittest.TestCase):
             normalized_geography_name("La Cañada Flintridge"),
             normalized_geography_name("La Canada Flintridge"),
         )
+
+    def test_zip_series_trim_outer_missing_values(self):
+        payload = combine_geography(
+            "zip",
+            [{
+                "geography": "zip",
+                "metric": "zhvi",
+                "dates": ["2024-01-31", "2024-02-29", "2024-03-31", "2024-04-30"],
+                "regions": [{
+                    "id": "1",
+                    "name": "90001",
+                    "county": "Los Angeles County",
+                    "context": "Florence-Graham",
+                    "values": [None, 100, 101, None],
+                }],
+            }],
+        )
+        self.assertEqual(payload["regions"][0]["series"]["zhvi"], {"o": 1, "v": [100, 101]})
 
 
 if __name__ == "__main__":

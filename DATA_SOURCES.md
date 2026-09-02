@@ -20,6 +20,8 @@ Local filtering retains California observations whose `CountyName` is Orange Cou
 
 Values are rounded only in the compact published files: currency and counts to whole units, days to one decimal, and shares/ratios to five decimals.
 
+To keep static releases small enough for reliable academic hosting, ZIP series omit only leading and trailing missing values and retain a start offset. The application reconstructs those missing positions before any calculation; observed monthly values and interior gaps are unchanged.
+
 ## Census cartographic boundaries
 
 - 2025 California Places, 1:500,000 cartographic boundary file
