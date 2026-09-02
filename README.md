@@ -2,6 +2,8 @@
 
 A zero-cost, static housing-market data product for teaching and exploratory research. The first release focuses on city/community and ZIP-level data in Orange and Los Angeles counties, plus a concise metro comparison view.
 
+Live site: <https://desenlin.github.io/housing-market-lab/>
+
 ## What it shows
 
 - Zillow Home Value Index (ZHVI)
