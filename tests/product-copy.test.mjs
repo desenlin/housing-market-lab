@@ -12,6 +12,8 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /12-month growth/);
   assert.match(source, /Change from one year earlier/);
   assert.match(source, /https:\/\/tile\.openstreetmap\.org/);
+  assert.match(source, /Map color gradient/);
+  assert.match(source, /Orange and Los Angeles Counties/);
 });
 
 test("repository front page includes citation and academic-use limits", async () => {
@@ -20,4 +22,10 @@ test("repository front page includes citation and academic-use limits", async ()
   assert.match(readme, /## Academic-use disclaimer/);
   assert.match(readme, /not financial, investment, legal, valuation, or real-estate advice/i);
   assert.match(readme, /noncommercial academic-research use/i);
+  assert.match(readme, /\[Desen Lin\]\(https:\/\/desenlin\.com\/\)/);
+});
+
+test("uses the academic website Google Analytics property", async () => {
+  const layout = await readProjectFile("app/layout.tsx");
+  assert.match(layout, /G-MDGMSFPEH2/);
 });

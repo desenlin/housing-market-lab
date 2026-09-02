@@ -33,6 +33,7 @@ type MetricKey =
 type ViewKey = "level" | "yoy" | "index";
 type TimeRange = "1y" | "3y" | "5y" | "max";
 type RankKey = "growth" | "level";
+type MapPaletteKey = "navy" | "orange";
 
 type Metric = {
   dates: string[];
@@ -108,8 +109,10 @@ const REGIONAL_METRICS: { key: MetricKey; label: string }[] = [
   { key: "sale_to_list", label: "Mean sale-to-list ratio" },
 ];
 const COLORS = ["#ff7a1a", "#12355b", "#2f7d6d", "#9b4f96", "#c7a227"];
-const MAP_COLORS = ["#eff6ff", "#bfdbfe", "#60a5fa", "#2563eb", "#12355b"];
-const MAP_DIVERGING = ["#b5473c", "#e9a28d", "#f5f7f7", "#78b9ad", "#126b5b"];
+const MAP_PALETTES: Record<MapPaletteKey, string[]> = {
+  navy: ["#edf4fa", "#b9d2e5", "#74a8cc", "#2f6f9f", "#12355b"],
+  orange: ["#fff3e8", "#ffd2aa", "#f7a35c", "#df6b1c", "#913500"],
+};
 const TIME_RANGES: { key: TimeRange; label: string; months: number | null }[] = [
   { key: "1y", label: "1 year", months: 12 },
   { key: "3y", label: "3 years", months: 36 },
@@ -406,6 +409,8 @@ function CountyMap({
   indexBaseMonth,
   selectedId,
   onSelect,
+  paletteKey,
+  onPaletteChange,
 }: {
   county: string;
   mapData: MapData;
@@ -416,6 +421,8 @@ function CountyMap({
   indexBaseMonth: string;
   selectedId: string;
   onSelect: (id: string) => void;
+  paletteKey: MapPaletteKey;
+  onPaletteChange: (palette: MapPaletteKey) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
@@ -424,7 +431,25 @@ function CountyMap({
   const onSelectRef = useRef(onSelect);
   const lastFitKey = useRef("");
   const [mapReady, setMapReady] = useState(false);
-  const shapes = mapData.counties[county];
+  const shapes = useMemo(() => {
+    const countyNames = county === "Both" ? ["Orange County", "Los Angeles County"] : [county];
+    const groups = countyNames.map((name) => mapData.counties[name]);
+    return {
+      bounds: [
+        [
+          Math.min(...groups.map((group) => group.bounds[0][0])),
+          Math.min(...groups.map((group) => group.bounds[0][1])),
+        ],
+        [
+          Math.max(...groups.map((group) => group.bounds[1][0])),
+          Math.max(...groups.map((group) => group.bounds[1][1])),
+        ],
+      ] as [[number, number], [number, number]],
+      mapped: groups.reduce((total, group) => total + group.mapped, 0),
+      available: groups.reduce((total, group) => total + group.available, 0),
+      regions: groups.flatMap((group) => group.regions),
+    };
+  }, [county, mapData]);
   const dates = metricDates(dataset, metric);
 
   useEffect(() => {
@@ -445,6 +470,7 @@ function CountyMap({
         return {
           id: shape.id,
           name: shape.name,
+          county: region?.county ?? "",
           value: lastValue(transformed)?.value ?? null,
           yoy,
           unit: series?.unit ?? "number",
@@ -461,9 +487,9 @@ function CountyMap({
     .filter((value): value is number => value != null && Number.isFinite(value));
   const low = finite.length ? Math.min(...finite) : 0;
   const high = finite.length ? Math.max(...finite) : 0;
-  const palette = view === "yoy" ? MAP_DIVERGING : MAP_COLORS;
+  const palette = MAP_PALETTES[paletteKey];
   const fillById = useMemo(() => {
-    const currentPalette = view === "yoy" ? MAP_DIVERGING : MAP_COLORS;
+    const currentPalette = MAP_PALETTES[paletteKey];
     return new Map(values.map((item) => {
       const value = item.value;
       if (value == null || !Number.isFinite(value)) return [item.id, "#dce3e6"];
@@ -478,8 +504,9 @@ function CountyMap({
       );
       return [item.id, currentPalette[index]];
     }));
-  }, [high, low, values, view]);
+  }, [high, low, paletteKey, values, view]);
   const selected = valueById.get(selectedId);
+  const countyLabel = county === "Both" ? "Orange and Los Angeles Counties" : county;
   const geographyLabel = dataset.geography === "zip" ? "ZIP code" : "City/community";
   const viewLabel = view === "level"
     ? "current level"
@@ -551,7 +578,9 @@ function CountyMap({
         measure.textContent = `${geographyLabel} · ${formatValue(item?.value ?? null, item?.unit ?? "number", view)}`;
         const growth = document.createElement("span");
         growth.textContent = `Change from one year earlier: ${formatValue(item?.yoy ?? null, item?.unit ?? "number", "yoy")}`;
-        tooltip.append(name, measure, growth);
+        const location = document.createElement("span");
+        location.textContent = item?.county ?? "";
+        tooltip.append(name, location, measure, growth);
         layer.bindTooltip(tooltip, { sticky: true, direction: "top" });
         layer.on("click", () => onSelectRef.current(id));
       },
@@ -590,11 +619,21 @@ function CountyMap({
       <div className="map-heading">
         <div>
           <p className="section-kicker">Map · {geographyLabel}</p>
-          <h3>{county}</h3>
+          <h3>{countyLabel}</h3>
           <p><strong>{metricLabel}</strong> · {viewLabel} · {dates.length ? shortDate(dates.at(-1)!) : "latest observation"}</p>
         </div>
         <div className="map-tools">
-          <button type="button" onClick={resetMap}><RotateCcw /> Reset map</button>
+          <div className="map-actions">
+            <div className="map-palette" role="group" aria-label="Map color gradient">
+              <span>Color</span>
+              {(["navy", "orange"] as MapPaletteKey[]).map((option) => (
+                <button key={option} type="button" className={paletteKey === option ? "active" : ""} onClick={() => onPaletteChange(option)}>
+                  {option === "navy" ? "Navy" : "Orange"}
+                </button>
+              ))}
+            </div>
+            <button type="button" className="map-reset" onClick={resetMap}><RotateCcw /> Reset map</button>
+          </div>
           <span>
             {formatValue(low, values[0]?.unit ?? "number", view)}
             <i className="map-gradient" style={{ background: `linear-gradient(90deg, ${palette.join(",")})` }} />
@@ -605,7 +644,7 @@ function CountyMap({
       {selected && (
         <div className="map-selection" aria-live="polite">
           <strong>{selected.name}</strong>
-          <span>{geographyLabel}</span>
+          <span>{geographyLabel} · {selected.county}</span>
           <span>{metricLabel}: {formatValue(selected.value, selected.unit, view)}</span>
           <span>Change from one year earlier: {formatValue(selected.yoy, selected.unit, "yoy")}</span>
         </div>
@@ -614,7 +653,7 @@ function CountyMap({
         ref={containerRef}
         className="leaflet-map"
         role="region"
-        aria-label={`${county} ${geographyLabel.toLowerCase()} map of ${metricLabel.toLowerCase()}`}
+        aria-label={`${countyLabel} ${geographyLabel.toLowerCase()} map of ${metricLabel.toLowerCase()}`}
       />
       <p className="map-coverage">{shapes.mapped} mapped of {shapes.available} data regions. Hover or tap a boundary for details; click to update the focus series.</p>
     </div>
@@ -645,6 +684,7 @@ export default function MarketLab() {
   const [timeRange, setTimeRange] = useState<TimeRange>("max");
   const [indexBaseRequest, setIndexBaseRequest] = useState("2015-01");
   const [rankBy, setRankBy] = useState<RankKey>("growth");
+  const [mapPalette, setMapPalette] = useState<MapPaletteKey>("navy");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [addId, setAddId] = useState("");
   const [regionalMetric, setRegionalMetric] = useState<MetricKey>("zhvi");
@@ -692,6 +732,7 @@ export default function MarketLab() {
         const queryView = query.get("view");
         const queryRange = query.get("range");
         const queryBase = query.get("base");
+        const queryPalette = query.get("palette");
         const restoredGeo = queryGeo === "zip" ? "zip" : "city";
         const restoredCounty = COUNTY_OPTIONS.includes(queryCounty ?? "") ? queryCounty! : "Orange County";
         const restoredDataset = restoredGeo === "zip" ? (zip as Dataset) : (city as Dataset);
@@ -711,6 +752,7 @@ export default function MarketLab() {
         if (["level", "yoy", "index"].includes(queryView ?? "")) setView(queryView as ViewKey);
         if (["1y", "3y", "5y", "max"].includes(queryRange ?? "")) setTimeRange(queryRange as TimeRange);
         if (/^\d{4}-\d{2}$/.test(queryBase ?? "")) setIndexBaseRequest(queryBase!);
+        if (queryPalette === "navy" || queryPalette === "orange") setMapPalette(queryPalette);
         if (restoredIds.length) setSelectedIds(restoredIds);
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : "The data release could not be loaded.");
@@ -805,6 +847,7 @@ export default function MarketLab() {
     url.searchParams.set("view", view);
     url.searchParams.set("range", timeRange);
     if (view === "index") url.searchParams.set("base", indexBaseMonth);
+    url.searchParams.set("palette", mapPalette);
     url.searchParams.set("regions", selectedIds.join(","));
     await navigator.clipboard.writeText(url.toString());
     setCopied(true);
@@ -948,10 +991,8 @@ export default function MarketLab() {
             </Card>
           </section>
 
-          <section className={county === "Both" ? "maps-grid two" : "maps-grid"}>
-            {(county === "Both" ? ["Orange County", "Los Angeles County"] : [county]).map((currentCounty) => (
-              <CountyMap key={currentCounty} county={currentCounty} mapData={maps[geography]} dataset={dataset} metric={metric} metricLabel={currentMetricLabel} view={view} indexBaseMonth={indexBaseMonth} selectedId={primary?.id ?? ""} onSelect={selectPrimary} />
-            ))}
+          <section className="maps-grid">
+            <CountyMap county={county} mapData={maps[geography]} dataset={dataset} metric={metric} metricLabel={currentMetricLabel} view={view} indexBaseMonth={indexBaseMonth} selectedId={primary?.id ?? ""} onSelect={selectPrimary} paletteKey={mapPalette} onPaletteChange={setMapPalette} />
           </section>
         </TabsContent>
 

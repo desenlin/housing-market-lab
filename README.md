@@ -8,7 +8,7 @@ Interactive housing-market analytics for instruction and exploratory academic re
 
 **Live application:** <https://desenlin.com/housing-market-lab/>
 
-Created by **Desen Lin, California State University, Fullerton**.
+Created by **[Desen Lin](https://desenlin.com/)**, California State University, Fullerton.
 
 ## What the application provides
 
@@ -21,7 +21,7 @@ Created by **Desen Lin, California State University, Fullerton**.
 - Interactive OpenStreetMap context maps with pan, zoom, automatic county fitting, hover details, and selectable boundaries
 - Metro inventory, days to pending, price-cut share, and sale-to-list comparisons
 
-The application is a static Next.js/Vinext export. It uses no database, paid API, paid map service, analytics account, or continuously running server.
+The application is a static Next.js/Vinext export. It uses no database, paid API, paid map service, or continuously running server. Google Analytics measures aggregate traffic using the same property as the academic website.
 
 ## Data sources and references
 

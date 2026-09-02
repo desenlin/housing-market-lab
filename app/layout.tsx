@@ -12,6 +12,8 @@ export const metadata: Metadata = {
   },
 };
 
+const GOOGLE_ANALYTICS_ID = "G-MDGMSFPEH2";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -19,6 +21,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ANALYTICS_ID}`} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${GOOGLE_ANALYTICS_ID}');`,
+          }}
+        />
+      </head>
       <body className="antialiased">{children}</body>
     </html>
   );
