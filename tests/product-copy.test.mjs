@@ -14,6 +14,11 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /https:\/\/tile\.openstreetmap\.org/);
   assert.match(source, /Map color gradient/);
   assert.match(source, /Orange and Los Angeles Counties/);
+  assert.match(source, /Local market activity/);
+  assert.match(source, /Source: \{provider\}/);
+  assert.match(source, /Definition of \$\{label\}/);
+  assert.match(source, /rolling three-month window/i);
+  assert.match(source, /View Redfin Data Center/);
 });
 
 test("repository front page includes citation and academic-use limits", async () => {

@@ -22,6 +22,26 @@ Values are rounded only in the compact published files: currency and counts to w
 
 To keep static releases small enough for reliable academic hosting, ZIP series omit only leading and trailing missing values and retain a start offset. The application reconstructs those missing positions before any calculation; observed monthly values and interior gaps are unchanged.
 
+## Redfin Data Center
+
+The independent Redfin pipeline streams the official [Redfin Data Center downloads](https://www.redfin.com/news/data-center/downloads/) and follows Redfin's [Data Center methodology](https://www.redfin.com/news/data-center/methodology/). National source files are not committed. They are filtered against the lab's existing city/community and ZIP geography list for Orange and Los Angeles counties, then published under `public/data/redfin/` with a separate release pointer.
+
+Selected series:
+
+| Display measure | Redfin field | Interpretation | Change shown |
+|---|---|---|---|
+| Months of supply | `MONTHS OF SUPPLY` | Inventory relative to the recent closed-sales pace | Absolute months |
+| Median days on market | `MEDIAN DAYS ON MARKET (DAYS)` | Listing to contract speed | Absolute days |
+| Homes sold above original list | `SHARE SOLD ABOVE ORIGINAL LIST (%)` | Sale competition relative to the initial ask | Percentage points |
+| Active listings with price drops | `PERCENT ACTIVE WITH PRICE DROPS (%)` | Seller repricing among active listings | Percentage points |
+| Median sale price per square foot | `MEDIAN SALE PRICE PER SQ.FT. ($)` | Transaction price normalized by floor area | Percent |
+
+City and ZIP observations use Redfin's **rolling three-month** frequency. The period end date is used as the chart date. The pipeline starts in January 2018, which provides a pre-pandemic baseline while keeping scheduled national-file scans bounded.
+
+Redfin city names and ZIP codes are mapped to the already curated two-county geography records, but Zillow values are never used to calculate Redfin metrics. If Redfin exposes duplicate rows for the same place label and period, the pipeline selects the row with the larger activity count instead of summing medians or shares. A source schema change, date-order change, or material loss of coverage rejects only the prospective Redfin release.
+
+Redfin and Zillow activity variables should not be treated as interchangeable even when their labels resemble one another. They come from different listing feeds, record processing, geographic definitions, revision practices, and smoothing conventions. The interface therefore keeps provider badges and reporting windows visible.
+
 ## Census cartographic boundaries
 
 - 2025 California Places, 1:500,000 cartographic boundary file
@@ -37,7 +57,9 @@ Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright
 
 ## Transformations
 
-- **Year over year:** `value[t] / value[t-12] - 1`
+- **Percent change:** `value[t] / value[t-12] - 1`
+- **Absolute change:** `value[t] - value[t-12]` for days and months
+- **Percentage-point change:** `100 × (share[t] - share[t-12])`
 - **Indexed:** `100 × value[t] / value[user-selected starting month]`
 - **Price–rent multiple:** `ZHVI[t] / (12 × ZORI[t])`
 
@@ -45,9 +67,9 @@ The derived price–rent multiple compares a typical value index with an observe
 
 ## Release checks
 
-A release is rejected unless all required files download, date columns are ordered and sufficiently long, local coverage remains above conservative floors, and the processed public data remains under 50 MB. The prior `latest.json` pointer stays in place on failure.
+A provider release is rejected unless all required files stream or download, date columns are ordered and sufficiently long, local coverage remains above conservative floors, and processed public data stays under its size guardrail. Zillow and Redfin use independent versioned directories and `latest.json` pointers, so a failure retains the prior release for that provider.
 
-Data provided by Zillow Group. This repository does not redistribute the complete provider files.
+Data provided by Zillow Group and Redfin. This repository does not redistribute the complete provider files.
 
 ## Intended use and disclaimer
 

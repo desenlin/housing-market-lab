@@ -22,6 +22,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -38,11 +39,30 @@ jobs:
           python -m unittest discover tests
 
       - name: Refresh and validate provider data
-        if: github.event_name != 'push'
-        run: python pipeline/update_data.py
+        if: github.event_name != 'push' || hashFiles('public/data/redfin/latest.json') == ''
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            python pipeline/update_redfin.py
+            exit 0
+          fi
+          set +e
+          python pipeline/update_data.py
+          zillow_status=$?
+          python pipeline/update_redfin.py
+          redfin_status=$?
+          set -e
+          if [ "$zillow_status" -ne 0 ]; then
+            echo "::warning::Zillow refresh failed; retaining its prior validated release."
+          fi
+          if [ "$redfin_status" -ne 0 ]; then
+            echo "::warning::Redfin refresh failed; retaining its prior validated release."
+          fi
+          if [ "$zillow_status" -ne 0 ] && [ "$redfin_status" -ne 0 ]; then
+            exit 1
+          fi
 
       - name: Commit a successful data release
-        if: github.event_name != 'push'
+        if: github.event_name != 'push' || hashFiles('public/data/redfin/latest.json') == ''
         run: |
           if git diff --quiet -- public/data; then
             echo "No new provider observations."
@@ -50,7 +70,7 @@ jobs:
             git config user.name "housing-market-lab[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add public/data
-            git commit -m "data: publish validated Zillow release"
+            git commit -m "data: publish validated provider releases"
             git push
           fi
 

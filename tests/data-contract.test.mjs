@@ -45,3 +45,28 @@ test("metro comparison contains the intended unique markets", async () => {
     "San Jose",
   ]);
 });
+
+test("Redfin pointer resolves to an independent local activity release", async () => {
+  const latest = await readJson("redfin/latest.json");
+  const prefix = `redfin/releases/${latest.release}/`;
+  const [manifest, city, zip] = await Promise.all([
+    readJson(`${prefix}manifest.json`),
+    readJson(`${prefix}city.json`),
+    readJson(`${prefix}zip.json`),
+  ]);
+  assert.equal(manifest.provider, "Redfin");
+  assert.equal(manifest.frequency, "Rolling 3 Months");
+  assert.equal(city.regions.length, manifest.counts.city);
+  assert.equal(zip.regions.length, manifest.counts.zip);
+  assert.ok(city.regions.length >= 45);
+  assert.ok(zip.regions.length >= 160);
+  assert.deepEqual(Object.keys(city.metrics).sort(), [
+    "median_dom",
+    "median_sale_ppsf",
+    "months_supply",
+    "price_drop_share",
+    "sold_above_original_share",
+  ]);
+  assert.ok(Object.values(city.metrics).every((metric) => metric.provider === "Redfin"));
+  assert.ok(Object.values(city.metrics).every((metric) => metric.dates.length >= 60));
+});
