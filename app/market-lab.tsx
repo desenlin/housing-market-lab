@@ -770,7 +770,7 @@ export default function MarketLab() {
   const [timeRange, setTimeRange] = useState<TimeRange>("max");
   const [indexBaseRequest, setIndexBaseRequest] = useState("2015-01");
   const [rankBy, setRankBy] = useState<RankKey>("growth");
-  const [mapPalette, setMapPalette] = useState<MapPaletteKey>("navy");
+  const [mapPalette, setMapPalette] = useState<MapPaletteKey>("orange");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [addId, setAddId] = useState("");
   const [regionalMetric, setRegionalMetric] = useState<MetricKey>("zhvi");

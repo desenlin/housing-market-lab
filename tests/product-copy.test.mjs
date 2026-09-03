@@ -13,6 +13,7 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Change from one year earlier/);
   assert.match(source, /https:\/\/tile\.openstreetmap\.org/);
   assert.match(source, /Map color gradient/);
+  assert.match(source, /useState<MapPaletteKey>\("orange"\)/);
   assert.match(source, /Orange and Los Angeles Counties/);
   assert.match(source, /Local market activity/);
   assert.match(source, /Source: \{provider\}/);
