@@ -39,6 +39,7 @@ jobs:
           python -m unittest discover tests
 
       - name: Refresh and validate provider data
+        id: refresh
         if: github.event_name != 'push' || hashFiles('public/data/redfin/latest.json') == ''
         run: |
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
@@ -62,7 +63,7 @@ jobs:
           fi
 
       - name: Commit a successful data release
-        if: github.event_name != 'push' || hashFiles('public/data/redfin/latest.json') == ''
+        if: steps.refresh.outcome == 'success'
         run: |
           if git diff --quiet -- public/data; then
             echo "No new provider observations."
