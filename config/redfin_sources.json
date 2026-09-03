@@ -1,0 +1,88 @@
+{
+  "provider": "Redfin",
+  "data_page": "https://www.redfin.com/news/data-center/downloads/",
+  "methodology_page": "https://www.redfin.com/news/data-center/methodology/",
+  "source_root": "https://redfin-public-data.s3.us-west-2.amazonaws.com/redfin_data_center",
+  "start_date": "2018-01-01",
+  "counties": ["Orange County", "Los Angeles County"],
+  "max_source_bytes": 1300000000,
+  "sources": [
+    {
+      "key": "housing_city",
+      "geography": "city",
+      "path": "housing_market/monthly/all_cities.csv",
+      "metrics": ["months_supply", "median_dom", "sold_above_original_share", "median_sale_ppsf"],
+      "selection_weight": "HOMES SOLD"
+    },
+    {
+      "key": "housing_zip",
+      "geography": "zip",
+      "path": "housing_market/monthly/zips_in_top_50_metros.csv",
+      "metrics": ["months_supply", "median_dom", "sold_above_original_share", "median_sale_ppsf"],
+      "selection_weight": "HOMES SOLD"
+    },
+    {
+      "key": "price_drops_city",
+      "geography": "city",
+      "path": "price_drops/monthly/all_cities.csv",
+      "metrics": ["price_drop_share"],
+      "selection_weight": "PRICE DROPS"
+    },
+    {
+      "key": "price_drops_zip",
+      "geography": "zip",
+      "path": "price_drops/monthly/zips_in_top_50_metros.csv",
+      "metrics": ["price_drop_share"],
+      "selection_weight": "PRICE DROPS"
+    }
+  ],
+  "metrics": {
+    "months_supply": {
+      "field": "MONTHS OF SUPPLY",
+      "label": "Months of supply",
+      "short_label": "Supply",
+      "unit": "months",
+      "decimals": 1,
+      "change_mode": "difference",
+      "definition": "Active inventory divided by the average monthly pace of closed sales in Redfin's rolling three-month window."
+    },
+    "median_dom": {
+      "field": "MEDIAN DAYS ON MARKET (DAYS)",
+      "label": "Median days on market",
+      "short_label": "Days on market",
+      "unit": "days",
+      "decimals": 0,
+      "change_mode": "difference",
+      "definition": "Median number of days between the initial listing date and the date a home went under contract in Redfin's rolling three-month window."
+    },
+    "sold_above_original_share": {
+      "field": "SHARE SOLD ABOVE ORIGINAL LIST (%)",
+      "label": "Homes sold above original list",
+      "short_label": "Sold above list",
+      "unit": "share",
+      "decimals": 5,
+      "scale": 0.01,
+      "change_mode": "percentage_point",
+      "definition": "Share of closed sales whose sale price exceeded the home's original list price in Redfin's rolling three-month window."
+    },
+    "price_drop_share": {
+      "field": "PERCENT ACTIVE WITH PRICE DROPS (%)",
+      "label": "Active listings with price drops",
+      "short_label": "Price drops",
+      "unit": "share",
+      "decimals": 5,
+      "scale": 0.01,
+      "change_mode": "percentage_point",
+      "definition": "Share of active listings with at least one asking-price reduction during Redfin's rolling three-month window."
+    },
+    "median_sale_ppsf": {
+      "field": "MEDIAN SALE PRICE PER SQ.FT. ($)",
+      "label": "Median sale price per square foot",
+      "short_label": "Sale price per sq. ft.",
+      "unit": "usd_sqft",
+      "decimals": 0,
+      "change_mode": "percent",
+      "definition": "Median closed sale price divided by square footage for homes sold in Redfin's rolling three-month window."
+    }
+  }
+}

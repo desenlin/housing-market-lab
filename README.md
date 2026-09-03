@@ -14,6 +14,8 @@ Created by **[Desen Lin](https://desenlin.com/)**, California State University, 
 
 - Zillow Home Value Index (ZHVI) and Zillow Observed Rent Index (ZORI)
 - A derived price–rent multiple
+- Redfin months of supply, median days on market, sales above original list, price-drop share, and median sale price per square foot
+- Explicit source and reporting-window labels, with hover/focus definitions for market concepts
 - Current levels and explicitly labeled changes from one year earlier
 - User-selected one-, three-, and five-year or maximum chart windows
 - Indexed comparisons with a user-selected starting month
@@ -26,27 +28,28 @@ The application is a static Next.js/Vinext export. It uses no database, paid API
 ## Data sources and references
 
 - [Zillow Research housing data](https://www.zillow.com/research/data/) supplies the market time series.
+- [Redfin Data Center](https://www.redfin.com/news/data-center/downloads/) supplies local listing and transaction activity in rolling three-month windows.
 - [US Census Bureau cartographic boundary files](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html) supply place and ZCTA boundaries.
 - [OpenStreetMap](https://www.openstreetmap.org/copyright) supplies contextual basemap tiles. Map data © OpenStreetMap contributors.
 
-Definitions, transformations, boundary vintages, coverage rules, and provider caveats are documented in [DATA_SOURCES.md](DATA_SOURCES.md). Zillow data are redistributed only as compact, geographically filtered, chart-ready releases rather than complete source files.
+Definitions, transformations, boundary vintages, coverage rules, and provider caveats are documented in [DATA_SOURCES.md](DATA_SOURCES.md). Provider data are redistributed only as compact, geographically filtered, chart-ready releases rather than complete source files.
 
 ## Reproducible release architecture
 
 ```mermaid
 flowchart TD
-  A[Zillow Research CSVs] --> B[Python download and filters]
-  C[Census boundary files] --> B
-  B --> D{Validation passes?}
-  D -- Yes --> E[Versioned compact JSON]
-  D -- No --> F[Retain prior release]
+  A[Zillow Research] --> C[Zillow pipeline]
+  B[Redfin Data Center] --> D[Redfin pipeline]
+  C --> E[Zillow release pointer]
+  D --> F[Redfin release pointer]
   E --> G[Static interactive site]
-  G --> H[GitHub Pages]
+  F --> G
+  G --> H[GitHub Pages and Sites]
 ```
 
-Raw source files are temporary. Processed releases live in `public/data/releases/<release-id>/`; the application reads the release named by `public/data/latest.json`. The pointer changes only after every source, schema, coverage, mapping, and size check succeeds.
+Raw source files are temporary. Zillow releases live in `public/data/releases/<release-id>/`; Redfin releases live independently in `public/data/redfin/releases/<release-id>/`. Each provider has its own `latest.json` pointer, and a pointer changes only after that source's schema, date, coverage, and size checks succeed.
 
-The Pages workflow runs on pushes, manual dispatch, and two monthly refresh attempts. A failed provider download or validation does not replace the prior working release.
+The Pages workflow runs on pushes, manual dispatch, and two monthly refresh attempts. A failed provider download or validation does not replace that provider's prior working release or prevent the other provider from refreshing.
 
 ## Local development
 
@@ -56,10 +59,11 @@ Requirements: Node 24+, Python 3.11+, and npm.
 npm run install:ci
 python -m pip install -r requirements.txt
 python pipeline/update_data.py
+python pipeline/update_redfin.py
 npm run dev
 ```
 
-For repeated pipeline development, `--cache-dir .cache/zillow` reuses local downloads. Production refreshes intentionally download fresh source files.
+For repeated Zillow pipeline development, `--cache-dir .cache/zillow` reuses local downloads. The Redfin pipeline streams national CSVs and retains only configured dates and the two-county geography list; it never stores full raw downloads.
 
 Build and test:
 
@@ -83,10 +87,10 @@ GitHub also provides structured citation metadata from [CITATION.cff](CITATION.c
 
 This project is provided for instruction and academic research. It is not financial, investment, legal, valuation, or real-estate advice and should not be relied on for transactions or commercial decision-making.
 
-The filtered data releases are intended for instructional and noncommercial academic-research use. Zillow, Census, and OpenStreetMap data remain subject to their respective provider licenses and terms. This repository does not grant commercial-use rights to third-party data or imply endorsement by any provider or California State University, Fullerton.
+The filtered data releases are intended for instructional and noncommercial academic-research use. Zillow, Redfin, Census, and OpenStreetMap data remain subject to their respective provider licenses and terms. This repository does not grant commercial-use rights to third-party data or imply endorsement by any provider or California State University, Fullerton.
 
 ## Licenses and attribution
 
 The original software code in this repository is licensed under the [MIT License](LICENSE). Original educational content is licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/), unless otherwise noted. When reusing or adapting original project materials, credit Desen Lin and link to this repository.
 
-Third-party data, cartographic boundaries, institutional names, and trademarks are excluded from those licenses. Data provided by Zillow Group. Map data © OpenStreetMap contributors.
+Third-party data, cartographic boundaries, institutional names, and trademarks are excluded from those licenses. Data provided by Zillow Group and Redfin. Map data © OpenStreetMap contributors.

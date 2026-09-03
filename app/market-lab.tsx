@@ -7,7 +7,7 @@ import {
   Line,
   LineChart,
   ResponsiveContainer,
-  Tooltip,
+  Tooltip as ChartTooltip,
   XAxis,
   YAxis,
 } from "recharts";
@@ -20,6 +20,12 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type Value = number | null;
 type MetricKey =
@@ -29,8 +35,14 @@ type MetricKey =
   | "inventory"
   | "days_pending"
   | "price_cut_share"
-  | "sale_to_list";
+  | "sale_to_list"
+  | "months_supply"
+  | "median_dom"
+  | "sold_above_original_share"
+  | "price_drop_share"
+  | "median_sale_ppsf";
 type ViewKey = "level" | "yoy" | "index";
+type ChangeMode = "percent" | "difference" | "percentage_point";
 type TimeRange = "1y" | "3y" | "5y" | "max";
 type RankKey = "growth" | "level";
 type MapPaletteKey = "navy" | "orange";
@@ -42,6 +54,9 @@ type Metric = {
   unit: string;
   decimals: number;
   definition: string;
+  provider?: string;
+  frequency?: string;
+  change_mode?: ChangeMode;
 };
 
 type Region = {
@@ -94,6 +109,12 @@ type Manifest = {
   >;
 };
 
+type RedfinManifest = Manifest & {
+  methodology_page: string;
+  frequency: string;
+  start_date: string;
+};
+
 const COUNTY_OPTIONS = ["Orange County", "Los Angeles County", "Both"];
 const LOCAL_METRICS: { key: MetricKey; label: string }[] = [
   { key: "zhvi", label: "Typical home value" },
@@ -107,6 +128,13 @@ const REGIONAL_METRICS: { key: MetricKey; label: string }[] = [
   { key: "days_pending", label: "Median days to pending" },
   { key: "price_cut_share", label: "Listings with a price cut" },
   { key: "sale_to_list", label: "Mean sale-to-list ratio" },
+];
+const ACTIVITY_METRICS: { key: MetricKey; label: string }[] = [
+  { key: "months_supply", label: "Months of supply" },
+  { key: "median_dom", label: "Median days on market" },
+  { key: "sold_above_original_share", label: "Homes sold above original list" },
+  { key: "price_drop_share", label: "Active listings with price drops" },
+  { key: "median_sale_ppsf", label: "Median sale price per square foot" },
 ];
 const COLORS = ["#ff7a1a", "#12355b", "#2f7d6d", "#9b4f96", "#c7a227"];
 const MAP_PALETTES: Record<MapPaletteKey, string[]> = {
@@ -139,16 +167,19 @@ function expandedSeries(series: Value[] | { o: number; v: Value[] } | undefined,
 
 function metricSeries(dataset: Dataset, region: Region, metric: MetricKey) {
   if (metric !== "price_rent") {
-    const dates = dataset.metrics[metric]?.dates ?? [];
+    const metadata = dataset.metrics[metric];
+    const dates = metadata?.dates ?? [];
     return {
       dates,
       values: expandedSeries(region.series[metric], dates.length),
-      unit: dataset.metrics[metric]?.unit ?? "number",
+      unit: metadata?.unit ?? "number",
+      changeMode: metadata?.change_mode ??
+        (metadata?.unit === "share" ? "percentage_point" : metadata?.unit === "ratio" ? "difference" : "percent"),
     };
   }
   const rent = dataset.metrics.zori;
   const value = dataset.metrics.zhvi;
-  if (!rent || !value) return { dates: [], values: [], unit: "multiple" };
+  if (!rent || !value) return { dates: [], values: [], unit: "multiple", changeMode: "percent" as ChangeMode };
   const homeValues = expandedSeries(region.series.zhvi, value.dates.length);
   const rents = expandedSeries(region.series.zori, rent.dates.length);
   const valueByDate = new Map(value.dates.map((date, index) => [date, homeValues[index]]));
@@ -162,6 +193,7 @@ function metricSeries(dataset: Dataset, region: Region, metric: MetricKey) {
         : null;
     }),
     unit: "multiple",
+    changeMode: "percent" as ChangeMode,
   };
 }
 
@@ -170,14 +202,15 @@ function transformValues(
   view: ViewKey,
   dates: string[] = [],
   indexBaseMonth = "",
+  changeMode: ChangeMode = "percent",
 ): Value[] {
   if (view === "level") return values;
   if (view === "yoy") {
     return values.map((value, index) => {
       const prior = values[index - 12];
-      return value != null && prior != null && prior !== 0
-        ? value / prior - 1
-        : null;
+      if (value == null || prior == null) return null;
+      if (changeMode !== "percent") return value - prior;
+      return prior !== 0 ? value / prior - 1 : null;
     });
   }
   const requestedIndex = indexBaseMonth
@@ -212,9 +245,25 @@ function timeRangeStart(length: number, range: TimeRange) {
   return months == null ? 0 : Math.max(0, length - months);
 }
 
-function formatValue(value: number | null, unit: string, view: ViewKey, compact = false) {
+function formatValue(
+  value: number | null,
+  unit: string,
+  view: ViewKey,
+  compact = false,
+  changeMode: ChangeMode = "percent",
+) {
   if (value == null || Number.isNaN(value)) return "—";
-  if (view === "yoy") return `${(value * 100).toFixed(1)}%`;
+  if (view === "yoy") {
+    if (changeMode === "percentage_point") return `${value >= 0 ? "+" : ""}${(value * 100).toFixed(1)} pp`;
+    if (changeMode === "difference") {
+      const prefix = value >= 0 ? "+" : "";
+      if (unit === "months") return `${prefix}${value.toFixed(1)} months`;
+      if (unit === "days") return `${prefix}${value.toFixed(0)} days`;
+      if (unit === "ratio") return `${prefix}${value.toFixed(3)}`;
+      return `${prefix}${value.toFixed(1)}`;
+    }
+    return `${(value * 100).toFixed(1)}%`;
+  }
   if (view === "index") return value.toFixed(1);
   if (unit === "usd") {
     return new Intl.NumberFormat("en-US", {
@@ -225,10 +274,12 @@ function formatValue(value: number | null, unit: string, view: ViewKey, compact 
     }).format(value);
   }
   if (unit === "usd_month") return `$${Math.round(value).toLocaleString()}/mo`;
+  if (unit === "usd_sqft") return `$${Math.round(value).toLocaleString()}/sq. ft.`;
   if (unit === "share") return `${(value * 100).toFixed(1)}%`;
   if (unit === "ratio") return value.toFixed(3);
   if (unit === "multiple") return `${value.toFixed(1)}×`;
   if (unit === "days") return `${value.toFixed(0)} days`;
+  if (unit === "months") return `${value.toFixed(1)} months`;
   return Math.round(value).toLocaleString();
 }
 
@@ -326,14 +377,14 @@ function SeriesChart({
   indexBaseMonth: string;
 }) {
   const chart = useMemo(() => {
-    if (!regions.length) return { rows: [], unit: "number" };
+    if (!regions.length) return { rows: [], unit: "number", changeMode: "percent" as ChangeMode };
     const first = metricSeries(dataset, regions[0], metric);
     const series = regions.map((region) => {
       const current = metricSeries(dataset, region, metric);
       const byDate = new Map(
         current.dates.map((date, index) => [
           date,
-          transformValues(current.values, view, current.dates, indexBaseMonth)[index],
+          transformValues(current.values, view, current.dates, indexBaseMonth, current.changeMode)[index],
         ]),
       );
       return { region, byDate };
@@ -348,6 +399,7 @@ function SeriesChart({
       : 0;
     return {
       unit: first.unit,
+      changeMode: first.changeMode,
       rows: rows.slice(Math.max(rangeStart, indexStart)),
     };
   }, [dataset, regions, metric, view, timeRange, indexBaseMonth]);
@@ -367,15 +419,15 @@ function SeriesChart({
           />
           <YAxis
             width={78}
-            tickFormatter={(value) => formatValue(Number(value), chart.unit, view, true)}
+            tickFormatter={(value) => formatValue(Number(value), chart.unit, view, true, chart.changeMode)}
             tick={{ fill: "#627180", fontSize: 12 }}
             axisLine={false}
             tickLine={false}
           />
-          <Tooltip
+          <ChartTooltip
             labelFormatter={(date) => shortDate(String(date))}
             formatter={(value, name) => [
-              formatValue(Number(value), chart.unit, view),
+              formatValue(Number(value), chart.unit, view, false, chart.changeMode),
               regions.find((region) => region.id === String(name))?.name ?? String(name),
             ]}
             contentStyle={{ borderRadius: 8, borderColor: "#cbd6dc", boxShadow: "0 12px 30px #12355b20" }}
@@ -462,10 +514,10 @@ function CountyMap({
         const region = dataset.regions.find((item) => item.id === shape.id);
         const series = region ? metricSeries(dataset, region, metric) : null;
         const transformed = series
-          ? transformValues(series.values, view, series.dates, indexBaseMonth)
+          ? transformValues(series.values, view, series.dates, indexBaseMonth, series.changeMode)
           : [];
         const yoy = series
-          ? lastValue(transformValues(series.values, "yoy", series.dates))?.value ?? null
+          ? lastValue(transformValues(series.values, "yoy", series.dates, "", series.changeMode))?.value ?? null
           : null;
         return {
           id: shape.id,
@@ -474,6 +526,7 @@ function CountyMap({
           value: lastValue(transformed)?.value ?? null,
           yoy,
           unit: series?.unit ?? "number",
+          changeMode: series?.changeMode ?? "percent",
         };
       }),
     [dataset, indexBaseMonth, metric, shapes.regions, view],
@@ -575,9 +628,9 @@ function CountyMap({
         const name = document.createElement("strong");
         name.textContent = item?.name ?? String(feature.properties?.name ?? id);
         const measure = document.createElement("span");
-        measure.textContent = `${geographyLabel} · ${formatValue(item?.value ?? null, item?.unit ?? "number", view)}`;
+        measure.textContent = `${geographyLabel} · ${formatValue(item?.value ?? null, item?.unit ?? "number", view, false, item?.changeMode)}`;
         const growth = document.createElement("span");
-        growth.textContent = `Change from one year earlier: ${formatValue(item?.yoy ?? null, item?.unit ?? "number", "yoy")}`;
+        growth.textContent = `Change from one year earlier: ${formatValue(item?.yoy ?? null, item?.unit ?? "number", "yoy", false, item?.changeMode)}`;
         const location = document.createElement("span");
         location.textContent = item?.county ?? "";
         tooltip.append(name, location, measure, growth);
@@ -635,9 +688,9 @@ function CountyMap({
             <button type="button" className="map-reset" onClick={resetMap}><RotateCcw /> Reset map</button>
           </div>
           <span>
-            {formatValue(low, values[0]?.unit ?? "number", view)}
+            {formatValue(low, values[0]?.unit ?? "number", view, false, values[0]?.changeMode)}
             <i className="map-gradient" style={{ background: `linear-gradient(90deg, ${palette.join(",")})` }} />
-            {formatValue(high, values[0]?.unit ?? "number", view)}
+            {formatValue(high, values[0]?.unit ?? "number", view, false, values[0]?.changeMode)}
           </span>
         </div>
       </div>
@@ -645,8 +698,8 @@ function CountyMap({
         <div className="map-selection" aria-live="polite">
           <strong>{selected.name}</strong>
           <span>{geographyLabel} · {selected.county}</span>
-          <span>{metricLabel}: {formatValue(selected.value, selected.unit, view)}</span>
-          <span>Change from one year earlier: {formatValue(selected.yoy, selected.unit, "yoy")}</span>
+          <span>{metricLabel}: {formatValue(selected.value, selected.unit, view, false, selected.changeMode)}</span>
+          <span>Change from one year earlier: {formatValue(selected.yoy, selected.unit, "yoy", false, selected.changeMode)}</span>
         </div>
       )}
       <div
@@ -660,11 +713,41 @@ function CountyMap({
   );
 }
 
-function Kpi({ label, value, note }: { label: string; value: string; note: string }) {
+function DefinitionHelp({ label, definition }: { label: string; definition: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        aria-label={`Definition of ${label}`}
+        className="definition-help"
+        type="button"
+      >
+        ?
+      </TooltipTrigger>
+      <TooltipContent className="definition-tooltip" sideOffset={6}>
+        {definition}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+function MetricHeading({ metric, fallback }: { metric?: Metric; fallback: string }) {
+  return (
+    <span className="metric-heading">
+      {metric?.label ?? fallback}
+      {metric?.definition && <DefinitionHelp label={metric.label} definition={metric.definition} />}
+    </span>
+  );
+}
+
+function SourceBadge({ provider, frequency }: { provider: string; frequency?: string }) {
+  return <span className={`source-badge ${provider.toLowerCase()}`}>Source: {provider}{frequency ? ` · ${frequency}` : ""}</span>;
+}
+
+function Kpi({ label, value, note, definition }: { label: string; value: string; note: string; definition?: string }) {
   return (
     <Card className="kpi-card">
       <CardContent className="p-4">
-        <p className="kpi-label">{label}</p>
+        <p className="kpi-label">{label}{definition && <DefinitionHelp label={label} definition={definition} />}</p>
         <p className="kpi-value">{value}</p>
         <p className="kpi-note">{note}</p>
       </CardContent>
@@ -674,8 +757,11 @@ function Kpi({ label, value, note }: { label: string; value: string; note: strin
 
 export default function MarketLab() {
   const [datasets, setDatasets] = useState<Record<string, Dataset> | null>(null);
+  const [activityDatasets, setActivityDatasets] = useState<Record<string, Dataset> | null>(null);
   const [maps, setMaps] = useState<Record<string, MapData> | null>(null);
   const [manifest, setManifest] = useState<Manifest | null>(null);
+  const [redfinManifest, setRedfinManifest] = useState<RedfinManifest | null>(null);
+  const [activityError, setActivityError] = useState("");
   const [error, setError] = useState("");
   const [geography, setGeography] = useState<"city" | "zip">("city");
   const [county, setCounty] = useState("Orange County");
@@ -693,6 +779,10 @@ export default function MarketLab() {
   const [regionalIndexBaseRequest, setRegionalIndexBaseRequest] = useState("2015-01");
   const [regionalIds, setRegionalIds] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
+  const [activityMetric, setActivityMetric] = useState<MetricKey>("months_supply");
+  const [activityView, setActivityView] = useState<Exclude<ViewKey, "index">>("level");
+  const [activityTimeRange, setActivityTimeRange] = useState<TimeRange>("5y");
+  const [activityRankBy, setActivityRankBy] = useState<RankKey>("growth");
 
   useEffect(() => {
     const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -714,6 +804,22 @@ export default function MarketLab() {
         setDatasets({ city, zip, metro });
         setMaps({ city: mapCity, zip: mapZip });
         setManifest(releaseManifest);
+        try {
+          const redfinPointer = await fetch(`${base}/data/redfin/latest.json`).then((response) => {
+            if (!response.ok) throw new Error("No validated Redfin release was found.");
+            return response.json() as Promise<{ release: string }>;
+          });
+          const redfinBase = `${base}/data/redfin/releases/${redfinPointer.release}`;
+          const [redfinCity, redfinZip, redfinReleaseManifest] = await Promise.all([
+            fetch(`${redfinBase}/city.json`).then((response) => response.json()),
+            fetch(`${redfinBase}/zip.json`).then((response) => response.json()),
+            fetch(`${redfinBase}/manifest.json`).then((response) => response.json()),
+          ]);
+          setActivityDatasets({ city: redfinCity, zip: redfinZip });
+          setRedfinManifest(redfinReleaseManifest);
+        } catch (caught) {
+          setActivityError(caught instanceof Error ? caught.message : "The Redfin activity release could not be loaded.");
+        }
         const orangeCities = (city as Dataset).regions.filter((region) => region.county === "Orange County");
         const defaults = ["Fullerton", "Irvine", "Anaheim"]
           .map((name) => orangeCities.find((region) => region.name === name)?.id)
@@ -805,6 +911,58 @@ export default function MarketLab() {
   const rank = primary ? ranked.findIndex((item) => item.region.id === primary.id) + 1 : 0;
   const unit = primarySeries?.unit ?? "number";
 
+  const activityDataset = activityDatasets?.[geography];
+  const activityDates = activityDataset ? metricDates(activityDataset, activityMetric) : [];
+  const activityEligible = useMemo(
+    () => activityDataset?.regions.filter((region) => county === "Both" || region.county === county) ?? [],
+    [activityDataset, county],
+  );
+  const activitySelectedRegions = (() => {
+    const selected = selectedIds
+      .map((id) => activityEligible.find((region) => region.id === id))
+      .filter((region): region is Region => Boolean(region));
+    return selected.length ? selected : activityEligible.slice(0, 1);
+  })();
+  const activityPrimary = activitySelectedRegions[0];
+  const activityPrimarySeries = activityDataset && activityPrimary
+    ? metricSeries(activityDataset, activityPrimary, activityMetric)
+    : null;
+  const activityLast = activityPrimarySeries ? lastValue(activityPrimarySeries.values) : null;
+  const activityYoy = activityPrimarySeries
+    ? lastValue(transformValues(
+        activityPrimarySeries.values,
+        "yoy",
+        activityPrimarySeries.dates,
+        "",
+        activityPrimarySeries.changeMode,
+      ))
+    : null;
+  const activityFiveYear = (() => {
+    if (!activityPrimarySeries || !activityLast) return null;
+    const prior = activityPrimarySeries.values[activityLast.index - 60];
+    if (prior == null) return null;
+    return activityPrimarySeries.changeMode === "percent"
+      ? (prior !== 0 ? activityLast.value / prior - 1 : null)
+      : activityLast.value - prior;
+  })();
+  const activityRanked = useMemo(() => {
+    if (!activityDataset) return [];
+    return activityEligible
+      .map((region) => {
+        const series = metricSeries(activityDataset, region, activityMetric);
+        const level = lastValue(series.values)?.value ?? null;
+        const yoy = lastValue(transformValues(series.values, "yoy", series.dates, "", series.changeMode))?.value ?? null;
+        return { region, level, yoy, unit: series.unit, changeMode: series.changeMode };
+      })
+      .filter((item) => item.level != null)
+      .sort((a, b) => activityRankBy === "growth"
+        ? (b.yoy ?? -Infinity) - (a.yoy ?? -Infinity)
+        : (b.level ?? -Infinity) - (a.level ?? -Infinity));
+  }, [activityDataset, activityEligible, activityMetric, activityRankBy]);
+  const activityRank = activityPrimary
+    ? activityRanked.findIndex((item) => item.region.id === activityPrimary.id) + 1
+    : 0;
+
   function changeGeography(next: string) {
     if (!datasets) return;
     const nextGeo = next as "city" | "zip";
@@ -862,11 +1020,26 @@ export default function MarketLab() {
   }
 
   const currentMetricLabel = LOCAL_METRICS.find((item) => item.key === metric)?.label ?? metric;
+  const currentMetricMetadata = metric === "price_rent"
+    ? {
+        dates: localDates,
+        label: "Price–rent multiple",
+        short_label: "Price–rent",
+        unit: "multiple",
+        decimals: 1,
+        definition: "Typical Zillow home value divided by twelve months of typical Zillow observed asking rent. It is not a capitalization rate or investment return.",
+        provider: "Zillow-derived",
+        frequency: "Monthly",
+      }
+    : dataset.metrics[metric];
+  const activityMetricMetadata = activityDataset?.metrics[activityMetric];
+  const regionalMetricMetadata = datasets.metro.metrics[regionalMetric];
   const regionalRegions = regionalIds
     .map((id) => datasets.metro.regions.find((region) => region.id === id))
     .filter((region): region is Region => Boolean(region));
 
   return (
+    <TooltipProvider delayDuration={120}>
     <main>
       <header className="site-header">
         <div className="header-inner">
@@ -887,12 +1060,14 @@ export default function MarketLab() {
       <Tabs defaultValue="local" className="page-shell">
         <TabsList variant="line" className="main-tabs" aria-label="Dashboard sections">
           <TabsTrigger value="local">Local explorer</TabsTrigger>
+          <TabsTrigger value="activity">Local market activity</TabsTrigger>
           <TabsTrigger value="regional">Regional cycle</TabsTrigger>
           <TabsTrigger value="methods">Data &amp; methods</TabsTrigger>
         </TabsList>
 
         <TabsContent value="local" className="space-y-5">
           <section className="control-deck" aria-label="Local market controls">
+            <div className="source-strip"><SourceBadge provider={currentMetricMetadata.provider ?? "Zillow"} frequency={currentMetricMetadata.frequency ?? "Monthly"} /><span>Values and rents</span></div>
             <div className="control-grid">
               <LabelledSelect label="County" value={county} onChange={changeCounty}>
                 {COUNTY_OPTIONS.map((option) => <NativeSelectOption key={option} value={option}>{option}</NativeSelectOption>)}
@@ -935,7 +1110,7 @@ export default function MarketLab() {
           </section>
 
           <section className="kpi-grid" aria-label="Current market summary">
-            <Kpi label={currentMetricLabel} value={formatValue(primaryLast?.value ?? null, unit, "level")} note={primaryLast ? `As of ${shortDate(primarySeries!.dates[primaryLast.index])}` : "No observation"} />
+            <Kpi label={currentMetricLabel} definition={currentMetricMetadata.definition} value={formatValue(primaryLast?.value ?? null, unit, "level")} note={primaryLast ? `As of ${shortDate(primarySeries!.dates[primaryLast.index])}` : "No observation"} />
             <Kpi label="Year over year" value={formatValue(primaryYoy?.value ?? null, unit, "yoy")} note="Versus the same month one year ago" />
             <Kpi label="Five-year change" value={formatValue(fiveYear, unit, "yoy")} note="Longer view of the recent cycle" />
             <Kpi
@@ -948,7 +1123,7 @@ export default function MarketLab() {
           <section className="analysis-grid">
             <Card className="chart-card">
               <CardHeader className="chart-header">
-                <div><p className="section-kicker">Time</p><CardTitle>{currentMetricLabel}</CardTitle></div>
+                <div><p className="section-kicker">Time</p><CardTitle><MetricHeading metric={currentMetricMetadata} fallback={currentMetricLabel} /></CardTitle></div>
                 <div className="chart-options">
                   <TimeRangeControl value={timeRange} onChange={setTimeRange} />
                   {view === "index" && (
@@ -996,12 +1171,138 @@ export default function MarketLab() {
           </section>
         </TabsContent>
 
+        <TabsContent value="activity" className="space-y-5">
+          {activityError || !activityDataset || !redfinManifest || !activityMetricMetadata ? (
+            <Card className="disclaimer-card">
+              <CardHeader><CardTitle>Market activity is temporarily unavailable</CardTitle></CardHeader>
+              <CardContent className="method-copy"><p>{activityError || "The latest Redfin release has not finished loading."} Zillow value and rent views remain available.</p></CardContent>
+            </Card>
+          ) : (
+            <>
+              <section className="regional-intro activity-intro">
+                <div><p className="section-kicker">Listings and transactions</p><h2>How quickly is the local market moving?</h2></div>
+                <p>Redfin adds city- and ZIP-level supply, speed, competition, repricing, and sale-price signals. Each observation is a rolling three-month window, so the change view compares it with the same three-month window one year earlier.</p>
+              </section>
+              <section className="control-deck" aria-label="Local market activity controls">
+                <div className="source-strip"><SourceBadge provider="Redfin" frequency={redfinManifest.frequency} /><span>Data through {shortDate(activityDates.at(-1) ?? redfinManifest.release)}</span></div>
+                <div className="control-grid activity-controls">
+                  <LabelledSelect label="County" value={county} onChange={changeCounty}>
+                    {COUNTY_OPTIONS.map((option) => <NativeSelectOption key={option} value={option}>{option}</NativeSelectOption>)}
+                  </LabelledSelect>
+                  <LabelledSelect label="Geography" value={geography} onChange={changeGeography}>
+                    <NativeSelectOption value="city">Cities &amp; communities</NativeSelectOption>
+                    <NativeSelectOption value="zip">ZIP codes</NativeSelectOption>
+                  </LabelledSelect>
+                  <LabelledSelect label="Metric" value={activityMetric} onChange={(next) => setActivityMetric(next as MetricKey)}>
+                    {ACTIVITY_METRICS.map((option) => <NativeSelectOption key={option.key} value={option.key}>{option.label}</NativeSelectOption>)}
+                  </LabelledSelect>
+                  <LabelledSelect label="View" value={activityView} onChange={(next) => setActivityView(next as Exclude<ViewKey, "index">)}>
+                    <NativeSelectOption value="level">Level</NativeSelectOption>
+                    <NativeSelectOption value="yoy">Change from one year earlier</NativeSelectOption>
+                  </LabelledSelect>
+                </div>
+                <div className="comparison-row">
+                  <label className="control-label comparison-select">
+                    <span>Add a comparison (up to five)</span>
+                    <NativeSelect value={addId} onChange={(event) => setAddId(event.target.value)} className="w-full">
+                      <NativeSelectOption value="">Choose a region…</NativeSelectOption>
+                      {activityEligible.filter((region) => !selectedIds.includes(region.id)).map((region) => (
+                        <NativeSelectOption key={region.id} value={region.id}>{region.name}{region.context ? ` · ${region.context}` : ""}</NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </label>
+                  <Button variant="outline" onClick={addRegion} disabled={!addId || selectedIds.length >= 5}><Plus /> Add</Button>
+                </div>
+                <div className="chips" aria-label="Selected activity regions">
+                  {activitySelectedRegions.map((region, index) => (
+                    <button key={region.id} className={index === 0 ? "chip primary" : "chip"} onClick={() => selectPrimary(region.id)}>
+                      <i style={{ background: COLORS[index % COLORS.length] }} />
+                      {region.name}{index === 0 ? " · focus" : ""}
+                      {index > 0 && <X onClick={(event) => { event.stopPropagation(); setSelectedIds((ids) => ids.filter((id) => id !== region.id)); }} />}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="kpi-grid" aria-label="Current local market activity summary">
+                <Kpi
+                  label={activityMetricMetadata.label}
+                  definition={activityMetricMetadata.definition}
+                  value={formatValue(activityLast?.value ?? null, activityPrimarySeries?.unit ?? "number", "level")}
+                  note={activityLast ? `Rolling window ending ${shortDate(activityPrimarySeries!.dates[activityLast.index])}` : "No observation"}
+                />
+                <Kpi
+                  label="Change from one year earlier"
+                  value={formatValue(activityYoy?.value ?? null, activityPrimarySeries?.unit ?? "number", "yoy", false, activityPrimarySeries?.changeMode)}
+                  note="Versus the same rolling three-month window"
+                />
+                <Kpi
+                  label="Five-year change"
+                  value={formatValue(activityFiveYear, activityPrimarySeries?.unit ?? "number", "yoy", false, activityPrimarySeries?.changeMode)}
+                  note="Pre- and post-pandemic market context"
+                />
+                <Kpi
+                  label={`${county === "Both" ? "Two-county" : county.replace(" County", "")} rank`}
+                  value={activityRank ? `${activityRank} of ${activityRanked.length}` : "—"}
+                  note={activityRankBy === "growth" ? "Ranked by change from one year earlier" : `Ranked by current ${activityMetricMetadata.label.toLowerCase()}`}
+                />
+              </section>
+
+              <section className="analysis-grid">
+                <Card className="chart-card">
+                  <CardHeader className="chart-header">
+                    <div><p className="section-kicker">Local activity</p><CardTitle><MetricHeading metric={activityMetricMetadata} fallback={activityMetricMetadata.label} /></CardTitle></div>
+                    <div className="chart-options">
+                      <TimeRangeControl value={activityTimeRange} onChange={setActivityTimeRange} />
+                      <p>{activityView === "level" ? "Rolling three-month level" : "Change from the same window one year earlier"}</p>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-3 pt-0 sm:p-5 sm:pt-0">
+                    <SeriesChart dataset={activityDataset} regions={activitySelectedRegions} metric={activityMetric} view={activityView} timeRange={activityTimeRange} indexBaseMonth="" />
+                    <p className="data-note">Redfin may revise recent observations. Thin local markets can be volatile even after three-month smoothing.</p>
+                  </CardContent>
+                </Card>
+
+                <Card className="ranking-card">
+                  <CardHeader>
+                    <div className="ranking-title">
+                      <div><p className="section-kicker">Place</p><CardTitle>Market activity ranking</CardTitle></div>
+                      <LabelledSelect label="Sort by" value={activityRankBy} onChange={(next) => setActivityRankBy(next as RankKey)}>
+                        <NativeSelectOption value="growth">Change from one year earlier</NativeSelectOption>
+                        <NativeSelectOption value="level">Current level</NativeSelectOption>
+                      </LabelledSelect>
+                    </div>
+                    <div className="rank-columns" aria-hidden="true">
+                      <span>#</span><span>Place</span><span>{activityMetricMetadata.short_label}</span><span>Change from<br />one year earlier</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="ranking-list">
+                    {activityRanked.map((item, index) => (
+                      <button key={item.region.id} onClick={() => selectPrimary(item.region.id)} className={item.region.id === activityPrimary?.id ? "rank-row active" : "rank-row"}>
+                        <span className="rank-number">{index + 1}</span>
+                        <span className="rank-name">{item.region.name}<small>{item.region.context}</small></span>
+                        <strong>{formatValue(item.level, item.unit, "level")}</strong>
+                        <span className={(item.yoy ?? 0) < 0 ? "negative" : "positive"}>{formatValue(item.yoy, item.unit, "yoy", false, item.changeMode)}</span>
+                      </button>
+                    ))}
+                  </CardContent>
+                </Card>
+              </section>
+
+              <section className="maps-grid">
+                <CountyMap county={county} mapData={maps[geography]} dataset={activityDataset} metric={activityMetric} metricLabel={activityMetricMetadata.label} view={activityView} indexBaseMonth="" selectedId={activityPrimary?.id ?? ""} onSelect={selectPrimary} paletteKey={mapPalette} onPaletteChange={setMapPalette} />
+              </section>
+            </>
+          )}
+        </TabsContent>
+
         <TabsContent value="regional" className="space-y-5">
           <section className="regional-intro">
             <div><p className="section-kicker">Context</p><h2>How does Los Angeles fit into the housing cycle?</h2></div>
             <p>Compare a consistent set of Western and high-growth metros. These metro-level measures add market liquidity and competition signals that are not consistently available for every city or ZIP.</p>
           </section>
           <section className="control-deck">
+            <div className="source-strip"><SourceBadge provider="Zillow" frequency="Monthly" /><span>Metro comparison</span></div>
             <div className="control-grid regional-controls">
               <LabelledSelect label="Metric" value={regionalMetric} onChange={(next) => setRegionalMetric(next as MetricKey)}>
                 {REGIONAL_METRICS.map((option) => <NativeSelectOption key={option.key} value={option.key}>{option.label}</NativeSelectOption>)}
@@ -1024,7 +1325,7 @@ export default function MarketLab() {
             </div>
           </section>
           <Card className="chart-card regional-chart">
-            <CardHeader className="chart-header"><div><p className="section-kicker">Metro comparison</p><CardTitle>{REGIONAL_METRICS.find((item) => item.key === regionalMetric)?.label}</CardTitle></div><p>{regionalView === "index" ? `${shortDate(`${regionalIndexBaseMonth}-01`)} = 100` : "Choose up to five metros"}</p></CardHeader>
+            <CardHeader className="chart-header"><div><p className="section-kicker">Metro comparison</p><CardTitle><MetricHeading metric={regionalMetricMetadata} fallback={REGIONAL_METRICS.find((item) => item.key === regionalMetric)?.label ?? regionalMetric} /></CardTitle></div><p>{regionalView === "index" ? `${shortDate(`${regionalIndexBaseMonth}-01`)} = 100` : "Choose up to five metros"}</p></CardHeader>
             <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0"><SeriesChart dataset={datasets.metro} regions={regionalRegions} metric={regionalMetric} view={regionalView} timeRange={regionalTimeRange} indexBaseMonth={regionalIndexBaseMonth} /></CardContent>
           </Card>
         </TabsContent>
@@ -1035,25 +1336,28 @@ export default function MarketLab() {
             <p>The project favors a curated teaching dataset over a mirror of every provider variable. Each release can be cited, reproduced, and retained if a future download fails.</p>
           </section>
           <section className="method-grid">
-            <Card><CardHeader><CardTitle>Measures</CardTitle></CardHeader><CardContent className="method-copy"><p><strong>ZHVI</strong> estimates the typical mid-tier home value. <strong>ZORI</strong> tracks typical observed asking rent. The price–rent multiple is ZHVI divided by twelve months of ZORI.</p><p>Year-over-year change compares each observation with the same month one year earlier. In indexed views, the user-selected starting month equals 100.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Geographies</CardTitle></CardHeader><CardContent className="method-copy"><p>City/community and ZIP views retain Zillow’s market labels for Orange and Los Angeles counties. ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs.</p><p>OpenStreetMap provides geographic context. Hovering or tapping shows the geography and measure; clicking changes the focus series.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Automation downloads source files into temporary storage, checks dates and minimum coverage, creates compact JSON, then advances a small <code>latest.json</code> pointer only after every validation succeeds.</p><p>If an update fails, the published site continues using the prior validated release.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Zillow measures</CardTitle></CardHeader><CardContent className="method-copy"><p><strong>ZHVI</strong> estimates the typical mid-tier home value. <strong>ZORI</strong> tracks typical observed asking rent. The price–rent multiple is ZHVI divided by twelve months of ZORI.</p><p>Monthly year-over-year change compares each observation with the same month one year earlier. In indexed views, the user-selected starting month equals 100.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Redfin activity measures</CardTitle></CardHeader><CardContent className="method-copy"><p>Redfin supplies months of supply, median days on market, the share sold above original list, the share of active listings with price reductions, and median sale price per square foot.</p><p>City and ZIP observations are rolling three-month windows. Share changes are shown in percentage points; days and months use absolute differences; price per square foot uses percent change.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Geographies</CardTitle></CardHeader><CardContent className="method-copy"><p>City/community and ZIP views retain Zillow’s curated market labels for Orange and Los Angeles counties. Provider values remain separate. ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs.</p><p>OpenStreetMap provides geographic context. Hovering or tapping shows the geography and measure; clicking changes the focus series.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Zillow and Redfin are refreshed into independent versioned releases. Each pipeline checks schemas, dates, coverage, and size before advancing its own <code>latest.json</code> pointer.</p><p>If either provider update fails, its prior validated release remains available and does not block the other source.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Cost &amp; portability</CardTitle></CardHeader><CardContent className="method-copy"><p>The site is a static export with no database, application server, paid API, or paid map service. GitHub Actions performs periodic updates and GitHub Pages serves the files.</p><p>OpenStreetMap tiles are requested only for the map a visitor is viewing. A 50 MB processed-data guardrail catches accidental growth before release.</p></CardContent></Card>
           </section>
           <Card className="disclaimer-card">
             <CardHeader><CardTitle>Academic-use disclaimer</CardTitle></CardHeader>
             <CardContent className="method-copy">
               <p>This project is provided for instruction and academic research. It is not financial, investment, legal, valuation, or real-estate advice, and should not be relied on for transactions or commercial decision-making.</p>
-              <p>Third-party data remain subject to their providers’ licenses and terms. This project does not grant commercial-use rights to Zillow, Census, or OpenStreetMap data.</p>
+              <p>Third-party data remain subject to their providers’ licenses and terms. This project does not grant commercial-use rights to Zillow, Redfin, Census, or OpenStreetMap data.</p>
             </CardContent>
           </Card>
           <Card className="provenance-card">
             <CardHeader><CardTitle>Current release provenance</CardTitle></CardHeader>
             <CardContent>
-              <dl className="provenance-grid"><div><dt>Release</dt><dd>{manifest.release}</dd></div><div><dt>Created</dt><dd>{new Date(manifest.created_at).toLocaleString()}</dd></div><div><dt>Coverage</dt><dd>{manifest.counts.city} city/community · {manifest.counts.zip} ZIP · {manifest.counts.metro} metro</dd></div><div><dt>Bundle fingerprint</dt><dd><code>{manifest.bundle_sha256.slice(0, 16)}…</code></dd></div></dl>
-              <p className="attribution">{manifest.attribution}. Map data © OpenStreetMap contributors. This independent academic visualization is not endorsed by Zillow Group or OpenStreetMap.</p>
+              <dl className="provenance-grid"><div><dt>Zillow release</dt><dd>{manifest.release}</dd></div><div><dt>Redfin release</dt><dd>{redfinManifest?.release ?? "Unavailable"}</dd></div><div><dt>Coverage</dt><dd>{manifest.counts.city} city/community · {manifest.counts.zip} ZIP · {manifest.counts.metro} metro</dd></div><div><dt>Bundle fingerprints</dt><dd><code>{manifest.bundle_sha256.slice(0, 10)}…{redfinManifest ? ` · ${redfinManifest.bundle_sha256.slice(0, 10)}…` : ""}</code></dd></div></dl>
+              <p className="attribution">{manifest.attribution}. {redfinManifest?.attribution} Map data © OpenStreetMap contributors. This independent academic visualization is not endorsed by Zillow Group, Redfin, or OpenStreetMap.</p>
               <div className="source-links">
                 <a className="source-link" href={manifest.data_page} target="_blank" rel="noreferrer">View Zillow Research source data <ExternalLink /></a>
+                <a className="source-link" href={redfinManifest?.data_page ?? "https://www.redfin.com/news/data-center/downloads/"} target="_blank" rel="noreferrer">View Redfin Data Center <ExternalLink /></a>
+                <a className="source-link" href={redfinManifest?.methodology_page ?? "https://www.redfin.com/news/data-center/methodology/"} target="_blank" rel="noreferrer">View Redfin methodology <ExternalLink /></a>
                 <a className="source-link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">View OpenStreetMap attribution <ExternalLink /></a>
               </div>
             </CardContent>
@@ -1066,5 +1370,6 @@ export default function MarketLab() {
         <p>For instruction and academic research · Not financial advice · Third-party data terms apply</p>
       </footer>
     </main>
+    </TooltipProvider>
   );
 }
