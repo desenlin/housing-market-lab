@@ -20,7 +20,10 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Definition of \$\{label\}/);
   assert.match(source, /rolling three-month window/i);
   assert.match(source, /View Redfin Data Center/);
-  assert.match(source, /Gray areas have no data/);
+  assert.match(source, /Gray boundaries have no data/);
+  assert.match(source, /Outside city\/CDP geography/);
+  assert.match(source, /Reading the maps/);
+  assert.match(source, /Laguna Coast Wilderness Park/);
   assert.match(source, /No \$\{provider\} data for this/);
 });
 

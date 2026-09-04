@@ -125,8 +125,14 @@ button, select { font: inherit; }
 .map-reset { display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: #526a7a; padding: 3px; font-size: 11px; font-weight: 700; cursor: pointer; }
 .map-reset:hover { color: #b94d00; }
 .map-reset svg { width: 13px; height: 13px; }
-.map-tools > span { display: flex; align-items: center; gap: 6px; color: #657681; font-family: var(--font-mono); font-size: 9px; }
+.map-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 13px; color: #657681; }
+.map-legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; white-space: nowrap; }
+.map-legend-scale { font-family: var(--font-mono); font-size: 9px; }
+.map-legend-label { font-family: var(--font-sans); font-size: 10px; font-weight: 750; }
 .map-gradient { width: 82px; height: 9px; border: 1px solid rgb(16 47 80 / .15); }
+.map-swatch { display: inline-block; width: 12px; height: 10px; border: 1px solid rgb(16 47 80 / .2); }
+.map-swatch.no-data { background: #dce3e6; }
+.map-swatch.outside { border-style: dashed; background: repeating-linear-gradient(135deg, #fff 0 3px, #e9eef0 3px 5px); }
 .map-selection { display: flex; flex-wrap: wrap; gap: 5px 16px; margin: 12px 0 9px; border-left: 4px solid #ff7a1a; background: #fff4eb; padding: 8px 11px; color: #40596b; font-size: 12px; }
 .map-selection strong { color: #12355b; }
 .map-selection span:nth-child(2) { color: #71818c; }
@@ -188,7 +194,7 @@ footer p { margin: 0; }
   .kpi-grid { grid-template-columns: 1fr 1fr; gap: 8px; } .kpi-value { font-size: 21px; }
   .chart-header { display: block !important; } .chart-options { justify-content: flex-start; margin-top: 12px; } .chart-options > p { width: 100%; text-align: left; }
   .ranking-title { display: block; } .ranking-title .control-label { margin-top: 10px; }
-  .map-heading { align-items: start; } .map-tools { justify-items: start; } .map-heading { display: grid; }
+  .map-heading { align-items: start; } .map-tools { justify-items: start; } .map-heading { display: grid; } .map-legend { justify-content: flex-start; }
   .leaflet-map { height: 430px; }
   .regional-intro, .method-grid { grid-template-columns: 1fr; gap: 18px; }
   .provenance-grid { grid-template-columns: 1fr; }

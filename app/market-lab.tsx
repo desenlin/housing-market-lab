@@ -590,6 +590,9 @@ function CountyMap({
   const observed = values.filter((item) => item.value != null && Number.isFinite(item.value)).length;
   const countyLabel = county === "Both" ? "Orange and Los Angeles Counties" : county;
   const geographyLabel = dataset.geography === "zip" ? "ZIP code" : "City/community";
+  const outsideGeographyLabel = dataset.geography === "zip"
+    ? "Outside mapped ZCTA geography"
+    : "Outside city/CDP geography";
   const viewLabel = view === "level"
     ? "current level"
     : view === "yoy"
@@ -722,11 +725,16 @@ function CountyMap({
             </div>
             <button type="button" className="map-reset" onClick={resetMap}><RotateCcw /> Reset map</button>
           </div>
-          <span>
-            {formatValue(low, values[0]?.unit ?? "number", view, false, values[0]?.changeMode)}
-            <i className="map-gradient" style={{ background: `linear-gradient(90deg, ${palette.join(",")})` }} />
-            {formatValue(high, values[0]?.unit ?? "number", view, false, values[0]?.changeMode)}
-          </span>
+          <div className="map-legend" role="list" aria-label="Map legend">
+            <span className="map-legend-item map-legend-scale" role="listitem">
+              <span className="map-legend-label">{provider} data</span>
+              {formatValue(low, values[0]?.unit ?? "number", view, false, values[0]?.changeMode)}
+              <i className="map-gradient" style={{ background: `linear-gradient(90deg, ${palette.join(",")})` }} />
+              {formatValue(high, values[0]?.unit ?? "number", view, false, values[0]?.changeMode)}
+            </span>
+            <span className="map-legend-item" role="listitem"><i className="map-swatch no-data" />No {provider} data</span>
+            <span className="map-legend-item" role="listitem"><i className="map-swatch outside" />{outsideGeographyLabel}</span>
+          </div>
         </div>
       </div>
       {selected && (
@@ -743,7 +751,7 @@ function CountyMap({
         role="region"
         aria-label={`${countyLabel} ${geographyLabel.toLowerCase()} map of ${metricLabel.toLowerCase()}`}
       />
-      <p className="map-coverage">{observed} of {shapes.regions.length} boundaries have a current {provider} observation for this measure. Gray areas have no data. Hover or tap a boundary for details; click a data region to update the focus series.</p>
+      <p className="map-coverage">{observed} of {shapes.regions.length} boundaries have a current {provider} observation for this measure. Gray boundaries have no data; unshaded map areas are outside the displayed {dataset.geography === "city" ? "city/CDP" : "ZCTA"} geography. Hover or tap a boundary for details; click a data region to update the focus series.</p>
     </div>
   );
 }
@@ -1408,7 +1416,8 @@ export default function MarketLab() {
           <section className="method-grid">
             <Card><CardHeader><CardTitle>Zillow measures</CardTitle></CardHeader><CardContent className="method-copy"><p><strong>ZHVI</strong> estimates the typical mid-tier home value. <strong>ZORI</strong> tracks typical observed asking rent. The price–rent multiple is ZHVI divided by twelve months of ZORI.</p><p>Monthly year-over-year change compares each observation with the same month one year earlier. In indexed views, the user-selected starting month equals 100.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Redfin activity measures</CardTitle></CardHeader><CardContent className="method-copy"><p>Redfin supplies months of supply, median days on market, the share sold above original list, the share of active listings with price reductions, and median sale price per square foot.</p><p>City and ZIP observations are rolling three-month windows. Share changes are shown in percentage points; days and months use absolute differences; price per square foot uses percent change.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Geographies</CardTitle></CardHeader><CardContent className="method-copy"><p>City/community and ZIP views retain Zillow’s curated market labels for Orange and Los Angeles counties. Provider values remain separate. ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs.</p><p>OpenStreetMap provides geographic context. Hovering or tapping shows the geography and measure; clicking changes the focus series.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Geographies</CardTitle></CardHeader><CardContent className="method-copy"><p>City/community maps retain every Census incorporated place and Census-designated place (CDP) assigned to Orange or Los Angeles County, whether or not a provider reports data. Zillow and Redfin observations are matched independently, and an unincorporated CDP is never reassigned to a neighboring city.</p><p>ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs. Census places and ZCTAs do not necessarily cover or classify land in the same way.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Reading the maps</CardTitle></CardHeader><CardContent className="method-copy"><p>The legend distinguishes three states: <strong>colored</strong> means the selected provider reports a current observation; <strong>gray</strong> means an official city/CDP or mapped ZCTA boundary exists but the selected observation is unavailable; <strong>unshaded</strong> means the land falls outside the displayed place geography.</p><p>Unshaded county remainder, wilderness, and open space should not be interpreted as a missing housing market. For example, unshaded portions of Laguna Coast Wilderness Park are not a separate Census place. OpenStreetMap supplies the underlying geographic context.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Zillow and Redfin are refreshed into independent versioned releases. Each pipeline checks schemas, dates, coverage, and size before advancing its own <code>latest.json</code> pointer.</p><p>If either provider update fails, its prior validated release remains available and does not block the other source.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Cost &amp; portability</CardTitle></CardHeader><CardContent className="method-copy"><p>The site is a static export with no database, application server, paid API, or paid map service. GitHub Actions performs periodic updates and GitHub Pages serves the files.</p><p>OpenStreetMap tiles are requested only for the map a visitor is viewing. A 50 MB processed-data guardrail catches accidental growth before release.</p></CardContent></Card>
           </section>

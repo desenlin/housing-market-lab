@@ -49,7 +49,7 @@ Redfin and Zillow activity variables should not be treated as interchangeable ev
 - 2025 California Places Gazetteer internal points
 - 2020 national ZCTAs, 1:500,000 cartographic boundary file
 
-The city/community map retains every Census place assigned to Orange or Los Angeles County, including Census-designated places in unincorporated territory. A place without a current observation for the selected provider and metric remains visible in gray and is labelled **No data** rather than being absorbed into a neighboring city. The pipeline uses each place's official Census internal point and county polygons to make the county assignment.
+The city/community map retains every Census place assigned to Orange or Los Angeles County, including Census-designated places in unincorporated territory. A place without a current observation for the selected provider and metric remains visible in gray and is labelled **No data** rather than being absorbed into a neighboring city. Unshaded basemap areas are outside the displayed Census place geography—typically county remainder, wilderness, or open space—and are not classified as missing city-level observations. The pipeline uses each place's official Census internal point and county polygons to make the county assignment.
 
 The pipeline matches place names or five-digit ZCTA codes to provider regions and publishes compact GeoJSON boundaries. ZCTAs approximate—but do not exactly reproduce—USPS delivery ZIP codes. Maps are selection and pattern-finding aids; the chart values come from the provider records, not from the boundary files.
 
