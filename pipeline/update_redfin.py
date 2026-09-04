@@ -2,9 +2,10 @@
 """Publish a compact, source-isolated Redfin activity release.
 
 The source CSVs contain national city/ZIP observations and are ordered newest
-first. The parser streams them, retains only Zillow-local geographies in the two
-study counties, and stops after the configured historical cutoff. Raw files are
-never committed or retained.
+first. The parser streams them, retains only local geographies in the two study
+counties, and stops after the configured historical cutoff. City/community
+coverage comes from Census place boundaries rather than another data provider.
+Raw files are never committed or retained.
 """
 
 from __future__ import annotations
@@ -55,21 +56,32 @@ def compact_series(values: list[int | float | None]) -> list[Any] | dict[str, An
     return trimmed if start == 0 and end == len(values) else {"o": start, "v": trimmed}
 
 
-def load_zillow_reference() -> dict[str, dict[str, dict[str, str | None]]]:
+def load_local_reference() -> dict[str, dict[str, dict[str, str | None]]]:
     pointer = json.loads((ZILLOW_PUBLIC_DATA / "latest.json").read_text())
     release_dir = ZILLOW_PUBLIC_DATA / "releases" / pointer["release"]
-    reference: dict[str, dict[str, dict[str, str | None]]] = {}
-    for geography in ("city", "zip"):
-        payload = json.loads((release_dir / f"{geography}.json").read_text())
-        reference[geography] = {
-            (f"{region['name']}, CA" if geography == "city" else region["name"]): {
+    city_map = json.loads((release_dir / "map-city.json").read_text())
+    reference: dict[str, dict[str, dict[str, str | None]]] = {"city": {}}
+    for county, county_map in city_map["counties"].items():
+        for region in county_map["regions"]:
+            reference["city"][f"{region['name']}, CA"] = {
                 "id": region["id"],
                 "name": region["name"],
-                "county": region["county"],
-                "context": region.get("context"),
+                "county": county,
+                "context": None,
             }
-            for region in payload["regions"]
+
+    # Zillow's county-labelled ZIP table remains the curated assignment source
+    # because ZCTAs can cross county lines and do not nest within counties.
+    zip_payload = json.loads((release_dir / "zip.json").read_text())
+    reference["zip"] = {
+        region["name"]: {
+            "id": f"zcta:{region['name']}",
+            "name": region["name"],
+            "county": region["county"],
+            "context": region.get("context"),
         }
+        for region in zip_payload["regions"]
+    }
     return reference
 
 
@@ -248,7 +260,7 @@ def main() -> None:
     parser.add_argument("--config", type=Path, default=CONFIG_PATH)
     args = parser.parse_args()
     config = json.loads(args.config.read_text())
-    reference = load_zillow_reference()
+    reference = load_local_reference()
     grouped: dict[str, list[Any]] = {"city": [], "zip": []}
     source_manifest: dict[str, Any] = {}
     for source in config["sources"]:

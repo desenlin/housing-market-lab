@@ -24,7 +24,7 @@ To keep static releases small enough for reliable academic hosting, ZIP series o
 
 ## Redfin Data Center
 
-The independent Redfin pipeline streams the official [Redfin Data Center downloads](https://www.redfin.com/news/data-center/downloads/) and follows Redfin's [Data Center methodology](https://www.redfin.com/news/data-center/methodology/). National source files are not committed. They are filtered against the lab's existing city/community and ZIP geography list for Orange and Los Angeles counties, then published under `public/data/redfin/` with a separate release pointer.
+The independent Redfin pipeline streams the official [Redfin Data Center downloads](https://www.redfin.com/news/data-center/downloads/) and follows Redfin's [Data Center methodology](https://www.redfin.com/news/data-center/methodology/). National source files are not committed. City/community observations are filtered against Census places assigned to Orange and Los Angeles counties, independently of Zillow's coverage. ZIP observations use the lab's county-labelled ZCTA reference because ZCTAs can cross county lines. Redfin results are published under `public/data/redfin/` with a separate release pointer.
 
 Selected series:
 
@@ -38,14 +38,18 @@ Selected series:
 
 City and ZIP observations use Redfin's **rolling three-month** frequency. The period end date is used as the chart date. The pipeline starts in January 2018, which provides a pre-pandemic baseline while keeping scheduled national-file scans bounded.
 
-Redfin city names and ZIP codes are mapped to the already curated two-county geography records, but Zillow values are never used to calculate Redfin metrics. If Redfin exposes duplicate rows for the same place label and period, the pipeline selects the row with the larger activity count instead of summing medians or shares. A source schema change, date-order change, or material loss of coverage rejects only the prospective Redfin release.
+Redfin city names are matched directly to Census place names; they do not need a corresponding Zillow observation. If Redfin exposes duplicate rows for the same place label and period, the pipeline selects the row with the larger activity count instead of summing medians or shares. A source schema change, date-order change, or material loss of coverage rejects only the prospective Redfin release.
 
 Redfin and Zillow activity variables should not be treated as interchangeable even when their labels resemble one another. They come from different listing feeds, record processing, geographic definitions, revision practices, and smoothing conventions. The interface therefore keeps provider badges and reporting windows visible.
 
 ## Census cartographic boundaries
 
 - 2025 California Places, 1:500,000 cartographic boundary file
+- 2025 US Counties, 1:500,000 cartographic boundary file
+- 2025 California Places Gazetteer internal points
 - 2020 national ZCTAs, 1:500,000 cartographic boundary file
+
+The city/community map retains every Census place assigned to Orange or Los Angeles County, including Census-designated places in unincorporated territory. A place without a current observation for the selected provider and metric remains visible in gray and is labelled **No data** rather than being absorbed into a neighboring city. The pipeline uses each place's official Census internal point and county polygons to make the county assignment.
 
 The pipeline matches place names or five-digit ZCTA codes to provider regions and publishes compact GeoJSON boundaries. ZCTAs approximate—but do not exactly reproduce—USPS delivery ZIP codes. Maps are selection and pattern-finding aids; the chart values come from the provider records, not from the boundary files.
 

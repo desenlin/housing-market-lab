@@ -40,7 +40,7 @@ jobs:
 
       - name: Refresh and validate provider data
         id: refresh
-        if: github.event_name != 'push' || hashFiles('public/data/redfin/latest.json') == ''
+        if: github.event_name != 'push' || hashFiles('public/data/redfin/latest.json') == '' || contains(github.event.head_commit.message, '[refresh-data]')
         run: |
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             python pipeline/update_redfin.py

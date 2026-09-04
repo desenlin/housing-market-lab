@@ -20,7 +20,7 @@ Created by **[Desen Lin](https://desenlin.com/)**, California State University, 
 - User-selected one-, three-, and five-year or maximum chart windows
 - Indexed comparisons with a user-selected starting month
 - City/community and ZIP rankings sortable by current value or 12-month growth
-- Interactive OpenStreetMap context maps with pan, zoom, automatic county fitting, hover details, and selectable boundaries
+- Interactive OpenStreetMap context maps with pan, zoom, automatic county fitting, hover details, and gray **No data** boundaries where a provider does not publish an observation
 - Metro inventory, days to pending, price-cut share, and sale-to-list comparisons
 
 The application is a static Next.js/Vinext export. It uses no database, paid API, paid map service, or continuously running server. Google Analytics measures aggregate traffic using the same property as the academic website.
@@ -63,7 +63,7 @@ python pipeline/update_redfin.py
 npm run dev
 ```
 
-For repeated Zillow pipeline development, `--cache-dir .cache/zillow` reuses local downloads. The Redfin pipeline streams national CSVs and retains only configured dates and the two-county geography list; it never stores full raw downloads.
+For repeated Zillow pipeline development, `--cache-dir .cache/zillow` reuses local downloads. The Redfin pipeline streams national CSVs and retains only configured dates and the two-county Census-place/ZIP geography list; it never stores full raw downloads.
 
 Build and test:
 

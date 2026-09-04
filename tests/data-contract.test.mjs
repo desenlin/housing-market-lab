@@ -23,6 +23,10 @@ test("latest pointer resolves to a complete release", async () => {
   assert.ok(city.metrics.zhvi.dates.length > 250);
   assert.ok(zip.metrics.zori.dates.length > 100);
   assert.equal(cityMap.counties["Orange County"].mapped, 39);
+  assert.equal(cityMap.counties["Orange County"].boundaries, 47);
+  assert.ok(cityMap.counties["Orange County"].regions.some((region) =>
+    region.name === "Rossmoor" && region.id === "place:0663050"
+  ));
   assert.equal(zipMap.counties["Los Angeles County"].mapped, 274);
   assert.ok(cityMap.counties["Orange County"].regions.every((region) => region.geometry));
   assert.ok(zipMap.counties["Los Angeles County"].regions.every((region) => region.geometry));
@@ -69,4 +73,9 @@ test("Redfin pointer resolves to an independent local activity release", async (
   ]);
   assert.ok(Object.values(city.metrics).every((metric) => metric.provider === "Redfin"));
   assert.ok(Object.values(city.metrics).every((metric) => metric.dates.length >= 60));
+  assert.ok(city.regions.some((region) =>
+    region.name === "Rossmoor" &&
+    region.county === "Orange County" &&
+    region.id === "place:0663050"
+  ));
 });

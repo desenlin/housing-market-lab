@@ -1,6 +1,14 @@
 import unittest
+from types import SimpleNamespace
 
-from pipeline.update_data import combine_geography, compact_json, normalized_geography_name, parse_value
+from pipeline.update_data import (
+    combine_geography,
+    compact_json,
+    normalized_geography_name,
+    parse_value,
+    place_county,
+    point_in_shape,
+)
 
 
 class PipelineHelpersTest(unittest.TestCase):
@@ -17,6 +25,27 @@ class PipelineHelpersTest(unittest.TestCase):
         self.assertEqual(
             normalized_geography_name("La Cañada Flintridge"),
             normalized_geography_name("La Canada Flintridge"),
+        )
+
+    def test_point_in_shape_uses_polygon_rings(self):
+        square = SimpleNamespace(
+            parts=[0],
+            points=[(0, 0), (2, 0), (2, 2), (0, 2), (0, 0)],
+        )
+        self.assertTrue(point_in_shape(1, 1, square))
+        self.assertFalse(point_in_shape(3, 1, square))
+
+    def test_place_county_falls_back_to_sampled_place_points(self):
+        county = SimpleNamespace(
+            parts=[0],
+            points=[(0, 0), (4, 0), (4, 4), (0, 4), (0, 0)],
+        )
+        coastal_place = SimpleNamespace(
+            points=[(1, 1), (2, 1), (2, 2), (1, 2), (1, 1)],
+        )
+        self.assertEqual(
+            place_county((-0.01, 1), coastal_place, {"Example County": county}),
+            "Example County",
         )
 
     def test_zip_series_trim_outer_missing_values(self):

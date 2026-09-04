@@ -20,6 +20,8 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Definition of \$\{label\}/);
   assert.match(source, /rolling three-month window/i);
   assert.match(source, /View Redfin Data Center/);
+  assert.match(source, /Gray areas have no data/);
+  assert.match(source, /No \$\{provider\} data for this/);
 });
 
 test("repository front page includes citation and academic-use limits", async () => {

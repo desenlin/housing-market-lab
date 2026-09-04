@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import io
 import json
 import os
 import re
@@ -39,18 +40,18 @@ PLACE_URL = (
     "https://www2.census.gov/geo/tiger/GENZ2025/shp/"
     "cb_2025_06_place_500k.zip"
 )
+COUNTY_URL = (
+    "https://www2.census.gov/geo/tiger/GENZ2025/shp/"
+    "cb_2025_us_county_500k.zip"
+)
+PLACE_GAZETTEER_URL = (
+    "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/"
+    "2025_Gazetteer/2025_gaz_place_06.txt"
+)
 ZCTA_URL = (
     "https://www2.census.gov/geo/tiger/GENZ2020/shp/"
     "cb_2020_us_zcta520_500k.zip"
 )
-
-# Census place files are statewide and do not carry a single county field.
-# These broad extents disambiguate same-named places before exact Zillow-name
-# matching; they include each county's offshore islands and border communities.
-COUNTY_EXTENTS = {
-    "Orange County": (-118.25, 33.15, -117.30, 34.10),
-    "Los Angeles County": (-119.10, 32.65, -117.50, 34.95),
-}
 
 METRIC_META = {
     "zhvi": {
@@ -320,6 +321,17 @@ def shape_records(zip_url: str, temp_dir: Path) -> tuple[list[str], list[tuple[d
     ]
 
 
+def place_internal_points(url: str = PLACE_GAZETTEER_URL) -> dict[str, tuple[float, float]]:
+    with urllib.request.urlopen(request(url), timeout=45) as response:
+        content = response.read(2 * 1024 * 1024).decode("utf-8-sig")
+    rows = csv.DictReader(io.StringIO(content), delimiter="|")
+    return {
+        row["GEOID"]: (float(row["INTPTLONG"]), float(row["INTPTLAT"]))
+        for row in rows
+        if row.get("GEOID") and row.get("INTPTLONG") and row.get("INTPTLAT")
+    }
+
+
 def rounded_coordinates(value: Any) -> Any:
     """Keep browser map payloads compact without changing visible boundaries."""
     if isinstance(value, (list, tuple)):
@@ -329,14 +341,15 @@ def rounded_coordinates(value: Any) -> Any:
     return value
 
 
-def geojson_regions(items: list[tuple[str, str, Any]]) -> list[dict[str, Any]]:
+def geojson_regions(items: list[tuple[str, str, str, Any]]) -> list[dict[str, Any]]:
     output = []
-    for region_id, name, shape in items:
+    for region_id, name, county, shape in items:
         geometry = shape.__geo_interface__
         output.append(
             {
                 "id": region_id,
                 "name": name,
+                "county": county,
                 "geometry": {
                     "type": geometry["type"],
                     "coordinates": rounded_coordinates(geometry["coordinates"]),
@@ -346,8 +359,8 @@ def geojson_regions(items: list[tuple[str, str, Any]]) -> list[dict[str, Any]]:
     return output
 
 
-def geographic_bounds(items: list[tuple[str, str, Any]]) -> list[list[float]]:
-    points = [point for _, _, shape in items for point in shape.points]
+def geographic_bounds(items: list[tuple[str, str, str, Any]]) -> list[list[float]]:
+    points = [point for _, _, _, shape in items for point in shape.points]
     if not points:
         return [[32.5, -125.0], [42.0, -114.0]]
     return [
@@ -356,12 +369,55 @@ def geographic_bounds(items: list[tuple[str, str, Any]]) -> list[list[float]]:
     ]
 
 
-def shape_center_is_in_county(shape: Any, county: str) -> bool:
-    min_lon, min_lat, max_lon, max_lat = COUNTY_EXTENTS[county]
-    shape_min_lon, shape_min_lat, shape_max_lon, shape_max_lat = shape.bbox
-    center_lon = (shape_min_lon + shape_max_lon) / 2
-    center_lat = (shape_min_lat + shape_max_lat) / 2
-    return min_lon <= center_lon <= max_lon and min_lat <= center_lat <= max_lat
+def point_in_ring(longitude: float, latitude: float, points: list[Any]) -> bool:
+    inside = False
+    previous = points[-1]
+    for current in points:
+        x1, y1 = previous
+        x2, y2 = current
+        crosses = (y1 > latitude) != (y2 > latitude)
+        if crosses:
+            intersection = (x2 - x1) * (latitude - y1) / (y2 - y1) + x1
+            if longitude < intersection:
+                inside = not inside
+        previous = current
+    return inside
+
+
+def point_in_shape(longitude: float, latitude: float, shape: Any) -> bool:
+    """Test an official Census internal point against polygon or multipolygon rings."""
+    part_starts = [*shape.parts, len(shape.points)]
+    inside = False
+    for index in range(len(part_starts) - 1):
+        ring = shape.points[part_starts[index] : part_starts[index + 1]]
+        if len(ring) >= 3 and point_in_ring(longitude, latitude, ring):
+            inside = not inside
+    return inside
+
+
+def place_county(
+    internal_point: tuple[float, float],
+    place_shape: Any,
+    county_shapes: dict[str, Any],
+) -> str | None:
+    """Assign a place using its internal point, with a coastline-safe fallback."""
+    direct = [
+        county
+        for county, county_shape in county_shapes.items()
+        if point_in_shape(*internal_point, county_shape)
+    ]
+    if len(direct) == 1:
+        return direct[0]
+
+    step = max(1, len(place_shape.points) // 50)
+    sample = place_shape.points[::step]
+    scores = {
+        county: sum(point_in_shape(longitude, latitude, county_shape) for longitude, latitude in sample)
+        for county, county_shape in county_shapes.items()
+    }
+    county, score = max(scores.items(), key=lambda item: item[1])
+    minimum = max(2, len(sample) // 5)
+    return county if score >= minimum else None
 
 
 def normalized_geography_name(value: str) -> str:
@@ -376,8 +432,27 @@ def build_maps(
     payloads: dict[str, dict[str, Any]], config: dict[str, Any], temp_dir: Path
 ) -> dict[str, dict[str, Any]]:
     _, place_records = shape_records(PLACE_URL, temp_dir)
+    _, county_records = shape_records(COUNTY_URL, temp_dir)
+    internal_points = place_internal_points()
     zcta_fields, zcta_records = shape_records(ZCTA_URL, temp_dir)
     zcta_field = next(field for field in zcta_fields if field.startswith("ZCTA5CE"))
+    county_shapes = {
+        attrs["NAMELSAD"]: shape
+        for attrs, shape in county_records
+        if attrs.get("STATEFP") == "06" and attrs.get("NAMELSAD") in config["counties"]
+    }
+    if set(county_shapes) != set(config["counties"]):
+        raise RuntimeError("Census county boundaries were incomplete")
+
+    places_by_county: dict[str, list[tuple[dict[str, Any], Any]]] = defaultdict(list)
+    for attrs, shape in place_records:
+        try:
+            longitude, latitude = internal_points[attrs["GEOID"]]
+        except KeyError:
+            continue
+        county = place_county((longitude, latitude), shape, county_shapes)
+        if county:
+            places_by_county[county].append((attrs, shape))
 
     results: dict[str, dict[str, Any]] = {}
     for geography in ("city", "zip"):
@@ -389,20 +464,34 @@ def build_maps(
         county_maps: dict[str, Any] = {}
         for county in config["counties"]:
             targets = region_by_county[county]
-            selected: list[tuple[str, str, Any]] = []
-            records = place_records if geography == "city" else zcta_records
-            for attrs, shape in records:
-                name = attrs.get("NAME") if geography == "city" else attrs.get(zcta_field)
-                target = targets.get(normalized_geography_name(name))
-                if target and (
-                    geography == "zip" or shape_center_is_in_county(shape, county)
-                ):
-                    selected.append((target[0], target[1], shape))
+            selected: list[tuple[str, str, str, Any]] = []
+            matched = 0
+            if geography == "city":
+                for attrs, shape in places_by_county[county]:
+                    census_name = attrs.get("NAME", "")
+                    target = targets.get(normalized_geography_name(census_name))
+                    selected.append(
+                        (
+                            f"place:{attrs['GEOID']}",
+                            target[1] if target else census_name,
+                            county,
+                            shape,
+                        )
+                    )
+                    matched += int(target is not None)
+            else:
+                for attrs, shape in zcta_records:
+                    name = attrs.get(zcta_field, "")
+                    target = targets.get(normalized_geography_name(name))
+                    if target:
+                        selected.append((f"zcta:{name}", target[1], county, shape))
+                matched = len(selected)
             county_maps[county] = {
                 "bounds": geographic_bounds(selected),
                 "regions": geojson_regions(selected),
-                "mapped": len(selected),
+                "mapped": matched,
                 "available": len(targets),
+                "boundaries": len(selected),
             }
         results[geography] = {"geography": geography, "counties": county_maps}
     return results
@@ -531,6 +620,7 @@ def main() -> None:
                     county: {
                         "mapped": details["mapped"],
                         "available": details["available"],
+                        "boundaries": details["boundaries"],
                     }
                     for county, details in maps.get(geography, {}).get("counties", {}).items()
                 }

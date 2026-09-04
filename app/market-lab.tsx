@@ -81,9 +81,11 @@ type MapData = {
       bounds: [[number, number], [number, number]];
       mapped: number;
       available: number;
+      boundaries?: number;
       regions: {
         id: string;
         name: string;
+        county?: string;
         geometry: {
           type: "Polygon" | "MultiPolygon";
           coordinates: unknown;
@@ -102,7 +104,10 @@ type Manifest = {
   bundle_sha256: string;
   latest_observations: Record<string, string>;
   counts: Record<string, number>;
-  map_coverage: Record<string, Record<string, { mapped: number; available: number }>>;
+  map_coverage: Record<
+    string,
+    Record<string, { mapped: number; available: number; boundaries?: number }>
+  >;
   sources: Record<
     string,
     { url: string; bytes: number; latest_observation: string; regions: number }
@@ -147,6 +152,10 @@ const TIME_RANGES: { key: TimeRange; label: string; months: number | null }[] = 
   { key: "5y", label: "5 years", months: 60 },
   { key: "max", label: "Max", months: null },
 ];
+
+function normalizedPlaceName(value: string) {
+  return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
+}
 
 function lastValue(values: Value[]) {
   for (let index = values.length - 1; index >= 0; index -= 1) {
@@ -463,6 +472,7 @@ function CountyMap({
   onSelect,
   paletteKey,
   onPaletteChange,
+  provider,
 }: {
   county: string;
   mapData: MapData;
@@ -475,6 +485,7 @@ function CountyMap({
   onSelect: (id: string) => void;
   paletteKey: MapPaletteKey;
   onPaletteChange: (palette: MapPaletteKey) => void;
+  provider: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
@@ -499,10 +510,24 @@ function CountyMap({
       ] as [[number, number], [number, number]],
       mapped: groups.reduce((total, group) => total + group.mapped, 0),
       available: groups.reduce((total, group) => total + group.available, 0),
-      regions: groups.flatMap((group) => group.regions),
+      regions: groups.flatMap((group, index) =>
+        group.regions.map((region) => ({
+          ...region,
+          county: region.county ?? countyNames[index],
+        })),
+      ),
     };
   }, [county, mapData]);
   const dates = metricDates(dataset, metric);
+  const datasetByPlace = useMemo(
+    () => new Map(
+      dataset.regions.map((region) => [
+        `${region.county ?? ""}:${normalizedPlaceName(region.name)}`,
+        region,
+      ]),
+    ),
+    [dataset],
+  );
 
   useEffect(() => {
     onSelectRef.current = onSelect;
@@ -511,7 +536,9 @@ function CountyMap({
   const values = useMemo(
     () =>
       shapes.regions.map((shape) => {
-        const region = dataset.regions.find((item) => item.id === shape.id);
+        const region = datasetByPlace.get(
+          `${shape.county ?? ""}:${normalizedPlaceName(shape.name)}`,
+        );
         const series = region ? metricSeries(dataset, region, metric) : null;
         const transformed = series
           ? transformValues(series.values, view, series.dates, indexBaseMonth, series.changeMode)
@@ -521,15 +548,16 @@ function CountyMap({
           : null;
         return {
           id: shape.id,
+          dataId: region?.id ?? null,
           name: shape.name,
-          county: region?.county ?? "",
+          county: shape.county ?? region?.county ?? "",
           value: lastValue(transformed)?.value ?? null,
           yoy,
           unit: series?.unit ?? "number",
           changeMode: series?.changeMode ?? "percent",
         };
       }),
-    [dataset, indexBaseMonth, metric, shapes.regions, view],
+    [dataset, datasetByPlace, indexBaseMonth, metric, shapes.regions, view],
   );
   const valueById = useMemo(
     () => new Map(values.map((item) => [item.id, item])),
@@ -558,7 +586,8 @@ function CountyMap({
       return [item.id, currentPalette[index]];
     }));
   }, [high, low, paletteKey, values, view]);
-  const selected = valueById.get(selectedId);
+  const selected = values.find((item) => item.dataId === selectedId);
+  const observed = values.filter((item) => item.value != null && Number.isFinite(item.value)).length;
   const countyLabel = county === "Both" ? "Orange and Los Angeles Counties" : county;
   const geographyLabel = dataset.geography === "zip" ? "ZIP code" : "City/community";
   const viewLabel = view === "level"
@@ -612,7 +641,8 @@ function CountyMap({
     const overlay = L.geoJSON(featureCollection as GeoJSON.FeatureCollection, {
       style: (feature) => {
         const id = String(feature?.properties?.id ?? "");
-        const isSelected = id === selectedId;
+        const item = valueById.get(id);
+        const isSelected = item?.dataId === selectedId;
         return {
           color: isSelected ? "#ff7a1a" : "#ffffff",
           weight: isSelected ? 3 : 1.2,
@@ -628,14 +658,18 @@ function CountyMap({
         const name = document.createElement("strong");
         name.textContent = item?.name ?? String(feature.properties?.name ?? id);
         const measure = document.createElement("span");
-        measure.textContent = `${geographyLabel} · ${formatValue(item?.value ?? null, item?.unit ?? "number", view, false, item?.changeMode)}`;
+        measure.textContent = item?.dataId
+          ? `${geographyLabel} · ${formatValue(item.value, item.unit, view, false, item.changeMode)}`
+          : `No ${provider} data for this ${geographyLabel.toLowerCase()}`;
         const growth = document.createElement("span");
-        growth.textContent = `Change from one year earlier: ${formatValue(item?.yoy ?? null, item?.unit ?? "number", "yoy", false, item?.changeMode)}`;
+        growth.textContent = item?.dataId
+          ? `Change from one year earlier: ${formatValue(item.yoy, item.unit, "yoy", false, item.changeMode)}`
+          : "Boundary shown for geographic context";
         const location = document.createElement("span");
         location.textContent = item?.county ?? "";
         tooltip.append(name, location, measure, growth);
         layer.bindTooltip(tooltip, { sticky: true, direction: "top" });
-        layer.on("click", () => onSelectRef.current(id));
+        if (item?.dataId) layer.on("click", () => onSelectRef.current(item.dataId!));
       },
     }).addTo(map);
     layerRef.current = overlay;
@@ -653,6 +687,7 @@ function CountyMap({
     indexBaseMonth,
     low,
     mapReady,
+    provider,
     selectedId,
     shapes,
     fillById,
@@ -708,7 +743,7 @@ function CountyMap({
         role="region"
         aria-label={`${countyLabel} ${geographyLabel.toLowerCase()} map of ${metricLabel.toLowerCase()}`}
       />
-      <p className="map-coverage">{shapes.mapped} mapped of {shapes.available} data regions. Hover or tap a boundary for details; click to update the focus series.</p>
+      <p className="map-coverage">{observed} of {shapes.regions.length} boundaries have a current {provider} observation for this measure. Gray areas have no data. Hover or tap a boundary for details; click a data region to update the focus series.</p>
     </div>
   );
 }
@@ -773,6 +808,8 @@ export default function MarketLab() {
   const [mapPalette, setMapPalette] = useState<MapPaletteKey>("orange");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [addId, setAddId] = useState("");
+  const [activitySelectedIds, setActivitySelectedIds] = useState<string[]>([]);
+  const [activityAddId, setActivityAddId] = useState("");
   const [regionalMetric, setRegionalMetric] = useState<MetricKey>("zhvi");
   const [regionalView, setRegionalView] = useState<ViewKey>("index");
   const [regionalTimeRange, setRegionalTimeRange] = useState<TimeRange>("max");
@@ -817,6 +854,17 @@ export default function MarketLab() {
           ]);
           setActivityDatasets({ city: redfinCity, zip: redfinZip });
           setRedfinManifest(redfinReleaseManifest);
+          const redfinOrangeCities = (redfinCity as Dataset).regions.filter(
+            (region) => region.county === "Orange County",
+          );
+          const redfinDefaults = ["Fullerton", "Irvine", "Anaheim"]
+            .map((name) => redfinOrangeCities.find((region) => region.name === name)?.id)
+            .filter((id): id is string => Boolean(id));
+          setActivitySelectedIds(
+            redfinDefaults.length
+              ? redfinDefaults
+              : redfinOrangeCities.slice(0, 3).map((region) => region.id),
+          );
         } catch (caught) {
           setActivityError(caught instanceof Error ? caught.message : "The Redfin activity release could not be loaded.");
         }
@@ -918,7 +966,7 @@ export default function MarketLab() {
     [activityDataset, county],
   );
   const activitySelectedRegions = (() => {
-    const selected = selectedIds
+    const selected = activitySelectedIds
       .map((id) => activityEligible.find((region) => region.id === id))
       .filter((region): region is Region => Boolean(region));
     return selected.length ? selected : activityEligible.slice(0, 1);
@@ -973,6 +1021,12 @@ export default function MarketLab() {
     const first = nextRegions.find((region) => region.name === preferred) ?? nextRegions[0];
     setGeography(nextGeo);
     setSelectedIds(first ? [first.id] : []);
+    const nextActivityRegions = activityDatasets?.[nextGeo].regions.filter(
+      (region) => county === "Both" || region.county === county,
+    ) ?? [];
+    const activityFirst = nextActivityRegions.find((region) => region.name === preferred)
+      ?? nextActivityRegions[0];
+    setActivitySelectedIds(activityFirst ? [activityFirst.id] : []);
   }
 
   function changeCounty(next: string) {
@@ -984,6 +1038,12 @@ export default function MarketLab() {
     const first = nextRegions.find((region) => region.name === preferred) ?? nextRegions[0];
     setCounty(next);
     setSelectedIds(first ? [first.id] : []);
+    const nextActivityRegions = activityDataset?.regions.filter(
+      (region) => next === "Both" || region.county === next,
+    ) ?? [];
+    const activityFirst = nextActivityRegions.find((region) => region.name === preferred)
+      ?? nextActivityRegions[0];
+    setActivitySelectedIds(activityFirst ? [activityFirst.id] : []);
   }
 
   function addRegion() {
@@ -994,6 +1054,16 @@ export default function MarketLab() {
 
   function selectPrimary(id: string) {
     setSelectedIds((current) => [id, ...current.filter((item) => item !== id)].slice(0, 5));
+  }
+
+  function addActivityRegion() {
+    if (!activityAddId || activitySelectedIds.includes(activityAddId) || activitySelectedIds.length >= 5) return;
+    setActivitySelectedIds((current) => [...current, activityAddId]);
+    setActivityAddId("");
+  }
+
+  function selectActivityPrimary(id: string) {
+    setActivitySelectedIds((current) => [id, ...current.filter((item) => item !== id)].slice(0, 5));
   }
 
   async function copyLink() {
@@ -1167,7 +1237,7 @@ export default function MarketLab() {
           </section>
 
           <section className="maps-grid">
-            <CountyMap county={county} mapData={maps[geography]} dataset={dataset} metric={metric} metricLabel={currentMetricLabel} view={view} indexBaseMonth={indexBaseMonth} selectedId={primary?.id ?? ""} onSelect={selectPrimary} paletteKey={mapPalette} onPaletteChange={setMapPalette} />
+            <CountyMap county={county} mapData={maps[geography]} dataset={dataset} metric={metric} metricLabel={currentMetricLabel} view={view} indexBaseMonth={indexBaseMonth} selectedId={primary?.id ?? ""} onSelect={selectPrimary} paletteKey={mapPalette} onPaletteChange={setMapPalette} provider="Zillow" />
           </section>
         </TabsContent>
 
@@ -1204,21 +1274,21 @@ export default function MarketLab() {
                 <div className="comparison-row">
                   <label className="control-label comparison-select">
                     <span>Add a comparison (up to five)</span>
-                    <NativeSelect value={addId} onChange={(event) => setAddId(event.target.value)} className="w-full">
+                    <NativeSelect value={activityAddId} onChange={(event) => setActivityAddId(event.target.value)} className="w-full">
                       <NativeSelectOption value="">Choose a region…</NativeSelectOption>
-                      {activityEligible.filter((region) => !selectedIds.includes(region.id)).map((region) => (
+                      {activityEligible.filter((region) => !activitySelectedIds.includes(region.id)).map((region) => (
                         <NativeSelectOption key={region.id} value={region.id}>{region.name}{region.context ? ` · ${region.context}` : ""}</NativeSelectOption>
                       ))}
                     </NativeSelect>
                   </label>
-                  <Button variant="outline" onClick={addRegion} disabled={!addId || selectedIds.length >= 5}><Plus /> Add</Button>
+                  <Button variant="outline" onClick={addActivityRegion} disabled={!activityAddId || activitySelectedIds.length >= 5}><Plus /> Add</Button>
                 </div>
                 <div className="chips" aria-label="Selected activity regions">
                   {activitySelectedRegions.map((region, index) => (
-                    <button key={region.id} className={index === 0 ? "chip primary" : "chip"} onClick={() => selectPrimary(region.id)}>
+                    <button key={region.id} className={index === 0 ? "chip primary" : "chip"} onClick={() => selectActivityPrimary(region.id)}>
                       <i style={{ background: COLORS[index % COLORS.length] }} />
                       {region.name}{index === 0 ? " · focus" : ""}
-                      {index > 0 && <X onClick={(event) => { event.stopPropagation(); setSelectedIds((ids) => ids.filter((id) => id !== region.id)); }} />}
+                      {index > 0 && <X onClick={(event) => { event.stopPropagation(); setActivitySelectedIds((ids) => ids.filter((id) => id !== region.id)); }} />}
                     </button>
                   ))}
                 </div>
@@ -1278,7 +1348,7 @@ export default function MarketLab() {
                   </CardHeader>
                   <CardContent className="ranking-list">
                     {activityRanked.map((item, index) => (
-                      <button key={item.region.id} onClick={() => selectPrimary(item.region.id)} className={item.region.id === activityPrimary?.id ? "rank-row active" : "rank-row"}>
+                      <button key={item.region.id} onClick={() => selectActivityPrimary(item.region.id)} className={item.region.id === activityPrimary?.id ? "rank-row active" : "rank-row"}>
                         <span className="rank-number">{index + 1}</span>
                         <span className="rank-name">{item.region.name}<small>{item.region.context}</small></span>
                         <strong>{formatValue(item.level, item.unit, "level")}</strong>
@@ -1290,7 +1360,7 @@ export default function MarketLab() {
               </section>
 
               <section className="maps-grid">
-                <CountyMap county={county} mapData={maps[geography]} dataset={activityDataset} metric={activityMetric} metricLabel={activityMetricMetadata.label} view={activityView} indexBaseMonth="" selectedId={activityPrimary?.id ?? ""} onSelect={selectPrimary} paletteKey={mapPalette} onPaletteChange={setMapPalette} />
+                <CountyMap county={county} mapData={maps[geography]} dataset={activityDataset} metric={activityMetric} metricLabel={activityMetricMetadata.label} view={activityView} indexBaseMonth="" selectedId={activityPrimary?.id ?? ""} onSelect={selectActivityPrimary} paletteKey={mapPalette} onPaletteChange={setMapPalette} provider="Redfin" />
               </section>
             </>
           )}
