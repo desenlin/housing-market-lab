@@ -30,6 +30,9 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /LA-area CPI-U/);
   assert.match(source, /U\.S\. CPI-U/);
   assert.match(source, /Real rent is a purchasing-power measure, not an affordability measure/);
+  assert.match(source, /className="footer-emphasis" href="https:\/\/desenlin\.com\/"/);
+  assert.match(source, /className="footer-emphasis" href="https:\/\/business\.fullerton\.edu\/academics\/finance"/);
+  assert.match(source, /Citation:<\/strong> Lin, D\. \(2026\)\. <cite>Housing Market Lab<\/cite> \[Computer software\]/);
 });
 
 test("repository front page includes citation and academic-use limits", async () => {

@@ -1813,7 +1813,15 @@ export default function MarketLab() {
       </Tabs>
 
       <footer>
-        <p>Created by Desen Lin, California State University, Fullerton.</p>
+        <p>
+          Created by{" "}
+          <a className="footer-emphasis" href="https://desenlin.com/" target="_blank" rel="noreferrer">Desen Lin</a>,{" "}
+          <a className="footer-emphasis" href="https://business.fullerton.edu/academics/finance" target="_blank" rel="noreferrer">Department of Finance</a>, California State University, Fullerton.
+        </p>
+        <p className="footer-citation">
+          <strong>Citation:</strong> Lin, D. (2026). <cite>Housing Market Lab</cite> [Computer software].{" "}
+          <a href="https://desenlin.com/housing-market-lab/">https://desenlin.com/housing-market-lab/</a>
+        </p>
         <p>For instruction and academic research · Not financial advice · Third-party data terms apply</p>
       </footer>
     </main>
