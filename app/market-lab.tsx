@@ -1898,9 +1898,9 @@ export default function MarketLab() {
 
       <Tabs defaultValue="local" className="page-shell">
         <TabsList variant="line" className="main-tabs" aria-label="Dashboard sections">
-          <TabsTrigger value="local">Local explorer</TabsTrigger>
-          <TabsTrigger value="activity">Local market activity</TabsTrigger>
-          <TabsTrigger value="regional">Regional cycle</TabsTrigger>
+          <TabsTrigger value="local">Prices &amp; Rents</TabsTrigger>
+          <TabsTrigger value="activity">Market Conditions</TabsTrigger>
+          <TabsTrigger value="regional">Metro Comparisons</TabsTrigger>
           <TabsTrigger value="methods">Data &amp; methods</TabsTrigger>
         </TabsList>
 
@@ -2069,7 +2069,7 @@ export default function MarketLab() {
                   ? "Redfin adds city- and ZIP-level supply, speed, competition, repricing, and sale-price signals. Each observation is a rolling three-month window, so the change view compares it with the same three-month window one year earlier."
                   : "Realtor.com adds monthly ZIP-level inventory, listing inflow, pending activity, online buyer attention, and a relative Market Hotness measure. Inventory and Hotness can have different latest months."}</p>
               </section>
-              <section className="control-deck" aria-label="Local market activity controls">
+              <section className="control-deck" aria-label="Market conditions controls">
                 <div className="source-strip">
                   <SourceBadge
                     provider={activityLens === "redfin" ? "Redfin" : "Realtor.com® Economic Research"}

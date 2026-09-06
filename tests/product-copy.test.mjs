@@ -15,7 +15,9 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Map color gradient/);
   assert.match(source, /useState<MapPaletteKey>\("orange"\)/);
   assert.match(source, /Orange and Los Angeles Counties/);
-  assert.match(source, /Local market activity/);
+  assert.match(source, /Prices &amp; Rents/);
+  assert.match(source, /Market Conditions/);
+  assert.match(source, /Metro Comparisons/);
   assert.match(source, /Source: \{provider\}/);
   assert.match(source, /Definition of \$\{label\}/);
   assert.match(source, /rolling three-month window/i);
@@ -48,6 +50,12 @@ test("repository front page includes citation and academic-use limits", async ()
   assert.match(readme, /not financial, investment, legal, valuation, or real-estate advice/i);
   assert.match(readme, /noncommercial academic-research use/i);
   assert.match(readme, /\[Desen Lin\]\(https:\/\/desenlin\.com\/\)/);
+  assert.match(readme, /\[Third-party data, licensing, and attribution\]\(THIRD_PARTY_DATA\.md\)/);
+  const notices = await readProjectFile("THIRD_PARTY_DATA.md");
+  assert.match(notices, /do \*\*not\*\* license the data/i);
+  assert.match(notices, /Zillow Research/);
+  assert.match(notices, /Redfin Data Center/);
+  assert.match(notices, /Realtor\.com Economic Research/);
 });
 
 test("uses the academic website Google Analytics property", async () => {

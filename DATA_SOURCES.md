@@ -44,7 +44,7 @@ Redfin and Zillow activity variables should not be treated as interchangeable ev
 
 ## Realtor.com Economic Research
 
-The independent Realtor.com pipeline reads the ZIP historical files from the official [Realtor.com Real Estate Data Library](https://www.realtor.com/research/data/). It filters against the lab's two-county ZCTA boundary reference rather than inferring counties from ZIP prefixes. Realtor.com data appear as a separate **Inventory & buyer interest** lens within Local market activity; they are not pooled with similarly named Redfin measures.
+The independent Realtor.com pipeline reads the ZIP historical files from the official [Realtor.com Real Estate Data Library](https://www.realtor.com/research/data/). It filters against the lab's two-county ZCTA boundary reference rather than inferring counties from ZIP prefixes. Realtor.com data appear as a separate **Inventory & buyer interest** lens within **Market Conditions**; they are not pooled with similarly named Redfin measures.
 
 Selected primary series:
 
@@ -62,7 +62,7 @@ Inventory and Hotness have separate `latest.json` pointers under `public/data/re
 
 The national historical files are large, so the updater performs an HTTP metadata check before retrieval. When a file changes, it is streamed once and never written to disk; only selected ZIP rows from January 2018 onward are held in memory. The full source must be reread after a change because Realtor.com reissues and may restate historical observations rather than publishing an append-only series.
 
-Rows with a nonzero `quality_flag` are withheld from the public data. This conservative treatment prevents unusual ZIP-month values from entering maps or rankings without review. The number withheld is recorded in each release manifest. A source schema change, fewer than 150 covered local ZIPs, a short history, or a processed product above 5 MB rejects that product's prospective release while leaving its prior pointer unchanged.
+Rows with a nonzero `quality_flag` remain in the compact release so that the historical series is not fragmented. Their month indexes are stored separately and surfaced in charts, rankings, maps, and coverage summaries as observations requiring review. A source schema change, fewer than 150 covered local ZIPs, a short history, or a processed product above 5 MB rejects that product's prospective release while leaving its prior pointer unchanged.
 
 The public application attributes the data to **Realtor.com® Economic Research** and links to the provider's Data Library and [Market Hotness methodology](https://www.realtor.com/research/reports/hottest-markets/). Market Hotness is a relative measure based on listing attention and market speed; it is not a probability of sale and should not be interpreted as a matched-market comparison with Redfin.
 
@@ -117,8 +117,8 @@ A provider release is rejected unless all required files stream or download, dat
 
 The scheduled workflow checks all three providers on four staggered dates each month. Release timing is intentionally decoupled: a newer CPI release does not require a simultaneous Zillow release, and a newer Zillow release does not wait for CPI. Nominal housing observations remain available through Zillow's latest validated month. Constant-dollar levels, real changes, and same-month inflation comparisons use only exact months with official observations in both the selected housing series and selected CPI series; unmatched newer housing months remain unavailable in real terms until BLS publishes the corresponding CPI observation.
 
-Data provided by Zillow Group, Redfin, and Realtor.com® Economic Research. This repository does not redistribute the complete provider files.
+Data provided by Zillow Group, Redfin, and Realtor.com® Economic Research. This repository does not redistribute the complete provider files. See [THIRD_PARTY_DATA.md](THIRD_PARTY_DATA.md) for source-specific attribution and reuse limits.
 
 ## Intended use and disclaimer
 
-The application and filtered releases are provided for instruction and noncommercial academic research. They are not financial, investment, legal, valuation, or real-estate advice and should not be used for transaction decisions. Third-party data remain subject to their respective licenses and terms; this repository does not grant commercial-use rights to provider data.
+The application and filtered releases are provided for instruction and noncommercial academic research. They are not financial, investment, legal, valuation, or real-estate advice and should not be used for transaction decisions. Third-party data remain subject to their respective licenses and terms; this repository does not grant reuse or commercial-use rights to provider data.
