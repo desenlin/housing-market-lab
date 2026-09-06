@@ -25,6 +25,11 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Reading the maps/);
   assert.match(source, /Laguna Coast Wilderness Park/);
   assert.match(source, /No \$\{provider\} data for this/);
+  assert.match(source, /Constant-dollar month/);
+  assert.match(source, /Real \(inflation-adjusted\)/);
+  assert.match(source, /LA-area CPI-U/);
+  assert.match(source, /U\.S\. CPI-U/);
+  assert.match(source, /Real rent is a purchasing-power measure, not an affordability measure/);
 });
 
 test("repository front page includes citation and academic-use limits", async () => {

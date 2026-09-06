@@ -13,6 +13,7 @@ Created by **[Desen Lin](https://desenlin.com/)**, California State University, 
 ## What the application provides
 
 - Zillow Home Value Index (ZHVI) and Zillow Observed Rent Index (ZORI)
+- Nominal and CPI-adjusted real values and rents with a user-selected constant-dollar month
 - A derived price–rent multiple
 - Redfin months of supply, median days on market, sales above original list, price-drop share, and median sale price per square foot
 - Explicit source and reporting-window labels, with hover/focus definitions for market concepts
@@ -22,6 +23,7 @@ Created by **[Desen Lin](https://desenlin.com/)**, California State University, 
 - City/community and ZIP rankings sortable by current value or 12-month growth
 - Interactive OpenStreetMap context maps with pan, zoom, automatic county fitting, hover details, gray **No data** boundaries, and a separate legend state for land outside city/CDP geography
 - Metro inventory, days to pending, price-cut share, and sale-to-list comparisons
+- LA-area and U.S. CPI-U benchmarks, including year-over-year inflation overlays
 
 The application is a static Next.js/Vinext export. It uses no database, paid API, paid map service, or continuously running server. Google Analytics measures aggregate traffic using the same property as the academic website.
 
@@ -29,6 +31,7 @@ The application is a static Next.js/Vinext export. It uses no database, paid API
 
 - [Zillow Research housing data](https://www.zillow.com/research/data/) supplies the market time series.
 - [Redfin Data Center](https://www.redfin.com/news/data-center/downloads/) supplies local listing and transaction activity in rolling three-month windows.
+- [U.S. Bureau of Labor Statistics CPI](https://www.bls.gov/cpi/data.htm) supplies monthly LA-area and U.S. all-items CPI-U observations.
 - [US Census Bureau cartographic boundary files](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html) supply place and ZCTA boundaries.
 - [OpenStreetMap](https://www.openstreetmap.org/copyright) supplies contextual basemap tiles. Map data © OpenStreetMap contributors.
 
@@ -40,14 +43,17 @@ Definitions, transformations, boundary vintages, coverage rules, and provider ca
 flowchart TD
   A[Zillow Research] --> C[Zillow pipeline]
   B[Redfin Data Center] --> D[Redfin pipeline]
+  I[BLS CPI-U] --> J[CPI pipeline]
   C --> E[Zillow release pointer]
   D --> F[Redfin release pointer]
+  J --> K[CPI release pointer]
   E --> G[Static interactive site]
   F --> G
+  K --> G
   G --> H[GitHub Pages and Sites]
 ```
 
-Raw source files are temporary. Zillow releases live in `public/data/releases/<release-id>/`; Redfin releases live independently in `public/data/redfin/releases/<release-id>/`. Each provider has its own `latest.json` pointer, and a pointer changes only after that source's schema, date, coverage, and size checks succeed.
+Raw source files are temporary. Zillow releases live in `public/data/releases/<release-id>/`; Redfin and BLS CPI releases live independently in `public/data/redfin/releases/<release-id>/` and `public/data/cpi/releases/<release-id>/`. Each provider has its own `latest.json` pointer, and a pointer changes only after that source's schema, date, coverage, and size checks succeed.
 
 The Pages workflow runs on pushes, manual dispatch, and two monthly refresh attempts. A failed provider download or validation does not replace that provider's prior working release or prevent the other provider from refreshing.
 
@@ -60,6 +66,7 @@ npm run install:ci
 python -m pip install -r requirements.txt
 python pipeline/update_data.py
 python pipeline/update_redfin.py
+python pipeline/update_cpi.py
 npm run dev
 ```
 

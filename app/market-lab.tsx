@@ -15,6 +15,7 @@ import { Check, Copy, ExternalLink, Info, Plus, RotateCcw, X } from "lucide-reac
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   NativeSelect,
   NativeSelectOption,
@@ -46,6 +47,8 @@ type ChangeMode = "percent" | "difference" | "percentage_point";
 type TimeRange = "1y" | "3y" | "5y" | "max";
 type RankKey = "growth" | "level";
 type MapPaletteKey = "navy" | "orange";
+type PriceBasis = "nominal" | "real";
+type CpiSeriesKey = "la" | "us";
 
 type Metric = {
   dates: string[];
@@ -120,6 +123,61 @@ type RedfinManifest = Manifest & {
   start_date: string;
 };
 
+type CpiSeries = {
+  key: CpiSeriesKey;
+  id: string;
+  label: string;
+  long_label: string;
+  area: string;
+  coverage: string;
+  seasonal_adjustment: string;
+  frequency: string;
+  unit: string;
+  dates: string[];
+  values: Value[];
+  yoy: Value[];
+  latest_observation: string;
+  missing_observations: string[];
+};
+
+type CpiDataset = {
+  provider: string;
+  frequency: string;
+  data_page: string;
+  series: Record<CpiSeriesKey, CpiSeries>;
+};
+
+type CpiManifest = {
+  release: string;
+  created_at: string;
+  provider: string;
+  attribution: string;
+  data_page: string;
+  frequency: string;
+  bundle_sha256: string;
+  series: Record<CpiSeriesKey, {
+    id: string;
+    label: string;
+    latest_observation: string;
+    missing_observations: string[];
+  }>;
+};
+
+type PriceAdjustment = {
+  basis: PriceBasis;
+  cpi: CpiSeries | null;
+  baseMonth: string;
+};
+
+type ChartOverlay = {
+  id: string;
+  label: string;
+  dates: string[];
+  values: Value[];
+  color: string;
+  dashed?: boolean;
+};
+
 const COUNTY_OPTIONS = ["Orange County", "Los Angeles County", "Both"];
 const LOCAL_METRICS: { key: MetricKey; label: string }[] = [
   { key: "zhvi", label: "Typical home value" },
@@ -174,17 +232,49 @@ function expandedSeries(series: Value[] | { o: number; v: Value[] } | undefined,
   return values;
 }
 
-function metricSeries(dataset: Dataset, region: Region, metric: MetricKey) {
+export function applyPriceAdjustment(
+  series: { dates: string[]; values: Value[]; unit: string; changeMode: ChangeMode },
+  metric: MetricKey,
+  adjustment?: PriceAdjustment,
+) {
+  if (
+    adjustment?.basis !== "real" ||
+    !adjustment.cpi ||
+    !adjustment.baseMonth ||
+    (metric !== "zhvi" && metric !== "zori")
+  ) return series;
+  const cpiByMonth = new Map(
+    adjustment.cpi.dates.map((date, index) => [date.slice(0, 7), adjustment.cpi!.values[index]]),
+  );
+  const baseCpi = cpiByMonth.get(adjustment.baseMonth);
+  if (baseCpi == null || baseCpi === 0) return { ...series, values: series.values.map(() => null) };
+  return {
+    ...series,
+    values: series.values.map((value, index) => {
+      const currentCpi = cpiByMonth.get(series.dates[index]?.slice(0, 7));
+      return value != null && currentCpi != null && currentCpi !== 0
+        ? value * baseCpi / currentCpi
+        : null;
+    }),
+  };
+}
+
+function metricSeries(
+  dataset: Dataset,
+  region: Region,
+  metric: MetricKey,
+  adjustment?: PriceAdjustment,
+) {
   if (metric !== "price_rent") {
     const metadata = dataset.metrics[metric];
     const dates = metadata?.dates ?? [];
-    return {
+    return applyPriceAdjustment({
       dates,
       values: expandedSeries(region.series[metric], dates.length),
       unit: metadata?.unit ?? "number",
       changeMode: metadata?.change_mode ??
         (metadata?.unit === "share" ? "percentage_point" : metadata?.unit === "ratio" ? "difference" : "percent"),
-    };
+    }, metric, adjustment);
   }
   const rent = dataset.metrics.zori;
   const value = dataset.metrics.zhvi;
@@ -206,7 +296,41 @@ function metricSeries(dataset: Dataset, region: Region, metric: MetricKey) {
   };
 }
 
-function transformValues(
+function observedCpiMonths(cpi: CpiSeries | null, dates: string[]) {
+  if (!cpi) return [];
+  const housingMonths = new Set(dates.map((date) => date.slice(0, 7)));
+  return cpi.dates
+    .map((date, index) => cpi.values[index] != null ? date.slice(0, 7) : null)
+    .filter((month): month is string => month != null && housingMonths.has(month));
+}
+
+function normalizedRealBaseMonth(cpi: CpiSeries | null, dates: string[], requested: string) {
+  const months = observedCpiMonths(cpi, dates);
+  if (!months.length) return "";
+  if (!requested) return months.at(-1)!;
+  if (months.includes(requested)) return requested;
+  return [...months].reverse().find((month) => month < requested) ?? months[0];
+}
+
+function cpiOverlay(cpi: CpiSeries | null, view: ViewKey): ChartOverlay[] {
+  if (!cpi || (view !== "yoy" && view !== "index")) return [];
+  return [{
+    id: `cpi-${cpi.key}`,
+    label: view === "yoy" ? `${cpi.label} inflation` : cpi.label,
+    dates: cpi.dates,
+    values: cpi.values,
+    color: "#5d6570",
+    dashed: true,
+  }];
+}
+
+function cpiYoyAtMonth(cpi: CpiSeries | null, month: string) {
+  if (!cpi || !month) return null;
+  const index = cpi.dates.findIndex((date) => date.startsWith(month));
+  return index >= 0 ? cpi.yoy[index] : null;
+}
+
+export function transformValues(
   values: Value[],
   view: ViewKey,
   dates: string[] = [],
@@ -370,6 +494,47 @@ function IndexBaseControl({
   );
 }
 
+function RealBaseControl({
+  value,
+  dates,
+  onChange,
+}: {
+  value: string;
+  dates: string[];
+  onChange: (value: string) => void;
+}) {
+  if (!dates.length) return null;
+  return (
+    <label className="index-base">
+      <span>Constant-dollar month</span>
+      <input
+        type="month"
+        min={dates[0]}
+        max={dates.at(-1)!}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
+function InflationToggle({
+  checked,
+  onCheckedChange,
+  label,
+}: {
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label className="inflation-toggle">
+      <Checkbox checked={checked} onCheckedChange={(value) => onCheckedChange(value === true)} />
+      <span>{label}</span>
+    </label>
+  );
+}
+
 function SeriesChart({
   dataset,
   regions,
@@ -377,6 +542,8 @@ function SeriesChart({
   view,
   timeRange,
   indexBaseMonth,
+  priceAdjustment,
+  overlays = [],
 }: {
   dataset: Dataset;
   regions: Region[];
@@ -384,12 +551,14 @@ function SeriesChart({
   view: ViewKey;
   timeRange: TimeRange;
   indexBaseMonth: string;
+  priceAdjustment?: PriceAdjustment;
+  overlays?: ChartOverlay[];
 }) {
   const chart = useMemo(() => {
     if (!regions.length) return { rows: [], unit: "number", changeMode: "percent" as ChangeMode };
-    const first = metricSeries(dataset, regions[0], metric);
+    const first = metricSeries(dataset, regions[0], metric, priceAdjustment);
     const series = regions.map((region) => {
-      const current = metricSeries(dataset, region, metric);
+      const current = metricSeries(dataset, region, metric, priceAdjustment);
       const byDate = new Map(
         current.dates.map((date, index) => [
           date,
@@ -398,9 +567,19 @@ function SeriesChart({
       );
       return { region, byDate };
     });
+    const overlaySeries = overlays.map((overlay) => ({
+      overlay,
+      byDate: new Map(
+        overlay.dates.map((date, index) => [
+          date.slice(0, 7),
+          transformValues(overlay.values, view, overlay.dates, indexBaseMonth, "percent")[index],
+        ]),
+      ),
+    }));
     const rows = first.dates.map((date) => ({
       date,
       ...Object.fromEntries(series.map(({ region, byDate }) => [region.id, byDate.get(date) ?? null])),
+      ...Object.fromEntries(overlaySeries.map(({ overlay, byDate }) => [overlay.id, byDate.get(date.slice(0, 7)) ?? null])),
     }));
     const rangeStart = timeRangeStart(rows.length, timeRange);
     const indexStart = view === "index"
@@ -411,7 +590,9 @@ function SeriesChart({
       changeMode: first.changeMode,
       rows: rows.slice(Math.max(rangeStart, indexStart)),
     };
-  }, [dataset, regions, metric, view, timeRange, indexBaseMonth]);
+  }, [dataset, regions, metric, view, timeRange, indexBaseMonth, overlays, priceAdjustment]);
+
+  const overlayById = new Map(overlays.map((overlay) => [overlay.id, overlay]));
 
   return (
     <div className="h-[360px] min-w-0 w-full" aria-label="Housing market time-series chart">
@@ -437,11 +618,11 @@ function SeriesChart({
             labelFormatter={(date) => shortDate(String(date))}
             formatter={(value, name) => [
               formatValue(Number(value), chart.unit, view, false, chart.changeMode),
-              regions.find((region) => region.id === String(name))?.name ?? String(name),
+              regions.find((region) => region.id === String(name))?.name ?? overlayById.get(String(name))?.label ?? String(name),
             ]}
             contentStyle={{ borderRadius: 8, borderColor: "#cbd6dc", boxShadow: "0 12px 30px #12355b20" }}
           />
-          <Legend formatter={(id) => regions.find((region) => region.id === String(id))?.name ?? String(id)} />
+          <Legend formatter={(id) => regions.find((region) => region.id === String(id))?.name ?? overlayById.get(String(id))?.label ?? String(id)} />
           {regions.map((region, index) => (
             <Line
               key={region.id}
@@ -449,6 +630,19 @@ function SeriesChart({
               dataKey={region.id}
               stroke={COLORS[index % COLORS.length]}
               strokeWidth={index === 0 ? 3 : 2}
+              dot={false}
+              connectNulls={false}
+              isAnimationActive={false}
+            />
+          ))}
+          {overlays.map((overlay) => (
+            <Line
+              key={overlay.id}
+              type="monotone"
+              dataKey={overlay.id}
+              stroke={overlay.color}
+              strokeWidth={2}
+              strokeDasharray={overlay.dashed ? "6 4" : undefined}
               dot={false}
               connectNulls={false}
               isAnimationActive={false}
@@ -473,6 +667,7 @@ function CountyMap({
   paletteKey,
   onPaletteChange,
   provider,
+  priceAdjustment,
 }: {
   county: string;
   mapData: MapData;
@@ -486,6 +681,7 @@ function CountyMap({
   paletteKey: MapPaletteKey;
   onPaletteChange: (palette: MapPaletteKey) => void;
   provider: string;
+  priceAdjustment?: PriceAdjustment;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
@@ -539,7 +735,7 @@ function CountyMap({
         const region = datasetByPlace.get(
           `${shape.county ?? ""}:${normalizedPlaceName(shape.name)}`,
         );
-        const series = region ? metricSeries(dataset, region, metric) : null;
+        const series = region ? metricSeries(dataset, region, metric, priceAdjustment) : null;
         const transformed = series
           ? transformValues(series.values, view, series.dates, indexBaseMonth, series.changeMode)
           : [];
@@ -557,7 +753,7 @@ function CountyMap({
           changeMode: series?.changeMode ?? "percent",
         };
       }),
-    [dataset, datasetByPlace, indexBaseMonth, metric, shapes.regions, view],
+    [dataset, datasetByPlace, indexBaseMonth, metric, priceAdjustment, shapes.regions, view],
   );
   const valueById = useMemo(
     () => new Map(values.map((item) => [item.id, item])),
@@ -804,6 +1000,9 @@ export default function MarketLab() {
   const [maps, setMaps] = useState<Record<string, MapData> | null>(null);
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [redfinManifest, setRedfinManifest] = useState<RedfinManifest | null>(null);
+  const [cpi, setCpi] = useState<CpiDataset | null>(null);
+  const [cpiManifest, setCpiManifest] = useState<CpiManifest | null>(null);
+  const [cpiError, setCpiError] = useState("");
   const [activityError, setActivityError] = useState("");
   const [error, setError] = useState("");
   const [geography, setGeography] = useState<"city" | "zip">("city");
@@ -828,6 +1027,14 @@ export default function MarketLab() {
   const [activityView, setActivityView] = useState<Exclude<ViewKey, "index">>("level");
   const [activityTimeRange, setActivityTimeRange] = useState<TimeRange>("5y");
   const [activityRankBy, setActivityRankBy] = useState<RankKey>("growth");
+  const [priceBasis, setPriceBasis] = useState<PriceBasis>("nominal");
+  const [deflatorKey, setDeflatorKey] = useState<CpiSeriesKey>("la");
+  const [realBaseRequest, setRealBaseRequest] = useState("");
+  const [showLocalInflation, setShowLocalInflation] = useState(true);
+  const [regionalPriceBasis, setRegionalPriceBasis] = useState<PriceBasis>("nominal");
+  const [regionalDeflatorKey, setRegionalDeflatorKey] = useState<CpiSeriesKey>("us");
+  const [regionalRealBaseRequest, setRegionalRealBaseRequest] = useState("");
+  const [showRegionalInflation, setShowRegionalInflation] = useState(true);
 
   useEffect(() => {
     const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -849,6 +1056,21 @@ export default function MarketLab() {
         setDatasets({ city, zip, metro });
         setMaps({ city: mapCity, zip: mapZip });
         setManifest(releaseManifest);
+        try {
+          const cpiPointer = await fetch(`${base}/data/cpi/latest.json`).then((response) => {
+            if (!response.ok) throw new Error("No validated BLS CPI release was found.");
+            return response.json() as Promise<{ release: string }>;
+          });
+          const cpiBase = `${base}/data/cpi/releases/${cpiPointer.release}`;
+          const [cpiDataset, cpiReleaseManifest] = await Promise.all([
+            fetch(`${cpiBase}/cpi.json`).then((response) => response.json()),
+            fetch(`${cpiBase}/manifest.json`).then((response) => response.json()),
+          ]);
+          setCpi(cpiDataset);
+          setCpiManifest(cpiReleaseManifest);
+        } catch (caught) {
+          setCpiError(caught instanceof Error ? caught.message : "The BLS CPI release could not be loaded.");
+        }
         try {
           const redfinPointer = await fetch(`${base}/data/redfin/latest.json`).then((response) => {
             if (!response.ok) throw new Error("No validated Redfin release was found.");
@@ -895,6 +1117,10 @@ export default function MarketLab() {
         const queryRange = query.get("range");
         const queryBase = query.get("base");
         const queryPalette = query.get("palette");
+        const queryBasis = query.get("basis");
+        const queryDeflator = query.get("deflator");
+        const queryRealBase = query.get("real_base");
+        const queryInflation = query.get("inflation");
         const restoredGeo = queryGeo === "zip" ? "zip" : "city";
         const restoredCounty = COUNTY_OPTIONS.includes(queryCounty ?? "") ? queryCounty! : "Orange County";
         const restoredDataset = restoredGeo === "zip" ? (zip as Dataset) : (city as Dataset);
@@ -915,6 +1141,10 @@ export default function MarketLab() {
         if (["1y", "3y", "5y", "max"].includes(queryRange ?? "")) setTimeRange(queryRange as TimeRange);
         if (/^\d{4}-\d{2}$/.test(queryBase ?? "")) setIndexBaseRequest(queryBase!);
         if (queryPalette === "navy" || queryPalette === "orange") setMapPalette(queryPalette);
+        if (queryBasis === "real") setPriceBasis("real");
+        if (queryDeflator === "la" || queryDeflator === "us") setDeflatorKey(queryDeflator);
+        if (/^\d{4}-\d{2}$/.test(queryRealBase ?? "")) setRealBaseRequest(queryRealBase!);
+        if (queryInflation === "0") setShowLocalInflation(false);
         if (restoredIds.length) setSelectedIds(restoredIds);
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : "The data release could not be loaded.");
@@ -926,8 +1156,32 @@ export default function MarketLab() {
   const dataset = datasets?.[geography];
   const localDates = dataset ? metricDates(dataset, metric) : [];
   const indexBaseMonth = normalizedBaseMonth(localDates, indexBaseRequest);
+  const localMetricSupportsReal = metric === "zhvi" || metric === "zori";
+  const localCpi = cpi?.series[deflatorKey] ?? null;
+  const realBaseMonth = normalizedRealBaseMonth(localCpi, localDates, realBaseRequest);
+  const localBasis: PriceBasis = localMetricSupportsReal && priceBasis === "real" && localCpi
+    ? "real"
+    : "nominal";
+  const localPriceAdjustment: PriceAdjustment = {
+    basis: localBasis,
+    cpi: localCpi,
+    baseMonth: realBaseMonth,
+  };
+  const localRealBaseMonths = observedCpiMonths(localCpi, localDates);
   const regionalDates = datasets ? metricDates(datasets.metro, regionalMetric) : [];
   const regionalIndexBaseMonth = normalizedBaseMonth(regionalDates, regionalIndexBaseRequest);
+  const regionalMetricSupportsReal = regionalMetric === "zhvi" || regionalMetric === "zori";
+  const regionalCpi = cpi?.series[regionalDeflatorKey] ?? null;
+  const regionalRealBaseMonth = normalizedRealBaseMonth(regionalCpi, regionalDates, regionalRealBaseRequest);
+  const regionalBasis: PriceBasis = regionalMetricSupportsReal && regionalPriceBasis === "real" && regionalCpi
+    ? "real"
+    : "nominal";
+  const regionalPriceAdjustment: PriceAdjustment = {
+    basis: regionalBasis,
+    cpi: regionalCpi,
+    baseMonth: regionalRealBaseMonth,
+  };
+  const regionalRealBaseMonths = observedCpiMonths(regionalCpi, regionalDates);
   const eligible = useMemo(
     () =>
       dataset?.regions.filter((region) => county === "Both" || region.county === county) ?? [],
@@ -938,21 +1192,27 @@ export default function MarketLab() {
     .map((id) => eligible.find((region) => region.id === id))
     .filter((region): region is Region => Boolean(region));
   const primary = selectedRegions[0];
-  const primarySeries = dataset && primary ? metricSeries(dataset, primary, metric) : null;
+  const primarySeries = dataset && primary
+    ? metricSeries(dataset, primary, metric, localPriceAdjustment)
+    : null;
   const primaryLast = primarySeries ? lastValue(primarySeries.values) : null;
   const primaryYoy = primarySeries
     ? lastValue(transformValues(primarySeries.values, "yoy", primarySeries.dates))
     : null;
+  const primaryObservationMonth = primaryLast && primarySeries
+    ? primarySeries.dates[primaryLast.index].slice(0, 7)
+    : "";
+  const localInflation = cpiYoyAtMonth(localCpi, primaryObservationMonth);
   const fiveYear = (() => {
     if (!primarySeries || !primaryLast) return null;
     const prior = primarySeries.values[primaryLast.index - 60];
     return prior != null && prior !== 0 ? primaryLast.value / prior - 1 : null;
   })();
-  const ranked = useMemo(() => {
+  const ranked = (() => {
     if (!dataset) return [];
     return eligible
       .map((region) => {
-        const series = metricSeries(dataset, region, metric);
+        const series = metricSeries(dataset, region, metric, localPriceAdjustment);
         const level = lastValue(series.values)?.value ?? null;
         const yoy = lastValue(transformValues(series.values, "yoy", series.dates))?.value ?? null;
         return { region, level, yoy, unit: series.unit };
@@ -963,7 +1223,7 @@ export default function MarketLab() {
           ? (b.yoy ?? -Infinity) - (a.yoy ?? -Infinity)
           : (b.level ?? -Infinity) - (a.level ?? -Infinity),
       );
-  }, [dataset, eligible, metric, rankBy]);
+  })();
   const rank = primary ? ranked.findIndex((item) => item.region.id === primary.id) + 1 : 0;
   const unit = primarySeries?.unit ?? "number";
 
@@ -1083,6 +1343,12 @@ export default function MarketLab() {
     url.searchParams.set("view", view);
     url.searchParams.set("range", timeRange);
     if (view === "index") url.searchParams.set("base", indexBaseMonth);
+    if (localBasis === "real") {
+      url.searchParams.set("basis", "real");
+      url.searchParams.set("deflator", deflatorKey);
+      url.searchParams.set("real_base", realBaseMonth);
+    }
+    if (!showLocalInflation) url.searchParams.set("inflation", "0");
     url.searchParams.set("palette", mapPalette);
     url.searchParams.set("regions", selectedIds.join(","));
     await navigator.clipboard.writeText(url.toString());
@@ -1097,7 +1363,10 @@ export default function MarketLab() {
     return <main className="status-screen"><div className="loader" /><h1>Housing Market Lab</h1><p>Loading the latest validated release…</p></main>;
   }
 
-  const currentMetricLabel = LOCAL_METRICS.find((item) => item.key === metric)?.label ?? metric;
+  const nominalMetricLabel = LOCAL_METRICS.find((item) => item.key === metric)?.label ?? metric;
+  const currentMetricLabel = localBasis === "real"
+    ? `Real ${nominalMetricLabel.toLowerCase()}`
+    : nominalMetricLabel;
   const currentMetricMetadata = metric === "price_rent"
     ? {
         dates: localDates,
@@ -1109,12 +1378,29 @@ export default function MarketLab() {
         provider: "Zillow-derived",
         frequency: "Monthly",
       }
-    : dataset.metrics[metric];
+    : {
+        ...dataset.metrics[metric],
+        label: currentMetricLabel,
+        definition: localBasis === "real"
+          ? `${dataset.metrics[metric].definition} Expressed in ${shortDate(`${realBaseMonth}-01`)} dollars using ${localCpi?.long_label}.`
+          : dataset.metrics[metric].definition,
+      };
   const activityMetricMetadata = activityDataset?.metrics[activityMetric];
-  const regionalMetricMetadata = datasets.metro.metrics[regionalMetric];
+  const regionalMetricMetadata = {
+    ...datasets.metro.metrics[regionalMetric],
+    label: regionalBasis === "real"
+      ? `Real ${datasets.metro.metrics[regionalMetric].label.toLowerCase()}`
+      : datasets.metro.metrics[regionalMetric].label,
+  };
   const regionalRegions = regionalIds
     .map((id) => datasets.metro.regions.find((region) => region.id === id))
     .filter((region): region is Region => Boolean(region));
+  const localInflationOverlays = showLocalInflation && localMetricSupportsReal && view === "yoy"
+    ? cpiOverlay(localCpi, view)
+    : [];
+  const regionalInflationOverlays = showRegionalInflation && regionalMetricSupportsReal && (regionalView === "yoy" || regionalView === "index")
+    ? cpiOverlay(regionalCpi, regionalView)
+    : [];
 
   return (
     <TooltipProvider delayDuration={120}>
@@ -1145,7 +1431,13 @@ export default function MarketLab() {
 
         <TabsContent value="local" className="space-y-5">
           <section className="control-deck" aria-label="Local market controls">
-            <div className="source-strip"><SourceBadge provider={currentMetricMetadata.provider ?? "Zillow"} frequency={currentMetricMetadata.frequency ?? "Monthly"} /><span>Values and rents</span></div>
+            <div className="source-strip">
+              <SourceBadge provider={currentMetricMetadata.provider ?? "Zillow"} frequency={currentMetricMetadata.frequency ?? "Monthly"} />
+              {localMetricSupportsReal && (localBasis === "real" || (view === "yoy" && showLocalInflation)) && cpiManifest && (
+                <SourceBadge provider="BLS CPI-U" frequency="Monthly" />
+              )}
+              <span>Values and rents</span>
+            </div>
             <div className="control-grid">
               <LabelledSelect label="County" value={county} onChange={changeCounty}>
                 {COUNTY_OPTIONS.map((option) => <NativeSelectOption key={option} value={option}>{option}</NativeSelectOption>)}
@@ -1163,6 +1455,25 @@ export default function MarketLab() {
                 <NativeSelectOption value="index">Indexed to 100</NativeSelectOption>
               </LabelledSelect>
             </div>
+            {localMetricSupportsReal && (
+              <div className="price-controls" aria-label="Inflation adjustment controls">
+                <LabelledSelect label="Dollar terms" value={localBasis} onChange={(next) => setPriceBasis(next as PriceBasis)}>
+                  <NativeSelectOption value="nominal">Nominal</NativeSelectOption>
+                  <NativeSelectOption value="real" disabled={!cpi}>Real (inflation-adjusted)</NativeSelectOption>
+                </LabelledSelect>
+                {localBasis === "real" && (
+                  <>
+                    <LabelledSelect label="Deflator" value={deflatorKey} onChange={(next) => setDeflatorKey(next as CpiSeriesKey)}>
+                      <NativeSelectOption value="la">LA-area CPI-U</NativeSelectOption>
+                      <NativeSelectOption value="us">U.S. CPI-U</NativeSelectOption>
+                    </LabelledSelect>
+                    <RealBaseControl value={realBaseMonth} dates={localRealBaseMonths} onChange={setRealBaseRequest} />
+                    <p className="price-basis-note">Values are expressed in {shortDate(`${realBaseMonth}-01`)} dollars. The base month changes the scale, not real growth.</p>
+                  </>
+                )}
+                {!cpi && cpiError && <p className="price-basis-note warning">Real terms are temporarily unavailable; nominal data remain current.</p>}
+              </div>
+            )}
             <div className="comparison-row">
               <label className="control-label comparison-select">
                 <span>Add a comparison (up to five)</span>
@@ -1189,7 +1500,13 @@ export default function MarketLab() {
 
           <section className="kpi-grid" aria-label="Current market summary">
             <Kpi label={currentMetricLabel} definition={currentMetricMetadata.definition} value={formatValue(primaryLast?.value ?? null, unit, "level")} note={primaryLast ? `As of ${shortDate(primarySeries!.dates[primaryLast.index])}` : "No observation"} />
-            <Kpi label="Year over year" value={formatValue(primaryYoy?.value ?? null, unit, "yoy")} note="Versus the same month one year ago" />
+            <Kpi
+              label={localBasis === "real" ? "Real year over year" : "Year over year"}
+              value={formatValue(primaryYoy?.value ?? null, unit, "yoy")}
+              note={localInflation != null
+                ? `${localCpi?.label} inflation: ${formatValue(localInflation, "number", "yoy")}`
+                : "Versus the same month one year ago"}
+            />
             <Kpi label="Five-year change" value={formatValue(fiveYear, unit, "yoy")} note="Longer view of the recent cycle" />
             <Kpi
               label={`${county === "Both" ? "Two-county" : county.replace(" County", "")} rank`}
@@ -1207,11 +1524,20 @@ export default function MarketLab() {
                   {view === "index" && (
                     <IndexBaseControl value={indexBaseMonth} dates={localDates} onChange={setIndexBaseRequest} />
                   )}
-                  <p>{view === "level" ? "Monthly level" : view === "yoy" ? "Percent change from one year earlier" : `${shortDate(`${indexBaseMonth}-01`)} = 100`}</p>
+                  {view === "yoy" && localCpi && (
+                    <InflationToggle checked={showLocalInflation} onCheckedChange={setShowLocalInflation} label={`Plot ${localCpi.label} inflation`} />
+                  )}
+                  <p>{view === "level"
+                    ? localBasis === "real" ? `${shortDate(`${realBaseMonth}-01`)} dollars` : "Monthly level"
+                    : view === "yoy" ? `${localBasis === "real" ? "Real " : ""}percent change from one year earlier`
+                    : `${shortDate(`${indexBaseMonth}-01`)} = 100`}</p>
                 </div>
               </CardHeader>
               <CardContent className="p-3 pt-0 sm:p-5 sm:pt-0">
-                <SeriesChart dataset={dataset} regions={selectedRegions} metric={metric} view={view} timeRange={timeRange} indexBaseMonth={indexBaseMonth} />
+                <SeriesChart dataset={dataset} regions={selectedRegions} metric={metric} view={view} timeRange={timeRange} indexBaseMonth={indexBaseMonth} priceAdjustment={localPriceAdjustment} overlays={localInflationOverlays} />
+                {localBasis === "real" && (
+                  <p className="data-note">Real observations end with the latest available CPI month. The selected CPI-U series is not seasonally adjusted; year-over-year comparisons are preferable to month-to-month interpretation.</p>
+                )}
                 {metric !== "zhvi" && selectedRegions.some((region) => metricSeries(dataset, region, metric).values.every((value) => value == null)) && (
                   <p className="data-note">Some regions are omitted where Zillow does not publish a usable rent history.</p>
                 )}
@@ -1245,7 +1571,7 @@ export default function MarketLab() {
           </section>
 
           <section className="maps-grid">
-            <CountyMap county={county} mapData={maps[geography]} dataset={dataset} metric={metric} metricLabel={currentMetricLabel} view={view} indexBaseMonth={indexBaseMonth} selectedId={primary?.id ?? ""} onSelect={selectPrimary} paletteKey={mapPalette} onPaletteChange={setMapPalette} provider="Zillow" />
+            <CountyMap county={county} mapData={maps[geography]} dataset={dataset} metric={metric} metricLabel={currentMetricLabel} view={view} indexBaseMonth={indexBaseMonth} selectedId={primary?.id ?? ""} onSelect={selectPrimary} paletteKey={mapPalette} onPaletteChange={setMapPalette} provider="Zillow" priceAdjustment={localPriceAdjustment} />
           </section>
         </TabsContent>
 
@@ -1380,7 +1706,13 @@ export default function MarketLab() {
             <p>Compare a consistent set of Western and high-growth metros. These metro-level measures add market liquidity and competition signals that are not consistently available for every city or ZIP.</p>
           </section>
           <section className="control-deck">
-            <div className="source-strip"><SourceBadge provider="Zillow" frequency="Monthly" /><span>Metro comparison</span></div>
+            <div className="source-strip">
+              <SourceBadge provider="Zillow" frequency="Monthly" />
+              {regionalMetricSupportsReal && (regionalBasis === "real" || ((regionalView === "yoy" || regionalView === "index") && showRegionalInflation)) && cpiManifest && (
+                <SourceBadge provider="BLS CPI-U" frequency="Monthly" />
+              )}
+              <span>Metro comparison</span>
+            </div>
             <div className="control-grid regional-controls">
               <LabelledSelect label="Metric" value={regionalMetric} onChange={(next) => setRegionalMetric(next as MetricKey)}>
                 {REGIONAL_METRICS.map((option) => <NativeSelectOption key={option.key} value={option.key}>{option.label}</NativeSelectOption>)}
@@ -1394,6 +1726,24 @@ export default function MarketLab() {
                 <IndexBaseControl value={regionalIndexBaseMonth} dates={regionalDates} onChange={setRegionalIndexBaseRequest} />
               )}
             </div>
+            {regionalMetricSupportsReal && (
+              <div className="price-controls regional-price-controls" aria-label="Regional inflation adjustment controls">
+                <LabelledSelect label="Dollar terms" value={regionalBasis} onChange={(next) => setRegionalPriceBasis(next as PriceBasis)}>
+                  <NativeSelectOption value="nominal">Nominal</NativeSelectOption>
+                  <NativeSelectOption value="real" disabled={!cpi}>Real (inflation-adjusted)</NativeSelectOption>
+                </LabelledSelect>
+                {regionalBasis === "real" && (
+                  <>
+                    <LabelledSelect label="Deflator" value={regionalDeflatorKey} onChange={(next) => setRegionalDeflatorKey(next as CpiSeriesKey)}>
+                      <NativeSelectOption value="us">U.S. CPI-U</NativeSelectOption>
+                      <NativeSelectOption value="la">LA-area CPI-U</NativeSelectOption>
+                    </LabelledSelect>
+                    <RealBaseControl value={regionalRealBaseMonth} dates={regionalRealBaseMonths} onChange={setRegionalRealBaseRequest} />
+                    <p className="price-basis-note">U.S. CPI-U is the default common deflator when comparing metros.</p>
+                  </>
+                )}
+              </div>
+            )}
             <TimeRangeControl value={regionalTimeRange} onChange={setRegionalTimeRange} />
             <div className="metro-checks">
               {datasets.metro.regions.map((region) => {
@@ -1403,8 +1753,23 @@ export default function MarketLab() {
             </div>
           </section>
           <Card className="chart-card regional-chart">
-            <CardHeader className="chart-header"><div><p className="section-kicker">Metro comparison</p><CardTitle><MetricHeading metric={regionalMetricMetadata} fallback={REGIONAL_METRICS.find((item) => item.key === regionalMetric)?.label ?? regionalMetric} /></CardTitle></div><p>{regionalView === "index" ? `${shortDate(`${regionalIndexBaseMonth}-01`)} = 100` : "Choose up to five metros"}</p></CardHeader>
-            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0"><SeriesChart dataset={datasets.metro} regions={regionalRegions} metric={regionalMetric} view={regionalView} timeRange={regionalTimeRange} indexBaseMonth={regionalIndexBaseMonth} /></CardContent>
+            <CardHeader className="chart-header">
+              <div><p className="section-kicker">Metro comparison</p><CardTitle><MetricHeading metric={regionalMetricMetadata} fallback={REGIONAL_METRICS.find((item) => item.key === regionalMetric)?.label ?? regionalMetric} /></CardTitle></div>
+              <div className="chart-options">
+                {(regionalView === "yoy" || regionalView === "index") && regionalCpi && regionalMetricSupportsReal && (
+                  <InflationToggle checked={showRegionalInflation} onCheckedChange={setShowRegionalInflation} label={`Plot ${regionalCpi.label}${regionalView === "yoy" ? " inflation" : ""}`} />
+                )}
+                <p>{regionalView === "index"
+                  ? `${shortDate(`${regionalIndexBaseMonth}-01`)} = 100`
+                  : regionalView === "level" && regionalBasis === "real"
+                    ? `${shortDate(`${regionalRealBaseMonth}-01`)} dollars`
+                    : "Choose up to five metros"}</p>
+              </div>
+            </CardHeader>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+              <SeriesChart dataset={datasets.metro} regions={regionalRegions} metric={regionalMetric} view={regionalView} timeRange={regionalTimeRange} indexBaseMonth={regionalIndexBaseMonth} priceAdjustment={regionalPriceAdjustment} overlays={regionalInflationOverlays} />
+              {regionalBasis === "real" && <p className="data-note">Real metro series use the selected CPI-U deflator and end with its latest available observation.</p>}
+            </CardContent>
           </Card>
         </TabsContent>
 
@@ -1415,10 +1780,12 @@ export default function MarketLab() {
           </section>
           <section className="method-grid">
             <Card><CardHeader><CardTitle>Zillow measures</CardTitle></CardHeader><CardContent className="method-copy"><p><strong>ZHVI</strong> estimates the typical mid-tier home value. <strong>ZORI</strong> tracks typical observed asking rent. The price–rent multiple is ZHVI divided by twelve months of ZORI.</p><p>Monthly year-over-year change compares each observation with the same month one year earlier. In indexed views, the user-selected starting month equals 100.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Nominal and real terms</CardTitle></CardHeader><CardContent className="method-copy"><p>Home values and rents can be shown in nominal dollars or converted to constant dollars using CPI-U. Local views default to the Los Angeles–Long Beach–Anaheim index, which covers Los Angeles and Orange Counties. Cross-metro views default to the U.S. city average.</p><p>Real value in base month <em>b</em> equals nominal value in month <em>t</em> multiplied by CPI<sub>b</sub>/CPI<sub>t</sub>. The base month changes displayed dollar levels but not real growth. Real rent is a purchasing-power measure, not an affordability measure.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>CPI and inflation</CardTitle></CardHeader><CardContent className="method-copy"><p>The lab retrieves monthly CPI-U, All Items directly from the U.S. Bureau of Labor Statistics: <code>CUURS49ASA0</code> for the LA area and <code>CUUR0000SA0</code> for the U.S. city average. Both are not seasonally adjusted.</p><p>Inflation is the exact change in CPI from the same month one year earlier. Officially missing CPI observations remain missing rather than being interpolated or carried forward.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Redfin activity measures</CardTitle></CardHeader><CardContent className="method-copy"><p>Redfin supplies months of supply, median days on market, the share sold above original list, the share of active listings with price reductions, and median sale price per square foot.</p><p>City and ZIP observations are rolling three-month windows. Share changes are shown in percentage points; days and months use absolute differences; price per square foot uses percent change.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Geographies</CardTitle></CardHeader><CardContent className="method-copy"><p>City/community maps retain every Census incorporated place and Census-designated place (CDP) assigned to Orange or Los Angeles County, whether or not a provider reports data. Zillow and Redfin observations are matched independently, and an unincorporated CDP is never reassigned to a neighboring city.</p><p>ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs. Census places and ZCTAs do not necessarily cover or classify land in the same way.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Reading the maps</CardTitle></CardHeader><CardContent className="method-copy"><p>The legend distinguishes three states: <strong>colored</strong> means the selected provider reports a current observation; <strong>gray</strong> means an official city/CDP or mapped ZCTA boundary exists but the selected observation is unavailable; <strong>unshaded</strong> means the land falls outside the displayed place geography.</p><p>Unshaded county remainder, wilderness, and open space should not be interpreted as a missing housing market. For example, unshaded portions of Laguna Coast Wilderness Park are not a separate Census place. OpenStreetMap supplies the underlying geographic context.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Zillow and Redfin are refreshed into independent versioned releases. Each pipeline checks schemas, dates, coverage, and size before advancing its own <code>latest.json</code> pointer.</p><p>If either provider update fails, its prior validated release remains available and does not block the other source.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Zillow, Redfin, and BLS CPI are refreshed into independent versioned releases. Each pipeline checks schemas, dates, coverage, and size before advancing its own <code>latest.json</code> pointer.</p><p>If a provider update fails, its prior validated release remains available and does not block the other sources.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Cost &amp; portability</CardTitle></CardHeader><CardContent className="method-copy"><p>The site is a static export with no database, application server, paid API, or paid map service. GitHub Actions performs periodic updates and GitHub Pages serves the files.</p><p>OpenStreetMap tiles are requested only for the map a visitor is viewing. A 50 MB processed-data guardrail catches accidental growth before release.</p></CardContent></Card>
           </section>
           <Card className="disclaimer-card">
@@ -1431,12 +1798,13 @@ export default function MarketLab() {
           <Card className="provenance-card">
             <CardHeader><CardTitle>Current release provenance</CardTitle></CardHeader>
             <CardContent>
-              <dl className="provenance-grid"><div><dt>Zillow release</dt><dd>{manifest.release}</dd></div><div><dt>Redfin release</dt><dd>{redfinManifest?.release ?? "Unavailable"}</dd></div><div><dt>Coverage</dt><dd>{manifest.counts.city} city/community · {manifest.counts.zip} ZIP · {manifest.counts.metro} metro</dd></div><div><dt>Bundle fingerprints</dt><dd><code>{manifest.bundle_sha256.slice(0, 10)}…{redfinManifest ? ` · ${redfinManifest.bundle_sha256.slice(0, 10)}…` : ""}</code></dd></div></dl>
-              <p className="attribution">{manifest.attribution}. {redfinManifest?.attribution} Map data © OpenStreetMap contributors. This independent academic visualization is not endorsed by Zillow Group, Redfin, or OpenStreetMap.</p>
+              <dl className="provenance-grid"><div><dt>Zillow release</dt><dd>{manifest.release}</dd></div><div><dt>Redfin release</dt><dd>{redfinManifest?.release ?? "Unavailable"}</dd></div><div><dt>BLS CPI release</dt><dd>{cpiManifest?.release ?? "Unavailable"}</dd></div><div><dt>Coverage</dt><dd>{manifest.counts.city} city/community · {manifest.counts.zip} ZIP · {manifest.counts.metro} metro</dd></div><div><dt>Bundle fingerprints</dt><dd><code>{manifest.bundle_sha256.slice(0, 10)}…{redfinManifest ? ` · ${redfinManifest.bundle_sha256.slice(0, 10)}…` : ""}{cpiManifest ? ` · ${cpiManifest.bundle_sha256.slice(0, 10)}…` : ""}</code></dd></div></dl>
+              <p className="attribution">{manifest.attribution}. {redfinManifest?.attribution} {cpiManifest?.attribution} Map data © OpenStreetMap contributors. This independent academic visualization is not endorsed by Zillow Group, Redfin, BLS, or OpenStreetMap.</p>
               <div className="source-links">
                 <a className="source-link" href={manifest.data_page} target="_blank" rel="noreferrer">View Zillow Research source data <ExternalLink /></a>
                 <a className="source-link" href={redfinManifest?.data_page ?? "https://www.redfin.com/news/data-center/downloads/"} target="_blank" rel="noreferrer">View Redfin Data Center <ExternalLink /></a>
                 <a className="source-link" href={redfinManifest?.methodology_page ?? "https://www.redfin.com/news/data-center/methodology/"} target="_blank" rel="noreferrer">View Redfin methodology <ExternalLink /></a>
+                <a className="source-link" href={cpiManifest?.data_page ?? "https://www.bls.gov/cpi/data.htm"} target="_blank" rel="noreferrer">View BLS CPI source data <ExternalLink /></a>
                 <a className="source-link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">View OpenStreetMap attribution <ExternalLink /></a>
               </div>
             </CardContent>

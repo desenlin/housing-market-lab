@@ -79,3 +79,20 @@ test("Redfin pointer resolves to an independent local activity release", async (
     region.id === "place:0663050"
   ));
 });
+
+test("BLS CPI pointer resolves to complete LA-area and U.S. series", async () => {
+  const latest = await readJson("cpi/latest.json");
+  const prefix = `cpi/releases/${latest.release}/`;
+  const [manifest, cpi] = await Promise.all([
+    readJson(`${prefix}manifest.json`),
+    readJson(`${prefix}cpi.json`),
+  ]);
+  assert.equal(manifest.provider, "U.S. Bureau of Labor Statistics");
+  assert.equal(cpi.series.la.id, "CUURS49ASA0");
+  assert.equal(cpi.series.us.id, "CUUR0000SA0");
+  assert.ok(cpi.series.la.dates.length >= 300);
+  assert.equal(cpi.series.la.dates.length, cpi.series.la.values.length);
+  assert.equal(cpi.series.us.dates.length, cpi.series.us.yoy.length);
+  assert.equal(cpi.series.la.seasonal_adjustment, "Not seasonally adjusted");
+  assert.ok(cpi.series.la.values.some((value) => value === null));
+});

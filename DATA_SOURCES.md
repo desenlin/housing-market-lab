@@ -42,6 +42,21 @@ Redfin city names are matched directly to Census place names; they do not need a
 
 Redfin and Zillow activity variables should not be treated as interchangeable even when their labels resemble one another. They come from different listing feeds, record processing, geographic definitions, revision practices, and smoothing conventions. The interface therefore keeps provider badges and reporting windows visible.
 
+## Consumer Price Index
+
+The independent CPI pipeline queries the [U.S. Bureau of Labor Statistics Public Data API](https://www.bls.gov/developers/) directly. It does not rely on a FRED mirror or require a registered API key. Requests are divided into ten-year blocks within the public unregistered API limit.
+
+Selected series:
+
+| Use | BLS series | Geography | Adjustment |
+|---|---|---|---|
+| Local real values, rents, and inflation | `CUURS49ASA0` | Los Angeles–Long Beach–Anaheim; Los Angeles and Orange Counties | Not seasonally adjusted |
+| Common cross-metro benchmark | `CUUR0000SA0` | U.S. city average | Not seasonally adjusted |
+
+Both series are CPI-U, All Items, monthly, with an index reference base of 1982–84=100. Local views default to the LA-area series because its published geography matches the two-county focus. Regional-cycle comparisons default to the U.S. series so every selected metro uses the same deflator. Users may select either series when viewing real values.
+
+The pipeline constructs a complete monthly calendar and preserves an unavailable official observation as `null`; it does not interpolate or carry CPI forward. Consequently, real housing observations end with the latest month for which both the housing measure and selected CPI exist. The local index has a smaller sample and can be more volatile than the national index, so year-over-year inflation is emphasized over month-to-month change.
+
 ## Census cartographic boundaries
 
 - 2025 California Places, 1:500,000 cartographic boundary file
@@ -66,12 +81,15 @@ Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright
 - **Percentage-point change:** `100 × (share[t] - share[t-12])`
 - **Indexed:** `100 × value[t] / value[user-selected starting month]`
 - **Price–rent multiple:** `ZHVI[t] / (12 × ZORI[t])`
+- **Constant-dollar value:** `nominal[t] × CPI[base month] / CPI[t]`
+- **Real percent change:** `(nominal[t] / nominal[t-12]) / (CPI[t] / CPI[t-12]) - 1`
+- **Inflation:** `CPI[t] / CPI[t-12] - 1`
 
-The derived price–rent multiple compares a typical value index with an observed-rent index. It is an educational market indicator, not a capitalization rate, investment return, or matched-property valuation.
+Changing the constant-dollar base month rescales the displayed real dollar level but does not change real growth. The derived price–rent multiple compares a typical value index with an observed-rent index and is unchanged by applying the same CPI adjustment to its numerator and denominator. It is an educational market indicator, not a capitalization rate, investment return, or matched-property valuation. Real rent measures purchasing power relative to a general consumer basket; it is not an affordability measure because it does not incorporate household income.
 
 ## Release checks
 
-A provider release is rejected unless all required files stream or download, date columns are ordered and sufficiently long, local coverage remains above conservative floors, and processed public data stays under its size guardrail. Zillow and Redfin use independent versioned directories and `latest.json` pointers, so a failure retains the prior release for that provider.
+A provider release is rejected unless all required files stream or download, date columns are ordered and sufficiently long, local coverage remains above conservative floors, and processed public data stays under its size guardrail. Zillow, Redfin, and BLS CPI use independent versioned directories and `latest.json` pointers, so a failure retains the prior release for that provider.
 
 Data provided by Zillow Group and Redfin. This repository does not redistribute the complete provider files.
 

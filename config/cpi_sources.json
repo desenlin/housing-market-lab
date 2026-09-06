@@ -1,0 +1,26 @@
+{
+  "provider": "U.S. Bureau of Labor Statistics",
+  "api_url": "https://api.bls.gov/publicAPI/v2/timeseries/data/",
+  "data_page": "https://www.bls.gov/cpi/data.htm",
+  "start_year": 2000,
+  "series": [
+    {
+      "key": "la",
+      "id": "CUURS49ASA0",
+      "label": "LA-area CPI-U",
+      "long_label": "Consumer Price Index for All Urban Consumers: All Items in Los Angeles-Long Beach-Anaheim, CA",
+      "area": "Los Angeles-Long Beach-Anaheim, CA",
+      "coverage": "Los Angeles and Orange Counties",
+      "seasonal_adjustment": "Not seasonally adjusted"
+    },
+    {
+      "key": "us",
+      "id": "CUUR0000SA0",
+      "label": "U.S. CPI-U",
+      "long_label": "Consumer Price Index for All Urban Consumers: All Items in U.S. city average",
+      "area": "U.S. city average",
+      "coverage": "United States",
+      "seasonal_adjustment": "Not seasonally adjusted"
+    }
+  ]
+}
