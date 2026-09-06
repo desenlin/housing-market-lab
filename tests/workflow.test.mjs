@@ -12,6 +12,8 @@ test("routine refresh checks BLS CPI throughout the monthly release window", asy
     assert.match(workflow, new RegExp(`cron: "23 13 ${day} \\* \\*"`));
   }
   assert.match(workflow, /python pipeline\/update_data\.py/);
+  assert.match(workflow, /python pipeline\/update_realtor\.py/);
   assert.match(workflow, /python pipeline\/update_cpi\.py/);
+  assert.match(workflow, /Realtor\.com refresh failed; retaining its prior validated releases/);
   assert.match(workflow, /BLS CPI refresh failed; retaining its prior validated release/);
 });

@@ -42,6 +42,30 @@ Redfin city names are matched directly to Census place names; they do not need a
 
 Redfin and Zillow activity variables should not be treated as interchangeable even when their labels resemble one another. They come from different listing feeds, record processing, geographic definitions, revision practices, and smoothing conventions. The interface therefore keeps provider badges and reporting windows visible.
 
+## Realtor.com Economic Research
+
+The independent Realtor.com pipeline reads the ZIP historical files from the official [Realtor.com Real Estate Data Library](https://www.realtor.com/research/data/). It filters against the lab's two-county ZCTA boundary reference rather than inferring counties from ZIP prefixes. Realtor.com data appear as a separate **Inventory & buyer interest** lens within Local market activity; they are not pooled with similarly named Redfin measures.
+
+Selected primary series:
+
+| Display measure | Realtor.com field | Interpretation | Change shown |
+|---|---|---|---|
+| Active listings | `active_listing_count` | Typical daily active for-sale inventory during the month | Percent |
+| New listings | `new_listing_count` | Listings newly added during the month | Percent |
+| Pending-to-active ratio | `pending_ratio` | Pending listings divided by active listings | Percentage points |
+| Listing viewers relative to U.S. | `page_view_count_per_property_vs_us` | Viewer attention per property relative to a typical U.S. listing | Change in multiple |
+| Market Hotness score | `hotness_score` | Equal-weight composite of relative demand and supply scores | Score points |
+
+Demand score, supply score, and Realtor.com median days on market are retained only to explain the Hotness measure. Provider-created ranks, listing-price measures, raw pending counts, and price-reduction measures are omitted from the first release to avoid redundancy or misleading comparison with Zillow and Redfin.
+
+Inventory and Hotness have separate `latest.json` pointers under `public/data/realtor/` because the two files may be released in different weeks. The interface labels the latest month for the selected metric rather than implying a common Realtor.com vintage. Each product retains its three newest validated releases for rollback.
+
+The national historical files are large, so the updater performs an HTTP metadata check before retrieval. When a file changes, it is streamed once and never written to disk; only selected ZIP rows from January 2018 onward are held in memory. The full source must be reread after a change because Realtor.com reissues and may restate historical observations rather than publishing an append-only series.
+
+Rows with a nonzero `quality_flag` are withheld from the public data. This conservative treatment prevents unusual ZIP-month values from entering maps or rankings without review. The number withheld is recorded in each release manifest. A source schema change, fewer than 150 covered local ZIPs, a short history, or a processed product above 5 MB rejects that product's prospective release while leaving its prior pointer unchanged.
+
+The public application attributes the data to **Realtor.com® Economic Research** and links to the provider's Data Library and [Market Hotness methodology](https://www.realtor.com/research/reports/hottest-markets/). Market Hotness is a relative measure based on listing attention and market speed; it is not a probability of sale and should not be interpreted as a matched-market comparison with Redfin.
+
 ## Consumer Price Index
 
 The independent CPI pipeline reads the official BLS [`cu.data.1.AllItems`](https://download.bls.gov/pub/time.series/cu/cu.data.1.AllItems) bulk time-series file first and uses the [Public Data API](https://www.bls.gov/developers/) only as a fallback. It does not rely on a FRED mirror or require a registered API key. This avoids routine dependence on the API's unregistered daily query quota; fallback requests are divided into ten-year blocks within the public limit.
@@ -89,11 +113,11 @@ Changing the constant-dollar base month rescales the displayed real dollar level
 
 ## Release checks
 
-A provider release is rejected unless all required files stream or download, date columns are ordered and sufficiently long, local coverage remains above conservative floors, and processed public data stays under its size guardrail. Zillow, Redfin, and BLS CPI use independent versioned directories and `latest.json` pointers, so a failure retains the prior release for that provider.
+A provider release is rejected unless all required files stream or download, date columns are ordered and sufficiently long, local coverage remains above conservative floors, and processed public data stays under its size guardrail. Zillow, Redfin, Realtor.com Inventory, Realtor.com Hotness, and BLS CPI use independent versioned directories and `latest.json` pointers, so a failure retains the prior release for that provider or product.
 
 The scheduled workflow checks all three providers on four staggered dates each month. Release timing is intentionally decoupled: a newer CPI release does not require a simultaneous Zillow release, and a newer Zillow release does not wait for CPI. Nominal housing observations remain available through Zillow's latest validated month. Constant-dollar levels, real changes, and same-month inflation comparisons use only exact months with official observations in both the selected housing series and selected CPI series; unmatched newer housing months remain unavailable in real terms until BLS publishes the corresponding CPI observation.
 
-Data provided by Zillow Group and Redfin. This repository does not redistribute the complete provider files.
+Data provided by Zillow Group, Redfin, and Realtor.com® Economic Research. This repository does not redistribute the complete provider files.
 
 ## Intended use and disclaimer
 

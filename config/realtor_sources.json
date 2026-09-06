@@ -1,0 +1,96 @@
+{
+  "provider": "Realtor.com® Economic Research",
+  "data_page": "https://www.realtor.com/research/data/",
+  "methodology_page": "https://www.realtor.com/research/reports/hottest-markets/",
+  "start_date": "2018-01",
+  "keep_releases": 3,
+  "max_published_bytes_per_product": 5000000,
+  "products": [
+    {
+      "key": "inventory",
+      "url": "https://econdata.s3-us-west-2.amazonaws.com/Reports/Core/RDC_Inventory_Core_Metrics_Zip_History.csv",
+      "max_source_bytes": 1000000000,
+      "metrics": ["active_listing_count", "new_listing_count", "pending_ratio"]
+    },
+    {
+      "key": "hotness",
+      "url": "https://econdata.s3-us-west-2.amazonaws.com/Reports/Hotness/RDC_Inventory_Hotness_Metrics_Zip_History.csv",
+      "max_source_bytes": 500000000,
+      "metrics": ["hotness_score", "viewer_ratio", "demand_score", "supply_score", "realtor_median_dom"]
+    }
+  ],
+  "metrics": {
+    "active_listing_count": {
+      "field": "active_listing_count",
+      "label": "Active listings",
+      "short_label": "Active listings",
+      "unit": "number",
+      "decimals": 0,
+      "change_mode": "percent",
+      "definition": "Average number of listings in active for-sale status on a typical day during the month, excluding pending listings where pending status is available."
+    },
+    "new_listing_count": {
+      "field": "new_listing_count",
+      "label": "New listings",
+      "short_label": "New listings",
+      "unit": "number",
+      "decimals": 0,
+      "change_mode": "percent",
+      "definition": "Number of listings newly added to the market during the month. Year-over-year comparison is emphasized because listing activity is seasonal."
+    },
+    "pending_ratio": {
+      "field": "pending_ratio",
+      "label": "Pending-to-active ratio",
+      "short_label": "Pending ratio",
+      "unit": "share",
+      "decimals": 5,
+      "change_mode": "percentage_point",
+      "definition": "Pending listing count divided by active listing count for the ZIP code during the month. Availability depends on consistent pending-status reporting."
+    },
+    "hotness_score": {
+      "field": "hotness_score",
+      "label": "Market Hotness score",
+      "short_label": "Hotness score",
+      "unit": "score",
+      "decimals": 1,
+      "change_mode": "difference",
+      "definition": "Realtor.com composite of equally weighted demand and supply scores. It ranks buyer attention and market speed relative to other ZIP codes; it is not an absolute probability of sale."
+    },
+    "viewer_ratio": {
+      "field": "page_view_count_per_property_vs_us",
+      "label": "Listing viewers relative to U.S.",
+      "short_label": "Viewer multiple",
+      "unit": "viewer_multiple",
+      "decimals": 2,
+      "change_mode": "difference",
+      "definition": "Unique viewers received by a typical property in the ZIP code divided by viewers received by a typical U.S. property in the same month."
+    },
+    "demand_score": {
+      "field": "demand_score",
+      "label": "Hotness demand score",
+      "short_label": "Demand score",
+      "unit": "score",
+      "decimals": 1,
+      "change_mode": "difference",
+      "definition": "Relative index based on unique listing viewers per property; used as one half of Realtor.com's Market Hotness score."
+    },
+    "supply_score": {
+      "field": "supply_score",
+      "label": "Hotness supply score",
+      "short_label": "Supply score",
+      "unit": "score",
+      "decimals": 1,
+      "change_mode": "difference",
+      "definition": "Relative index based on median days on market; used as one half of Realtor.com's Market Hotness score."
+    },
+    "realtor_median_dom": {
+      "field": "median_days_on_market",
+      "label": "Realtor.com median days on market",
+      "short_label": "Market speed",
+      "unit": "days",
+      "decimals": 1,
+      "change_mode": "difference",
+      "definition": "Median time between a listing's initial listing date and its closing or removal date, as used in Realtor.com's Hotness supply component."
+    }
+  }
+}

@@ -55,8 +55,10 @@ button, select { font: inherit; }
 .source-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: -2px 0 14px; color: #71818c; font-size: 12px; }
 .source-badge { display: inline-flex; align-items: center; min-height: 25px; border: 1px solid #b9cad3; border-radius: 999px; background: #edf4f7; color: #244965; padding: 4px 9px; font-size: 11px; font-weight: 800; letter-spacing: .02em; }
 .source-badge.redfin { border-color: #efb8b1; background: #fff0ee; color: #a12622; }
+.source-badge.realtor { border-color: #efc17c; background: #fff7e8; color: #875300; }
 .source-badge.zillow-derived { border-color: #c7c1e6; background: #f3f0ff; color: #493e91; }
 .source-badge.bls { border-color: #a7c8b8; background: #eef8f2; color: #22624d; }
+.source-warning { color: #875300; font-weight: 650; }
 .control-grid { display: grid; grid-template-columns: 1.2fr 1.3fr 1.35fr 1.2fr; gap: 12px; }
 .control-label { display: grid; gap: 6px; color: #4d6070; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .control-label > div { width: 100%; }
@@ -156,7 +158,8 @@ button, select { font: inherit; }
 .regional-intro > p { margin: 0; color: #566b7a; line-height: 1.65; }
 .activity-intro { border-bottom-color: #efb8b1; }
 .activity-intro .section-kicker { color: #a12622; }
-.activity-controls { grid-template-columns: 1.1fr 1.2fr 1.55fr 1.25fr; }
+.activity-controls { grid-template-columns: 1.65fr 1fr 1.15fr 1.45fr 1.15fr; }
+.hotness-breakdown { margin-top: -8px; }
 .regional-controls { max-width: 860px; grid-template-columns: 1.5fr 1fr 1fr; }
 .regional-controls + .time-range, .regional-price-controls + .time-range { margin-top: 15px; padding-top: 14px; border-top: 1px solid #e0e7ea; }
 .metro-checks { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; }

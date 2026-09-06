@@ -20,6 +20,10 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Definition of \$\{label\}/);
   assert.match(source, /rolling three-month window/i);
   assert.match(source, /View Redfin Data Center/);
+  assert.match(source, /Inventory &amp; buyer interest — Realtor\.com/);
+  assert.match(source, /View Realtor\.com Data Library/);
+  assert.match(source, /Provider-flagged ZIP-month observations are withheld/);
+  assert.match(source, /three Realtor\.com releases retained per product for rollback/);
   assert.match(source, /Gray boundaries have no data/);
   assert.match(source, /Outside city\/CDP geography/);
   assert.match(source, /Reading the maps/);

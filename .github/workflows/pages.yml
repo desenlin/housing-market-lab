@@ -5,8 +5,8 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    # BLS and Zillow publish independently and their monthly release order can
-    # change. Staggered checks let either provider advance as soon as it is
+    # Providers publish independently and their monthly release order can
+    # change. Staggered checks let any provider advance as soon as it is
     # available while each provider's last validated release stays live.
     - cron: "23 13 12 * *"
     - cron: "23 13 18 * *"
@@ -43,7 +43,7 @@ jobs:
 
       - name: Refresh and validate provider data
         id: refresh
-        if: github.event_name != 'push' || hashFiles('public/data/redfin/latest.json') == '' || hashFiles('public/data/cpi/latest.json') == '' || contains(github.event.head_commit.message, '[refresh-data]')
+        if: github.event_name != 'push' || hashFiles('public/data/redfin/latest.json') == '' || hashFiles('public/data/realtor/inventory/latest.json') == '' || hashFiles('public/data/realtor/hotness/latest.json') == '' || hashFiles('public/data/cpi/latest.json') == '' || contains(github.event.head_commit.message, '[refresh-data]')
         env:
           FULL_REFRESH: ${{ contains(github.event.head_commit.message, '[refresh-data]') }}
         run: |
@@ -51,16 +51,21 @@ jobs:
             set +e
             python pipeline/update_redfin.py
             redfin_status=$?
+            python pipeline/update_realtor.py
+            realtor_status=$?
             python pipeline/update_cpi.py
             cpi_status=$?
             set -e
             if [ "$redfin_status" -ne 0 ]; then
               echo "::warning::Redfin refresh failed; retaining its prior validated release."
             fi
+            if [ "$realtor_status" -ne 0 ]; then
+              echo "::warning::Realtor.com refresh failed; retaining its prior validated releases."
+            fi
             if [ "$cpi_status" -ne 0 ]; then
               echo "::warning::BLS CPI refresh failed; retaining its prior validated release."
             fi
-            if [ "$redfin_status" -ne 0 ] && [ "$cpi_status" -ne 0 ]; then
+            if [ "$redfin_status" -ne 0 ] && [ "$realtor_status" -ne 0 ] && [ "$cpi_status" -ne 0 ]; then
               exit 1
             fi
             exit 0
@@ -70,6 +75,8 @@ jobs:
           zillow_status=$?
           python pipeline/update_redfin.py
           redfin_status=$?
+          python pipeline/update_realtor.py
+          realtor_status=$?
           python pipeline/update_cpi.py
           cpi_status=$?
           set -e
@@ -79,10 +86,13 @@ jobs:
           if [ "$redfin_status" -ne 0 ]; then
             echo "::warning::Redfin refresh failed; retaining its prior validated release."
           fi
+          if [ "$realtor_status" -ne 0 ]; then
+            echo "::warning::Realtor.com refresh failed; retaining its prior validated releases."
+          fi
           if [ "$cpi_status" -ne 0 ]; then
             echo "::warning::BLS CPI refresh failed; retaining its prior validated release."
           fi
-          if [ "$zillow_status" -ne 0 ] && [ "$redfin_status" -ne 0 ] && [ "$cpi_status" -ne 0 ]; then
+          if [ "$zillow_status" -ne 0 ] && [ "$redfin_status" -ne 0 ] && [ "$realtor_status" -ne 0 ] && [ "$cpi_status" -ne 0 ]; then
             exit 1
           fi
 

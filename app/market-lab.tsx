@@ -41,7 +41,15 @@ type MetricKey =
   | "median_dom"
   | "sold_above_original_share"
   | "price_drop_share"
-  | "median_sale_ppsf";
+  | "median_sale_ppsf"
+  | "active_listing_count"
+  | "new_listing_count"
+  | "pending_ratio"
+  | "hotness_score"
+  | "viewer_ratio"
+  | "demand_score"
+  | "supply_score"
+  | "realtor_median_dom";
 type ViewKey = "level" | "yoy" | "index";
 type ChangeMode = "percent" | "difference" | "percentage_point";
 type TimeRange = "1y" | "3y" | "5y" | "max";
@@ -49,6 +57,7 @@ type RankKey = "growth" | "level";
 type MapPaletteKey = "navy" | "orange";
 type PriceBasis = "nominal" | "real";
 type CpiSeriesKey = "la" | "us";
+type ActivityLens = "redfin" | "realtor";
 
 type Metric = {
   dates: string[];
@@ -59,6 +68,7 @@ type Metric = {
   definition: string;
   provider?: string;
   frequency?: string;
+  source_product?: "inventory" | "hotness";
   change_mode?: ChangeMode;
 };
 
@@ -121,6 +131,32 @@ type RedfinManifest = Manifest & {
   methodology_page: string;
   frequency: string;
   start_date: string;
+};
+
+type RealtorManifest = {
+  release: string;
+  created_at: string;
+  provider: string;
+  product: "inventory" | "hotness";
+  attribution: string;
+  data_page: string;
+  methodology_page: string;
+  frequency: string;
+  start_date: string;
+  bundle_sha256: string;
+  counts: { zip: number };
+  latest_observations: Record<string, string>;
+  retained_releases: number;
+  source: {
+    url: string;
+    bytes: number;
+    etag: string;
+    last_modified: string;
+    latest_observation: string;
+    rows_scanned: number;
+    regions: number;
+    flagged_local_rows_suppressed: number;
+  };
 };
 
 type CpiSeries = {
@@ -199,6 +235,13 @@ const ACTIVITY_METRICS: { key: MetricKey; label: string }[] = [
   { key: "price_drop_share", label: "Active listings with price drops" },
   { key: "median_sale_ppsf", label: "Median sale price per square foot" },
 ];
+const REALTOR_METRICS: { key: MetricKey; label: string }[] = [
+  { key: "active_listing_count", label: "Active listings" },
+  { key: "new_listing_count", label: "New listings" },
+  { key: "pending_ratio", label: "Pending-to-active ratio" },
+  { key: "viewer_ratio", label: "Listing viewers relative to U.S." },
+  { key: "hotness_score", label: "Market Hotness score" },
+];
 const COLORS = ["#ff7a1a", "#12355b", "#2f7d6d", "#9b4f96", "#c7a227"];
 const MAP_PALETTES: Record<MapPaletteKey, string[]> = {
   navy: ["#edf4fa", "#b9d2e5", "#74a8cc", "#2f6f9f", "#12355b"],
@@ -230,6 +273,27 @@ function expandedSeries(series: Value[] | { o: number; v: Value[] } | undefined,
     if (series.o + index < length) values[series.o + index] = value;
   });
   return values;
+}
+
+function mergeDatasets(datasets: Dataset[]): Dataset | null {
+  if (!datasets.length) return null;
+  const metrics: Record<string, Metric> = {};
+  const regions = new Map<string, Region>();
+  datasets.forEach((dataset) => {
+    Object.assign(metrics, dataset.metrics);
+    dataset.regions.forEach((region) => {
+      const existing = regions.get(region.id);
+      regions.set(region.id, existing
+        ? { ...existing, series: { ...existing.series, ...region.series } }
+        : { ...region, series: { ...region.series } });
+    });
+  });
+  return {
+    geography: "zip",
+    metrics,
+    regions: [...regions.values()].sort((a, b) =>
+      `${a.county}-${a.name}`.localeCompare(`${b.county}-${b.name}`)),
+  };
 }
 
 export function applyPriceAdjustment(
@@ -393,6 +457,7 @@ function formatValue(
       if (unit === "months") return `${prefix}${value.toFixed(1)} months`;
       if (unit === "days") return `${prefix}${value.toFixed(0)} days`;
       if (unit === "ratio") return `${prefix}${value.toFixed(3)}`;
+      if (unit === "viewer_multiple") return `${prefix}${value.toFixed(2)}×`;
       return `${prefix}${value.toFixed(1)}`;
     }
     return `${(value * 100).toFixed(1)}%`;
@@ -411,6 +476,8 @@ function formatValue(
   if (unit === "share") return `${(value * 100).toFixed(1)}%`;
   if (unit === "ratio") return value.toFixed(3);
   if (unit === "multiple") return `${value.toFixed(1)}×`;
+  if (unit === "viewer_multiple") return `${value.toFixed(2)}×`;
+  if (unit === "score") return value.toFixed(1);
   if (unit === "days") return `${value.toFixed(0)} days`;
   if (unit === "months") return `${value.toFixed(1)} months`;
   return Math.round(value).toLocaleString();
@@ -979,7 +1046,10 @@ function MetricHeading({ metric, fallback }: { metric?: Metric; fallback: string
 }
 
 function SourceBadge({ provider, frequency }: { provider: string; frequency?: string }) {
-  return <span className={`source-badge ${provider.toLowerCase()}`}>Source: {provider}{frequency ? ` · ${frequency}` : ""}</span>;
+  const providerClass = provider.toLowerCase().startsWith("realtor")
+    ? "realtor"
+    : provider.toLowerCase();
+  return <span className={`source-badge ${providerClass}`}>Source: {provider}{frequency ? ` · ${frequency}` : ""}</span>;
 }
 
 function Kpi({ label, value, note, definition }: { label: string; value: string; note: string; definition?: string }) {
@@ -997,13 +1067,16 @@ function Kpi({ label, value, note, definition }: { label: string; value: string;
 export default function MarketLab() {
   const [datasets, setDatasets] = useState<Record<string, Dataset> | null>(null);
   const [activityDatasets, setActivityDatasets] = useState<Record<string, Dataset> | null>(null);
+  const [realtorDataset, setRealtorDataset] = useState<Dataset | null>(null);
   const [maps, setMaps] = useState<Record<string, MapData> | null>(null);
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [redfinManifest, setRedfinManifest] = useState<RedfinManifest | null>(null);
+  const [realtorManifests, setRealtorManifests] = useState<Partial<Record<"inventory" | "hotness", RealtorManifest>>>({});
   const [cpi, setCpi] = useState<CpiDataset | null>(null);
   const [cpiManifest, setCpiManifest] = useState<CpiManifest | null>(null);
   const [cpiError, setCpiError] = useState("");
   const [activityError, setActivityError] = useState("");
+  const [realtorError, setRealtorError] = useState("");
   const [error, setError] = useState("");
   const [geography, setGeography] = useState<"city" | "zip">("city");
   const [county, setCounty] = useState("Orange County");
@@ -1017,6 +1090,9 @@ export default function MarketLab() {
   const [addId, setAddId] = useState("");
   const [activitySelectedIds, setActivitySelectedIds] = useState<string[]>([]);
   const [activityAddId, setActivityAddId] = useState("");
+  const [activityLens, setActivityLens] = useState<ActivityLens>("redfin");
+  const [realtorSelectedIds, setRealtorSelectedIds] = useState<string[]>([]);
+  const [realtorAddId, setRealtorAddId] = useState("");
   const [regionalMetric, setRegionalMetric] = useState<MetricKey>("zhvi");
   const [regionalView, setRegionalView] = useState<ViewKey>("index");
   const [regionalTimeRange, setRegionalTimeRange] = useState<TimeRange>("max");
@@ -1024,9 +1100,13 @@ export default function MarketLab() {
   const [regionalIds, setRegionalIds] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [activityMetric, setActivityMetric] = useState<MetricKey>("months_supply");
+  const [realtorMetric, setRealtorMetric] = useState<MetricKey>("active_listing_count");
   const [activityView, setActivityView] = useState<Exclude<ViewKey, "index">>("level");
+  const [realtorView, setRealtorView] = useState<Exclude<ViewKey, "index">>("yoy");
   const [activityTimeRange, setActivityTimeRange] = useState<TimeRange>("5y");
+  const [realtorTimeRange, setRealtorTimeRange] = useState<TimeRange>("5y");
   const [activityRankBy, setActivityRankBy] = useState<RankKey>("growth");
+  const [realtorRankBy, setRealtorRankBy] = useState<RankKey>("growth");
   const [priceBasis, setPriceBasis] = useState<PriceBasis>("nominal");
   const [deflatorKey, setDeflatorKey] = useState<CpiSeriesKey>("la");
   const [realBaseRequest, setRealBaseRequest] = useState("");
@@ -1097,6 +1177,43 @@ export default function MarketLab() {
           );
         } catch (caught) {
           setActivityError(caught instanceof Error ? caught.message : "The Redfin activity release could not be loaded.");
+        }
+        try {
+          const products = ["inventory", "hotness"] as const;
+          const results = await Promise.allSettled(products.map(async (product) => {
+            const pointer = await fetch(`${base}/data/realtor/${product}/latest.json`).then((response) => {
+              if (!response.ok) throw new Error(`No validated Realtor.com ${product} release was found.`);
+              return response.json() as Promise<{ release: string }>;
+            });
+            const productBase = `${base}/data/realtor/${product}/releases/${pointer.release}`;
+            const [productDataset, productManifest] = await Promise.all([
+              fetch(`${productBase}/zip.json`).then((response) => response.json() as Promise<Dataset>),
+              fetch(`${productBase}/manifest.json`).then((response) => response.json() as Promise<RealtorManifest>),
+            ]);
+            return { product, dataset: productDataset, manifest: productManifest };
+          }));
+          const loaded = results
+            .filter((result): result is PromiseFulfilledResult<{
+              product: "inventory" | "hotness";
+              dataset: Dataset;
+              manifest: RealtorManifest;
+            }> => result.status === "fulfilled")
+            .map((result) => result.value);
+          if (!loaded.length) throw new Error("No validated Realtor.com release could be loaded.");
+          const combined = mergeDatasets(loaded.map((result) => result.dataset));
+          setRealtorDataset(combined);
+          setRealtorManifests(Object.fromEntries(
+            loaded.map((result) => [result.product, result.manifest]),
+          ));
+          const firstMetric = REALTOR_METRICS.find((option) => combined?.metrics[option.key]);
+          if (firstMetric) setRealtorMetric(firstMetric.key);
+          const orangeZips = combined?.regions.filter((region) => region.county === "Orange County") ?? [];
+          const preferred = orangeZips.find((region) => region.name === "92831") ?? orangeZips[0];
+          setRealtorSelectedIds(preferred ? [preferred.id] : []);
+          const failed = results.filter((result) => result.status === "rejected").length;
+          if (failed) setRealtorError("One Realtor.com product is delayed or temporarily unavailable; the other validated release remains available.");
+        } catch (caught) {
+          setRealtorError(caught instanceof Error ? caught.message : "The Realtor.com release could not be loaded.");
         }
         const orangeCities = (city as Dataset).regions.filter((region) => region.county === "Orange County");
         const defaults = ["Fullerton", "Irvine", "Anaheim"]
@@ -1227,21 +1344,30 @@ export default function MarketLab() {
   const rank = primary ? ranked.findIndex((item) => item.region.id === primary.id) + 1 : 0;
   const unit = primarySeries?.unit ?? "number";
 
-  const activityDataset = activityDatasets?.[geography];
-  const activityDates = activityDataset ? metricDates(activityDataset, activityMetric) : [];
+  const redfinActivityDataset = activityDatasets?.[geography];
+  const activityDataset = activityLens === "redfin" ? redfinActivityDataset : realtorDataset;
+  const activeActivityMetric = activityLens === "redfin" ? activityMetric : realtorMetric;
+  const activeActivitySelectedIds = activityLens === "redfin" ? activitySelectedIds : realtorSelectedIds;
+  const activeActivityAddId = activityLens === "redfin" ? activityAddId : realtorAddId;
+  const activeActivityView = activityLens === "redfin" ? activityView : realtorView;
+  const activeActivityTimeRange = activityLens === "redfin" ? activityTimeRange : realtorTimeRange;
+  const activeActivityRankBy = activityLens === "redfin" ? activityRankBy : realtorRankBy;
+  const activityMetricOptions = (activityLens === "redfin" ? ACTIVITY_METRICS : REALTOR_METRICS)
+    .filter((option) => activityDataset?.metrics[option.key]);
+  const activityDates = activityDataset ? metricDates(activityDataset, activeActivityMetric) : [];
   const activityEligible = useMemo(
     () => activityDataset?.regions.filter((region) => county === "Both" || region.county === county) ?? [],
     [activityDataset, county],
   );
   const activitySelectedRegions = (() => {
-    const selected = activitySelectedIds
+    const selected = activeActivitySelectedIds
       .map((id) => activityEligible.find((region) => region.id === id))
       .filter((region): region is Region => Boolean(region));
     return selected.length ? selected : activityEligible.slice(0, 1);
   })();
   const activityPrimary = activitySelectedRegions[0];
   const activityPrimarySeries = activityDataset && activityPrimary
-    ? metricSeries(activityDataset, activityPrimary, activityMetric)
+    ? metricSeries(activityDataset, activityPrimary, activeActivityMetric)
     : null;
   const activityLast = activityPrimarySeries ? lastValue(activityPrimarySeries.values) : null;
   const activityYoy = activityPrimarySeries
@@ -1265,16 +1391,16 @@ export default function MarketLab() {
     if (!activityDataset) return [];
     return activityEligible
       .map((region) => {
-        const series = metricSeries(activityDataset, region, activityMetric);
+        const series = metricSeries(activityDataset, region, activeActivityMetric);
         const level = lastValue(series.values)?.value ?? null;
         const yoy = lastValue(transformValues(series.values, "yoy", series.dates, "", series.changeMode))?.value ?? null;
         return { region, level, yoy, unit: series.unit, changeMode: series.changeMode };
       })
       .filter((item) => item.level != null)
-      .sort((a, b) => activityRankBy === "growth"
+      .sort((a, b) => activeActivityRankBy === "growth"
         ? (b.yoy ?? -Infinity) - (a.yoy ?? -Infinity)
         : (b.level ?? -Infinity) - (a.level ?? -Infinity));
-  }, [activityDataset, activityEligible, activityMetric, activityRankBy]);
+  }, [activityDataset, activityEligible, activeActivityMetric, activeActivityRankBy]);
   const activityRank = activityPrimary
     ? activityRanked.findIndex((item) => item.region.id === activityPrimary.id) + 1
     : 0;
@@ -1306,12 +1432,18 @@ export default function MarketLab() {
     const first = nextRegions.find((region) => region.name === preferred) ?? nextRegions[0];
     setCounty(next);
     setSelectedIds(first ? [first.id] : []);
-    const nextActivityRegions = activityDataset?.regions.filter(
+    const nextActivityRegions = redfinActivityDataset?.regions.filter(
       (region) => next === "Both" || region.county === next,
     ) ?? [];
     const activityFirst = nextActivityRegions.find((region) => region.name === preferred)
       ?? nextActivityRegions[0];
     setActivitySelectedIds(activityFirst ? [activityFirst.id] : []);
+    const nextRealtorRegions = realtorDataset?.regions.filter(
+      (region) => next === "Both" || region.county === next,
+    ) ?? [];
+    const realtorFirst = nextRealtorRegions.find((region) => region.name === "92831")
+      ?? nextRealtorRegions[0];
+    setRealtorSelectedIds(realtorFirst ? [realtorFirst.id] : []);
   }
 
   function addRegion() {
@@ -1325,13 +1457,50 @@ export default function MarketLab() {
   }
 
   function addActivityRegion() {
-    if (!activityAddId || activitySelectedIds.includes(activityAddId) || activitySelectedIds.length >= 5) return;
-    setActivitySelectedIds((current) => [...current, activityAddId]);
-    setActivityAddId("");
+    if (!activeActivityAddId || activeActivitySelectedIds.includes(activeActivityAddId) || activeActivitySelectedIds.length >= 5) return;
+    if (activityLens === "redfin") {
+      setActivitySelectedIds((current) => [...current, activeActivityAddId]);
+      setActivityAddId("");
+    } else {
+      setRealtorSelectedIds((current) => [...current, activeActivityAddId]);
+      setRealtorAddId("");
+    }
   }
 
   function selectActivityPrimary(id: string) {
-    setActivitySelectedIds((current) => [id, ...current.filter((item) => item !== id)].slice(0, 5));
+    if (activityLens === "redfin") {
+      setActivitySelectedIds((current) => [id, ...current.filter((item) => item !== id)].slice(0, 5));
+    } else {
+      setRealtorSelectedIds((current) => [id, ...current.filter((item) => item !== id)].slice(0, 5));
+    }
+  }
+
+  function removeActivityRegion(id: string) {
+    if (activityLens === "redfin") {
+      setActivitySelectedIds((current) => current.filter((item) => item !== id));
+    } else {
+      setRealtorSelectedIds((current) => current.filter((item) => item !== id));
+    }
+  }
+
+  function changeActivityMetric(next: string) {
+    if (activityLens === "redfin") setActivityMetric(next as MetricKey);
+    else setRealtorMetric(next as MetricKey);
+  }
+
+  function changeActivityView(next: string) {
+    if (activityLens === "redfin") setActivityView(next as Exclude<ViewKey, "index">);
+    else setRealtorView(next as Exclude<ViewKey, "index">);
+  }
+
+  function changeActivityTimeRange(next: TimeRange) {
+    if (activityLens === "redfin") setActivityTimeRange(next);
+    else setRealtorTimeRange(next);
+  }
+
+  function changeActivityRankBy(next: string) {
+    if (activityLens === "redfin") setActivityRankBy(next as RankKey);
+    else setRealtorRankBy(next as RankKey);
   }
 
   async function copyLink() {
@@ -1385,7 +1554,15 @@ export default function MarketLab() {
           ? `${dataset.metrics[metric].definition} Expressed in ${shortDate(`${realBaseMonth}-01`)} dollars using ${localCpi?.long_label}.`
           : dataset.metrics[metric].definition,
       };
-  const activityMetricMetadata = activityDataset?.metrics[activityMetric];
+  const activityMetricMetadata = activityDataset?.metrics[activeActivityMetric];
+  const realtorCurrentManifest = activityMetricMetadata?.source_product
+    ? realtorManifests[activityMetricMetadata.source_product]
+    : undefined;
+  const realtorSupportValue = (metricKey: MetricKey) => {
+    if (activityLens !== "realtor" || !activityDataset || !activityPrimary || !activityDataset.metrics[metricKey]) return null;
+    const series = metricSeries(activityDataset, activityPrimary, metricKey);
+    return lastValue(series.values)?.value ?? null;
+  };
   const regionalMetricMetadata = {
     ...datasets.metro.metrics[regionalMetric],
     label: regionalBasis === "real"
@@ -1576,31 +1753,51 @@ export default function MarketLab() {
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-5">
-          {activityError || !activityDataset || !redfinManifest || !activityMetricMetadata ? (
+          {(activityLens === "redfin" ? activityError || !redfinManifest : !realtorDataset)
+            || !activityDataset || !activityMetricMetadata ? (
             <Card className="disclaimer-card">
               <CardHeader><CardTitle>Market activity is temporarily unavailable</CardTitle></CardHeader>
-              <CardContent className="method-copy"><p>{activityError || "The latest Redfin release has not finished loading."} Zillow value and rent views remain available.</p></CardContent>
+              <CardContent className="method-copy"><p>{activityLens === "redfin"
+                ? activityError || "The latest Redfin release has not finished loading."
+                : realtorError || "The latest Realtor.com release has not finished loading."} Zillow value and rent views remain available.</p>
+                {activityLens === "realtor" && <Button variant="outline" onClick={() => setActivityLens("redfin")}>Return to Redfin activity</Button>}
+              </CardContent>
             </Card>
           ) : (
             <>
               <section className="regional-intro activity-intro">
-                <div><p className="section-kicker">Listings and transactions</p><h2>How quickly is the local market moving?</h2></div>
-                <p>Redfin adds city- and ZIP-level supply, speed, competition, repricing, and sale-price signals. Each observation is a rolling three-month window, so the change view compares it with the same three-month window one year earlier.</p>
+                <div><p className="section-kicker">{activityLens === "redfin" ? "Listings and transactions" : "Inventory and buyer interest"}</p><h2>{activityLens === "redfin" ? "How quickly is the local market moving?" : "Where are supply and attention shifting?"}</h2></div>
+                <p>{activityLens === "redfin"
+                  ? "Redfin adds city- and ZIP-level supply, speed, competition, repricing, and sale-price signals. Each observation is a rolling three-month window, so the change view compares it with the same three-month window one year earlier."
+                  : "Realtor.com adds monthly ZIP-level inventory, listing inflow, pending activity, online buyer attention, and a relative Market Hotness measure. Inventory and Hotness can have different latest months."}</p>
               </section>
               <section className="control-deck" aria-label="Local market activity controls">
-                <div className="source-strip"><SourceBadge provider="Redfin" frequency={redfinManifest.frequency} /><span>Data through {shortDate(activityDates.at(-1) ?? redfinManifest.release)}</span></div>
+                <div className="source-strip">
+                  <SourceBadge
+                    provider={activityLens === "redfin" ? "Redfin" : "Realtor.com® Economic Research"}
+                    frequency={activityLens === "redfin" ? redfinManifest.frequency : "Monthly"}
+                  />
+                  <span>Data through {shortDate(activityDates.at(-1) ?? (activityLens === "redfin" ? redfinManifest.release : realtorCurrentManifest?.release ?? manifest.release))}</span>
+                  {activityLens === "realtor" && realtorError && <span className="source-warning">{realtorError}</span>}
+                </div>
                 <div className="control-grid activity-controls">
+                  <LabelledSelect label="Data lens" value={activityLens} onChange={(next) => setActivityLens(next as ActivityLens)}>
+                    <NativeSelectOption value="redfin">Market outcomes — Redfin</NativeSelectOption>
+                    <NativeSelectOption value="realtor">Inventory &amp; buyer interest — Realtor.com</NativeSelectOption>
+                  </LabelledSelect>
                   <LabelledSelect label="County" value={county} onChange={changeCounty}>
                     {COUNTY_OPTIONS.map((option) => <NativeSelectOption key={option} value={option}>{option}</NativeSelectOption>)}
                   </LabelledSelect>
-                  <LabelledSelect label="Geography" value={geography} onChange={changeGeography}>
-                    <NativeSelectOption value="city">Cities &amp; communities</NativeSelectOption>
-                    <NativeSelectOption value="zip">ZIP codes</NativeSelectOption>
+                  {activityLens === "redfin" && (
+                    <LabelledSelect label="Geography" value={geography} onChange={changeGeography}>
+                      <NativeSelectOption value="city">Cities &amp; communities</NativeSelectOption>
+                      <NativeSelectOption value="zip">ZIP codes</NativeSelectOption>
+                    </LabelledSelect>
+                  )}
+                  <LabelledSelect label="Metric" value={activeActivityMetric} onChange={changeActivityMetric}>
+                    {activityMetricOptions.map((option) => <NativeSelectOption key={option.key} value={option.key}>{option.label}</NativeSelectOption>)}
                   </LabelledSelect>
-                  <LabelledSelect label="Metric" value={activityMetric} onChange={(next) => setActivityMetric(next as MetricKey)}>
-                    {ACTIVITY_METRICS.map((option) => <NativeSelectOption key={option.key} value={option.key}>{option.label}</NativeSelectOption>)}
-                  </LabelledSelect>
-                  <LabelledSelect label="View" value={activityView} onChange={(next) => setActivityView(next as Exclude<ViewKey, "index">)}>
+                  <LabelledSelect label="View" value={activeActivityView} onChange={changeActivityView}>
                     <NativeSelectOption value="level">Level</NativeSelectOption>
                     <NativeSelectOption value="yoy">Change from one year earlier</NativeSelectOption>
                   </LabelledSelect>
@@ -1608,21 +1805,21 @@ export default function MarketLab() {
                 <div className="comparison-row">
                   <label className="control-label comparison-select">
                     <span>Add a comparison (up to five)</span>
-                    <NativeSelect value={activityAddId} onChange={(event) => setActivityAddId(event.target.value)} className="w-full">
+                    <NativeSelect value={activeActivityAddId} onChange={(event) => activityLens === "redfin" ? setActivityAddId(event.target.value) : setRealtorAddId(event.target.value)} className="w-full">
                       <NativeSelectOption value="">Choose a region…</NativeSelectOption>
-                      {activityEligible.filter((region) => !activitySelectedIds.includes(region.id)).map((region) => (
-                        <NativeSelectOption key={region.id} value={region.id}>{region.name}{region.context ? ` · ${region.context}` : ""}</NativeSelectOption>
-                      ))}
-                    </NativeSelect>
-                  </label>
-                  <Button variant="outline" onClick={addActivityRegion} disabled={!activityAddId || activitySelectedIds.length >= 5}><Plus /> Add</Button>
-                </div>
+                  {activityEligible.filter((region) => !activeActivitySelectedIds.includes(region.id)).map((region) => (
+                    <NativeSelectOption key={region.id} value={region.id}>{region.name}{region.context ? ` · ${region.context}` : ""}</NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </label>
+              <Button variant="outline" onClick={addActivityRegion} disabled={!activeActivityAddId || activeActivitySelectedIds.length >= 5}><Plus /> Add</Button>
+            </div>
                 <div className="chips" aria-label="Selected activity regions">
                   {activitySelectedRegions.map((region, index) => (
                     <button key={region.id} className={index === 0 ? "chip primary" : "chip"} onClick={() => selectActivityPrimary(region.id)}>
                       <i style={{ background: COLORS[index % COLORS.length] }} />
                       {region.name}{index === 0 ? " · focus" : ""}
-                      {index > 0 && <X onClick={(event) => { event.stopPropagation(); setActivitySelectedIds((ids) => ids.filter((id) => id !== region.id)); }} />}
+                      {index > 0 && <X onClick={(event) => { event.stopPropagation(); removeActivityRegion(region.id); }} />}
                     </button>
                   ))}
                 </div>
@@ -1633,12 +1830,12 @@ export default function MarketLab() {
                   label={activityMetricMetadata.label}
                   definition={activityMetricMetadata.definition}
                   value={formatValue(activityLast?.value ?? null, activityPrimarySeries?.unit ?? "number", "level")}
-                  note={activityLast ? `Rolling window ending ${shortDate(activityPrimarySeries!.dates[activityLast.index])}` : "No observation"}
+                  note={activityLast ? `${activityLens === "redfin" ? "Rolling window ending" : "As of"} ${shortDate(activityPrimarySeries!.dates[activityLast.index])}` : "No observation"}
                 />
                 <Kpi
                   label="Change from one year earlier"
                   value={formatValue(activityYoy?.value ?? null, activityPrimarySeries?.unit ?? "number", "yoy", false, activityPrimarySeries?.changeMode)}
-                  note="Versus the same rolling three-month window"
+                  note={activityLens === "redfin" ? "Versus the same rolling three-month window" : "Versus the same month one year earlier"}
                 />
                 <Kpi
                   label="Five-year change"
@@ -1648,22 +1845,35 @@ export default function MarketLab() {
                 <Kpi
                   label={`${county === "Both" ? "Two-county" : county.replace(" County", "")} rank`}
                   value={activityRank ? `${activityRank} of ${activityRanked.length}` : "—"}
-                  note={activityRankBy === "growth" ? "Ranked by change from one year earlier" : `Ranked by current ${activityMetricMetadata.label.toLowerCase()}`}
+                  note={activeActivityRankBy === "growth" ? "Ranked by change from one year earlier" : `Ranked by current ${activityMetricMetadata.label.toLowerCase()}`}
                 />
               </section>
+
+              {activityLens === "realtor" && activeActivityMetric === "hotness_score" && (
+                <section className="kpi-grid hotness-breakdown" aria-label="Market Hotness components">
+                  <Kpi label="Demand score" definition={activityDataset.metrics.demand_score?.definition} value={formatValue(realtorSupportValue("demand_score"), "score", "level")} note="Relative listing attention" />
+                  <Kpi label="Supply score" definition={activityDataset.metrics.supply_score?.definition} value={formatValue(realtorSupportValue("supply_score"), "score", "level")} note="Relative market speed" />
+                  <Kpi label="Viewer multiple" definition={activityDataset.metrics.viewer_ratio?.definition} value={formatValue(realtorSupportValue("viewer_ratio"), "viewer_multiple", "level")} note="Typical ZIP listing versus U.S." />
+                  <Kpi label="Median days on market" definition={activityDataset.metrics.realtor_median_dom?.definition} value={formatValue(realtorSupportValue("realtor_median_dom"), "days", "level")} note="Hotness supply input" />
+                </section>
+              )}
 
               <section className="analysis-grid">
                 <Card className="chart-card">
                   <CardHeader className="chart-header">
                     <div><p className="section-kicker">Local activity</p><CardTitle><MetricHeading metric={activityMetricMetadata} fallback={activityMetricMetadata.label} /></CardTitle></div>
                     <div className="chart-options">
-                      <TimeRangeControl value={activityTimeRange} onChange={setActivityTimeRange} />
-                      <p>{activityView === "level" ? "Rolling three-month level" : "Change from the same window one year earlier"}</p>
+                      <TimeRangeControl value={activeActivityTimeRange} onChange={changeActivityTimeRange} />
+                      <p>{activeActivityView === "level"
+                        ? activityLens === "redfin" ? "Rolling three-month level" : "Monthly level"
+                        : activityLens === "redfin" ? "Change from the same window one year earlier" : "Change from the same month one year earlier"}</p>
                     </div>
                   </CardHeader>
                   <CardContent className="p-3 pt-0 sm:p-5 sm:pt-0">
-                    <SeriesChart dataset={activityDataset} regions={activitySelectedRegions} metric={activityMetric} view={activityView} timeRange={activityTimeRange} indexBaseMonth="" />
-                    <p className="data-note">Redfin may revise recent observations. Thin local markets can be volatile even after three-month smoothing.</p>
+                    <SeriesChart dataset={activityDataset} regions={activitySelectedRegions} metric={activeActivityMetric} view={activeActivityView} timeRange={activeActivityTimeRange} indexBaseMonth="" />
+                    <p className="data-note">{activityLens === "redfin"
+                      ? "Redfin may revise recent observations. Thin local markets can be volatile even after three-month smoothing."
+                      : "Realtor.com may revise its full history each month. Provider-flagged ZIP-month observations are withheld, and thin ZIP markets can remain volatile."}</p>
                   </CardContent>
                 </Card>
 
@@ -1671,7 +1881,7 @@ export default function MarketLab() {
                   <CardHeader>
                     <div className="ranking-title">
                       <div><p className="section-kicker">Place</p><CardTitle>Market activity ranking</CardTitle></div>
-                      <LabelledSelect label="Sort by" value={activityRankBy} onChange={(next) => setActivityRankBy(next as RankKey)}>
+                      <LabelledSelect label="Sort by" value={activeActivityRankBy} onChange={changeActivityRankBy}>
                         <NativeSelectOption value="growth">Change from one year earlier</NativeSelectOption>
                         <NativeSelectOption value="level">Current level</NativeSelectOption>
                       </LabelledSelect>
@@ -1694,7 +1904,7 @@ export default function MarketLab() {
               </section>
 
               <section className="maps-grid">
-                <CountyMap county={county} mapData={maps[geography]} dataset={activityDataset} metric={activityMetric} metricLabel={activityMetricMetadata.label} view={activityView} indexBaseMonth="" selectedId={activityPrimary?.id ?? ""} onSelect={selectActivityPrimary} paletteKey={mapPalette} onPaletteChange={setMapPalette} provider="Redfin" />
+                <CountyMap county={county} mapData={maps[activityLens === "redfin" ? geography : "zip"]} dataset={activityDataset} metric={activeActivityMetric} metricLabel={activityMetricMetadata.label} view={activeActivityView} indexBaseMonth="" selectedId={activityPrimary?.id ?? ""} onSelect={selectActivityPrimary} paletteKey={mapPalette} onPaletteChange={setMapPalette} provider={activityLens === "redfin" ? "Redfin" : "Realtor.com"} />
               </section>
             </>
           )}
@@ -1783,27 +1993,30 @@ export default function MarketLab() {
             <Card><CardHeader><CardTitle>Nominal and real terms</CardTitle></CardHeader><CardContent className="method-copy"><p>Home values and rents can be shown in nominal dollars or converted to constant dollars using CPI-U. Local views default to the Los Angeles–Long Beach–Anaheim index, which covers Los Angeles and Orange Counties. Cross-metro views default to the U.S. city average.</p><p>Real value in base month <em>b</em> equals nominal value in month <em>t</em> multiplied by CPI<sub>b</sub>/CPI<sub>t</sub>. The base month changes displayed dollar levels but not real growth. Real rent is a purchasing-power measure, not an affordability measure.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>CPI and inflation</CardTitle></CardHeader><CardContent className="method-copy"><p>The lab retrieves monthly CPI-U, All Items directly from the U.S. Bureau of Labor Statistics: <code>CUURS49ASA0</code> for the LA area and <code>CUUR0000SA0</code> for the U.S. city average. Both are not seasonally adjusted.</p><p>Inflation is the exact change in CPI from the same month one year earlier. Officially missing CPI observations remain missing rather than being interpolated or carried forward.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Redfin activity measures</CardTitle></CardHeader><CardContent className="method-copy"><p>Redfin supplies months of supply, median days on market, the share sold above original list, the share of active listings with price reductions, and median sale price per square foot.</p><p>City and ZIP observations are rolling three-month windows. Share changes are shown in percentage points; days and months use absolute differences; price per square foot uses percent change.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Realtor.com inventory and demand</CardTitle></CardHeader><CardContent className="method-copy"><p>Realtor.com® Economic Research supplies monthly ZIP-level active and new listings, the pending-to-active ratio, listing viewers relative to the U.S., and its Market Hotness score.</p><p>Hotness equally weights relative demand and supply scores based on listing attention and market speed. It is a comparative index, not a probability of sale. Provider-flagged ZIP-months are withheld from the visuals.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Geographies</CardTitle></CardHeader><CardContent className="method-copy"><p>City/community maps retain every Census incorporated place and Census-designated place (CDP) assigned to Orange or Los Angeles County, whether or not a provider reports data. Zillow and Redfin observations are matched independently, and an unincorporated CDP is never reassigned to a neighboring city.</p><p>ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs. Census places and ZCTAs do not necessarily cover or classify land in the same way.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Reading the maps</CardTitle></CardHeader><CardContent className="method-copy"><p>The legend distinguishes three states: <strong>colored</strong> means the selected provider reports a current observation; <strong>gray</strong> means an official city/CDP or mapped ZCTA boundary exists but the selected observation is unavailable; <strong>unshaded</strong> means the land falls outside the displayed place geography.</p><p>Unshaded county remainder, wilderness, and open space should not be interpreted as a missing housing market. For example, unshaded portions of Laguna Coast Wilderness Park are not a separate Census place. OpenStreetMap supplies the underlying geographic context.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Zillow, Redfin, and BLS CPI are refreshed into independent versioned releases. Each pipeline checks schemas, dates, coverage, and size before advancing its own <code>latest.json</code> pointer.</p><p>If a provider update fails, its prior validated release remains available and does not block the other sources.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Cost &amp; portability</CardTitle></CardHeader><CardContent className="method-copy"><p>The site is a static export with no database, application server, paid API, or paid map service. GitHub Actions performs periodic updates and GitHub Pages serves the files.</p><p>OpenStreetMap tiles are requested only for the map a visitor is viewing. A 50 MB processed-data guardrail catches accidental growth before release.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Zillow, Redfin, Realtor.com, and BLS CPI are refreshed into independent versioned releases. Realtor.com Inventory and Hotness also advance independently because they can be published at different times.</p><p>Each pipeline checks schemas, dates, coverage, quality flags, and size before advancing its pointer. A failed update leaves the prior validated release available and does not block another source.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Cost &amp; portability</CardTitle></CardHeader><CardContent className="method-copy"><p>The site is a static export with no database, application server, paid API, or paid map service. GitHub Actions performs periodic updates and GitHub Pages serves the files.</p><p>Large national source files are streamed without being stored. Only compact local visual data are published, with provider-specific size limits and three Realtor.com releases retained per product for rollback.</p></CardContent></Card>
           </section>
           <Card className="disclaimer-card">
             <CardHeader><CardTitle>Academic-use disclaimer</CardTitle></CardHeader>
             <CardContent className="method-copy">
               <p>This project is provided for instruction and academic research. It is not financial, investment, legal, valuation, or real-estate advice, and should not be relied on for transactions or commercial decision-making.</p>
-              <p>Third-party data remain subject to their providers’ licenses and terms. This project does not grant commercial-use rights to Zillow, Redfin, Census, or OpenStreetMap data.</p>
+              <p>Third-party data remain subject to their providers’ licenses and terms. This project does not grant commercial-use rights to Zillow, Redfin, Realtor.com, Census, or OpenStreetMap data.</p>
             </CardContent>
           </Card>
           <Card className="provenance-card">
             <CardHeader><CardTitle>Current release provenance</CardTitle></CardHeader>
             <CardContent>
-              <dl className="provenance-grid"><div><dt>Zillow release</dt><dd>{manifest.release}</dd></div><div><dt>Redfin release</dt><dd>{redfinManifest?.release ?? "Unavailable"}</dd></div><div><dt>BLS CPI release</dt><dd>{cpiManifest?.release ?? "Unavailable"}</dd></div><div><dt>Coverage</dt><dd>{manifest.counts.city} city/community · {manifest.counts.zip} ZIP · {manifest.counts.metro} metro</dd></div><div><dt>Bundle fingerprints</dt><dd><code>{manifest.bundle_sha256.slice(0, 10)}…{redfinManifest ? ` · ${redfinManifest.bundle_sha256.slice(0, 10)}…` : ""}{cpiManifest ? ` · ${cpiManifest.bundle_sha256.slice(0, 10)}…` : ""}</code></dd></div></dl>
-              <p className="attribution">{manifest.attribution}. {redfinManifest?.attribution} {cpiManifest?.attribution} Map data © OpenStreetMap contributors. This independent academic visualization is not endorsed by Zillow Group, Redfin, BLS, or OpenStreetMap.</p>
+              <dl className="provenance-grid"><div><dt>Zillow release</dt><dd>{manifest.release}</dd></div><div><dt>Redfin release</dt><dd>{redfinManifest?.release ?? "Unavailable"}</dd></div><div><dt>Realtor inventory</dt><dd>{realtorManifests.inventory?.release ?? "Unavailable"}</dd></div><div><dt>Realtor Hotness</dt><dd>{realtorManifests.hotness?.release ?? "Unavailable"}</dd></div><div><dt>BLS CPI release</dt><dd>{cpiManifest?.release ?? "Unavailable"}</dd></div><div><dt>Coverage</dt><dd>{manifest.counts.city} city/community · {manifest.counts.zip} ZIP · {manifest.counts.metro} metro</dd></div><div><dt>Bundle fingerprints</dt><dd><code>{manifest.bundle_sha256.slice(0, 10)}…{redfinManifest ? ` · ${redfinManifest.bundle_sha256.slice(0, 10)}…` : ""}{realtorManifests.inventory ? ` · ${realtorManifests.inventory.bundle_sha256.slice(0, 10)}…` : ""}{realtorManifests.hotness ? ` · ${realtorManifests.hotness.bundle_sha256.slice(0, 10)}…` : ""}{cpiManifest ? ` · ${cpiManifest.bundle_sha256.slice(0, 10)}…` : ""}</code></dd></div></dl>
+              <p className="attribution">{manifest.attribution}. {redfinManifest?.attribution} {realtorManifests.inventory?.attribution ?? realtorManifests.hotness?.attribution} {cpiManifest?.attribution} Map data © OpenStreetMap contributors. This independent academic visualization is not endorsed by Zillow Group, Redfin, Realtor.com, BLS, or OpenStreetMap.</p>
               <div className="source-links">
                 <a className="source-link" href={manifest.data_page} target="_blank" rel="noreferrer">View Zillow Research source data <ExternalLink /></a>
                 <a className="source-link" href={redfinManifest?.data_page ?? "https://www.redfin.com/news/data-center/downloads/"} target="_blank" rel="noreferrer">View Redfin Data Center <ExternalLink /></a>
                 <a className="source-link" href={redfinManifest?.methodology_page ?? "https://www.redfin.com/news/data-center/methodology/"} target="_blank" rel="noreferrer">View Redfin methodology <ExternalLink /></a>
+                <a className="source-link" href={realtorManifests.inventory?.data_page ?? "https://www.realtor.com/research/data/"} target="_blank" rel="noreferrer">View Realtor.com Data Library <ExternalLink /></a>
+                <a className="source-link" href={realtorManifests.hotness?.methodology_page ?? "https://www.realtor.com/research/reports/hottest-markets/"} target="_blank" rel="noreferrer">View Market Hotness methodology <ExternalLink /></a>
                 <a className="source-link" href={cpiManifest?.data_page ?? "https://www.bls.gov/cpi/data.htm"} target="_blank" rel="noreferrer">View BLS CPI source data <ExternalLink /></a>
                 <a className="source-link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">View OpenStreetMap attribution <ExternalLink /></a>
               </div>

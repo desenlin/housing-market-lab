@@ -80,6 +80,30 @@ test("Redfin pointer resolves to an independent local activity release", async (
   ));
 });
 
+test("Realtor.com pointers resolve independently to compact ZIP releases", async () => {
+  const products = {
+    inventory: ["active_listing_count", "new_listing_count", "pending_ratio"],
+    hotness: ["demand_score", "hotness_score", "realtor_median_dom", "supply_score", "viewer_ratio"],
+  };
+  for (const [product, expectedMetrics] of Object.entries(products)) {
+    const latest = await readJson(`realtor/${product}/latest.json`);
+    const prefix = `realtor/${product}/releases/${latest.release}/`;
+    const [manifest, zip] = await Promise.all([
+      readJson(`${prefix}manifest.json`),
+      readJson(`${prefix}zip.json`),
+    ]);
+    assert.equal(manifest.provider, "Realtor.com® Economic Research");
+    assert.equal(manifest.product, product);
+    assert.equal(manifest.retained_releases, 3);
+    assert.equal(zip.regions.length, manifest.counts.zip);
+    assert.ok(zip.regions.length >= 150);
+    assert.deepEqual(Object.keys(zip.metrics).sort(), expectedMetrics);
+    assert.ok(Object.values(zip.metrics).every((metric) => metric.frequency === "Monthly"));
+    assert.ok(Object.values(zip.metrics).every((metric) => metric.dates.length >= 60));
+    assert.ok(zip.regions.every((region) => region.id.startsWith("zcta:")));
+  }
+});
+
 test("BLS CPI pointer resolves to complete LA-area and U.S. series", async () => {
   const latest = await readJson("cpi/latest.json");
   const prefix = `cpi/releases/${latest.release}/`;
