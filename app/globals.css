@@ -101,6 +101,10 @@ button, select { font: inherit; }
 .time-range button.active { background: #12355b; border-color: #12355b; color: white; }
 .index-base input { min-height: 30px; border: 1px solid #c4d0d7; border-radius: 5px; background: #fff; color: #173752; padding: 3px 7px; font-size: 12px; font-weight: 650; letter-spacing: 0; text-transform: none; }
 .data-note { margin: 6px 5px 0; color: #7d5a42; background: #fff5ec; padding: 8px 10px; font-size: 12px; }
+.quality-summary { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 4px 5px 8px; border-top: 1px solid #e4eaed; padding-top: 8px; color: #607381; font-size: 12px; }
+.quality-summary strong { color: #173752; }
+.quality-summary-flag { color: #875300; }
+.quality-summary-flag i { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border: 1.5px solid #9a4b00; border-radius: 50%; background: #fffaf4; }
 .ranking-card { overflow: hidden; }
 .ranking-card [data-slot="card-header"] { padding-bottom: 12px; border-bottom: 1px solid #e1e7ea; }
 .ranking-title { display: flex; justify-content: space-between; align-items: end; gap: 12px; }
@@ -113,6 +117,7 @@ button, select { font: inherit; }
 .rank-number { color: #8796a0; font-family: var(--font-mono); font-size: 11px; }
 .rank-name { overflow: hidden; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
 .rank-name small { display: block; overflow: hidden; color: #81909b; font-size: 10px; font-weight: 400; text-overflow: ellipsis; }
+.rank-name .quality-mini, .quality-text { color: #8a4a00; font-weight: 700; }
 .rank-row strong { font-size: 11px; text-align: right; white-space: nowrap; }
 .rank-row .positive, .rank-row .negative { font-size: 11px; text-align: right; }
 .positive { color: #19725e; } .negative { color: #b5473c; }
@@ -140,6 +145,7 @@ button, select { font: inherit; }
 .map-gradient { width: 82px; height: 9px; border: 1px solid rgb(16 47 80 / .15); }
 .map-swatch { display: inline-block; width: 12px; height: 10px; border: 1px solid rgb(16 47 80 / .2); }
 .map-swatch.no-data { background: #dce3e6; }
+.map-swatch.flagged { border: 2px dashed #9a4b00; background: #fff7e8; }
 .map-swatch.outside { border-style: dashed; background: repeating-linear-gradient(135deg, #fff 0 3px, #e9eef0 3px 5px); }
 .map-selection { display: flex; flex-wrap: wrap; gap: 5px 16px; margin: 12px 0 9px; border-left: 4px solid #ff7a1a; background: #fff4eb; padding: 8px 11px; color: #40596b; font-size: 12px; }
 .map-selection strong { color: #12355b; }
@@ -160,6 +166,19 @@ button, select { font: inherit; }
 .activity-intro .section-kicker { color: #a12622; }
 .activity-controls { grid-template-columns: 1.65fr 1fr 1.15fr 1.45fr 1.15fr; }
 .hotness-breakdown { margin-top: -8px; }
+.hotness-quadrant-card { overflow: hidden; border-color: #ccd7dd; border-radius: 9px; box-shadow: 0 3px 15px rgb(16 47 80 / .045); }
+.hotness-quadrant-card [data-slot="card-header"] { gap: 3px; border-bottom: 1px solid #e1e7ea; }
+.hotness-quadrant-card h3 { font-family: Georgia, serif; font-size: 23px; }
+.quadrant-date { margin: 2px 0 0; color: #71818c; font-size: 12px; }
+.hotness-chart-wrap { padding: 10px 13px 13px !important; }
+.hotness-chart { height: 325px; }
+.hotness-tooltip { display: grid; gap: 2px; border: 1px solid #cbd6dc; border-radius: 7px; background: #fff; box-shadow: 0 10px 25px rgb(18 53 91 / .15); padding: 8px 10px; color: #506675; font-size: 12px; }
+.hotness-tooltip strong { color: #12355b; font-size: 13px; }
+.quadrant-key { display: flex; flex-wrap: wrap; gap: 7px 14px; margin: 0 7px 8px; color: #607381; font-size: 11px; }
+.quadrant-key span { display: inline-flex; align-items: center; gap: 5px; }
+.quadrant-key i { width: 9px; height: 9px; border-radius: 50%; background: #12355b; opacity: .5; }
+.quadrant-key i.flagged { border: 1.5px solid #9a4b00; background: #fff7e8; opacity: 1; }
+.quadrant-key i.selected { border: 1px solid #7e3100; background: #ff7a1a; opacity: 1; }
 .regional-controls { max-width: 860px; grid-template-columns: 1.5fr 1fr 1fr; }
 .regional-controls + .time-range, .regional-price-controls + .time-range { margin-top: 15px; padding-top: 14px; border-top: 1px solid #e0e7ea; }
 .metro-checks { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; }
@@ -197,6 +216,7 @@ footer p { margin: 0; }
   .price-controls { grid-template-columns: 1fr 1fr; }
   .kpi-grid { grid-template-columns: 1fr 1fr; } .analysis-grid { grid-template-columns: 1fr; }
   .ranking-list { max-height: 330px; }
+  .hotness-chart { height: 360px; }
   .provenance-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 620px) {
@@ -211,6 +231,7 @@ footer p { margin: 0; }
   .ranking-title { display: block; } .ranking-title .control-label { margin-top: 10px; }
   .map-heading { align-items: start; } .map-tools { justify-items: start; } .map-heading { display: grid; } .map-legend { justify-content: flex-start; }
   .leaflet-map { height: 430px; }
+  .hotness-chart { height: 330px; }
   .regional-intro, .method-grid { grid-template-columns: 1fr; gap: 18px; }
   .provenance-grid { grid-template-columns: 1fr; }
   footer { padding: 20px 17px; }

@@ -4,12 +4,17 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   CartesianGrid,
   Legend,
+  LabelList,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
+  Scatter,
+  ScatterChart,
   Tooltip as ChartTooltip,
   XAxis,
   YAxis,
+  ZAxis,
 } from "recharts";
 import { Check, Copy, ExternalLink, Info, Plus, RotateCcw, X } from "lucide-react";
 
@@ -78,6 +83,7 @@ type Region = {
   county: string | null;
   context: string | null;
   series: Record<string, Value[] | { o: number; v: Value[] }>;
+  quality?: Partial<Record<"inventory" | "hotness", number[]>>;
 };
 
 type Dataset = {
@@ -134,6 +140,7 @@ type RedfinManifest = Manifest & {
 };
 
 type RealtorManifest = {
+  schema_version: number;
   release: string;
   created_at: string;
   provider: string;
@@ -155,7 +162,7 @@ type RealtorManifest = {
     latest_observation: string;
     rows_scanned: number;
     regions: number;
-    flagged_local_rows_suppressed: number;
+    flagged_local_rows_retained: number;
   };
 };
 
@@ -284,7 +291,11 @@ function mergeDatasets(datasets: Dataset[]): Dataset | null {
     dataset.regions.forEach((region) => {
       const existing = regions.get(region.id);
       regions.set(region.id, existing
-        ? { ...existing, series: { ...existing.series, ...region.series } }
+        ? {
+            ...existing,
+            series: { ...existing.series, ...region.series },
+            quality: { ...existing.quality, ...region.quality },
+          }
         : { ...region, series: { ...region.series } });
     });
   });
@@ -297,7 +308,7 @@ function mergeDatasets(datasets: Dataset[]): Dataset | null {
 }
 
 export function applyPriceAdjustment(
-  series: { dates: string[]; values: Value[]; unit: string; changeMode: ChangeMode },
+  series: { dates: string[]; values: Value[]; unit: string; changeMode: ChangeMode; qualityFlags?: boolean[] },
   metric: MetricKey,
   adjustment?: PriceAdjustment,
 ) {
@@ -332,9 +343,14 @@ function metricSeries(
   if (metric !== "price_rent") {
     const metadata = dataset.metrics[metric];
     const dates = metadata?.dates ?? [];
+    const qualityIndices = metadata?.source_product
+      ? region.quality?.[metadata.source_product] ?? []
+      : [];
+    const qualityIndexSet = new Set(qualityIndices);
     return applyPriceAdjustment({
       dates,
       values: expandedSeries(region.series[metric], dates.length),
+      qualityFlags: dates.map((_, index) => qualityIndexSet.has(index)),
       unit: metadata?.unit ?? "number",
       changeMode: metadata?.change_mode ??
         (metadata?.unit === "share" ? "percentage_point" : metadata?.unit === "ratio" ? "difference" : "percent"),
@@ -342,7 +358,7 @@ function metricSeries(
   }
   const rent = dataset.metrics.zori;
   const value = dataset.metrics.zhvi;
-  if (!rent || !value) return { dates: [], values: [], unit: "multiple", changeMode: "percent" as ChangeMode };
+  if (!rent || !value) return { dates: [], values: [], qualityFlags: [], unit: "multiple", changeMode: "percent" as ChangeMode };
   const homeValues = expandedSeries(region.series.zhvi, value.dates.length);
   const rents = expandedSeries(region.series.zori, rent.dates.length);
   const valueByDate = new Map(value.dates.map((date, index) => [date, homeValues[index]]));
@@ -355,6 +371,7 @@ function metricSeries(
         ? homeValue / (monthlyRent * 12)
         : null;
     }),
+    qualityFlags: rent.dates.map(() => false),
     unit: "multiple",
     changeMode: "percent" as ChangeMode,
   };
@@ -420,6 +437,25 @@ export function transformValues(
   return values.map((value) =>
     value != null && base != null && base !== 0 ? (value / base) * 100 : null,
   );
+}
+
+function transformQualityFlags(flags: boolean[], view: ViewKey, smoothMonths = 1) {
+  const smoothed = flags.map((_, index) => {
+    const start = Math.max(0, index - smoothMonths + 1);
+    return flags.slice(start, index + 1).some(Boolean);
+  });
+  if (view !== "yoy") return smoothed;
+  return smoothed.map((flagged, index) => flagged || Boolean(smoothed[index - 12]));
+}
+
+function trailingAverage(values: Value[], months: number) {
+  if (months <= 1) return values;
+  return values.map((value, index) => {
+    if (value == null) return null;
+    const window = values.slice(Math.max(0, index - months + 1), index + 1);
+    if (window.length < months || window.some((item) => item == null)) return null;
+    return window.reduce<number>((total, item) => total + (item ?? 0), 0) / months;
+  });
 }
 
 function metricDates(dataset: Dataset, metric: MetricKey) {
@@ -602,6 +638,37 @@ function InflationToggle({
   );
 }
 
+function SeriesDot({
+  cx,
+  cy,
+  payload,
+  qualityKey,
+  color,
+  showAll,
+}: {
+  cx?: number;
+  cy?: number;
+  payload?: Record<string, unknown>;
+  qualityKey: string;
+  color: string;
+  showAll: boolean;
+}) {
+  if (cx == null || cy == null) return null;
+  const flagged = Boolean(payload?.[qualityKey]);
+  if (!flagged && !showAll) return null;
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={flagged ? 3.4 : 1.6}
+      fill={flagged ? "#fffaf4" : color}
+      fillOpacity={flagged ? 1 : 0.42}
+      stroke={flagged ? "#9a4b00" : color}
+      strokeWidth={flagged ? 1.7 : 0.5}
+    />
+  );
+}
+
 function SeriesChart({
   dataset,
   regions,
@@ -611,6 +678,8 @@ function SeriesChart({
   indexBaseMonth,
   priceAdjustment,
   overlays = [],
+  showQuality = false,
+  smoothMonths = 1,
 }: {
   dataset: Dataset;
   regions: Region[];
@@ -620,16 +689,31 @@ function SeriesChart({
   indexBaseMonth: string;
   priceAdjustment?: PriceAdjustment;
   overlays?: ChartOverlay[];
+  showQuality?: boolean;
+  smoothMonths?: number;
 }) {
   const chart = useMemo(() => {
     if (!regions.length) return { rows: [], unit: "number", changeMode: "percent" as ChangeMode };
     const first = metricSeries(dataset, regions[0], metric, priceAdjustment);
     const series = regions.map((region) => {
       const current = metricSeries(dataset, region, metric, priceAdjustment);
+      const rawValues = transformValues(current.values, view, current.dates, indexBaseMonth, current.changeMode);
+      const plottedValues = transformValues(
+        trailingAverage(current.values, smoothMonths),
+        view,
+        current.dates,
+        indexBaseMonth,
+        current.changeMode,
+      );
+      const qualityFlags = transformQualityFlags(current.qualityFlags ?? [], view);
       const byDate = new Map(
         current.dates.map((date, index) => [
           date,
-          transformValues(current.values, view, current.dates, indexBaseMonth, current.changeMode)[index],
+          {
+            value: plottedValues[index],
+            raw: rawValues[index],
+            flagged: showQuality && Boolean(qualityFlags[index]),
+          },
         ]),
       );
       return { region, byDate };
@@ -643,11 +727,19 @@ function SeriesChart({
         ]),
       ),
     }));
-    const rows = first.dates.map((date) => ({
-      date,
-      ...Object.fromEntries(series.map(({ region, byDate }) => [region.id, byDate.get(date) ?? null])),
-      ...Object.fromEntries(overlaySeries.map(({ overlay, byDate }) => [overlay.id, byDate.get(date.slice(0, 7)) ?? null])),
-    }));
+    const rows = first.dates.map((date) => {
+      const row: Record<string, string | number | boolean | null> = { date };
+      series.forEach(({ region, byDate }) => {
+        const observation = byDate.get(date);
+        row[region.id] = observation?.value ?? null;
+        row[`${region.id}__raw`] = observation?.raw ?? null;
+        row[`${region.id}__quality`] = observation?.flagged ?? false;
+      });
+      overlaySeries.forEach(({ overlay, byDate }) => {
+        row[overlay.id] = byDate.get(date.slice(0, 7)) ?? null;
+      });
+      return row;
+    });
     const rangeStart = timeRangeStart(rows.length, timeRange);
     const indexStart = view === "index"
       ? Math.max(0, rows.findIndex((row) => row.date.startsWith(indexBaseMonth)))
@@ -657,7 +749,7 @@ function SeriesChart({
       changeMode: first.changeMode,
       rows: rows.slice(Math.max(rangeStart, indexStart)),
     };
-  }, [dataset, regions, metric, view, timeRange, indexBaseMonth, overlays, priceAdjustment]);
+  }, [dataset, regions, metric, view, timeRange, indexBaseMonth, overlays, priceAdjustment, showQuality, smoothMonths]);
 
   const overlayById = new Map(overlays.map((overlay) => [overlay.id, overlay]));
 
@@ -683,25 +775,71 @@ function SeriesChart({
           />
           <ChartTooltip
             labelFormatter={(date) => shortDate(String(date))}
-            formatter={(value, name) => [
-              formatValue(Number(value), chart.unit, view, false, chart.changeMode),
-              regions.find((region) => region.id === String(name))?.name ?? overlayById.get(String(name))?.label ?? String(name),
-            ]}
+            formatter={(value, name, item) => {
+              const key = String(name);
+              const row = item.payload as Record<string, unknown> | undefined;
+              const flagged = Boolean(row?.[`${key}__quality`]);
+              const label = regions.find((region) => region.id === key)?.name
+                ?? overlayById.get(key)?.label
+                ?? key;
+              return [
+                formatValue(Number(value), chart.unit, view, false, chart.changeMode),
+                `${label}${flagged ? " · provider flagged" : ""}`,
+              ];
+            }}
             contentStyle={{ borderRadius: 8, borderColor: "#cbd6dc", boxShadow: "0 12px 30px #12355b20" }}
           />
           <Legend formatter={(id) => regions.find((region) => region.id === String(id))?.name ?? overlayById.get(String(id))?.label ?? String(id)} />
-          {regions.map((region, index) => (
-            <Line
-              key={region.id}
-              type="monotone"
-              dataKey={region.id}
-              stroke={COLORS[index % COLORS.length]}
-              strokeWidth={index === 0 ? 3 : 2}
-              dot={false}
-              connectNulls={false}
-              isAnimationActive={false}
-            />
-          ))}
+          {regions.flatMap((region, index) => {
+            const color = COLORS[index % COLORS.length];
+            const dot = (props: { cx?: number; cy?: number; payload?: Record<string, unknown> }) => (
+              <SeriesDot
+                {...props}
+                qualityKey={`${region.id}__quality`}
+                color={color}
+                showAll={smoothMonths > 1}
+              />
+            );
+            return smoothMonths > 1 ? [
+                <Line
+                  key={`${region.id}-raw`}
+                  type="monotone"
+                  dataKey={`${region.id}__raw`}
+                  name={region.id}
+                  legendType="none"
+                  stroke={color}
+                  strokeOpacity={0.26}
+                  strokeWidth={1}
+                  dot={dot}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />,
+                <Line
+                  key={`${region.id}-smoothed`}
+                  type="monotone"
+                  dataKey={region.id}
+                  name={region.id}
+                  tooltipType="none"
+                  stroke={color}
+                  strokeWidth={index === 0 ? 3 : 2}
+                  dot={false}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />,
+              ] : [
+              <Line
+                key={region.id}
+                type="monotone"
+                dataKey={region.id}
+                name={region.id}
+                stroke={color}
+                strokeWidth={index === 0 ? 3 : 2}
+                dot={dot}
+                connectNulls={false}
+                isAnimationActive={false}
+              />,
+            ];
+          })}
           {overlays.map((overlay) => (
             <Line
               key={overlay.id}
@@ -721,6 +859,126 @@ function SeriesChart({
   );
 }
 
+function QualityCoverage({
+  dataset,
+  region,
+  metric,
+  timeRange,
+}: {
+  dataset: Dataset;
+  region?: Region;
+  metric: MetricKey;
+  timeRange: TimeRange;
+}) {
+  if (!region) return null;
+  const series = metricSeries(dataset, region, metric);
+  const start = timeRangeStart(series.dates.length, timeRange);
+  const values = series.values.slice(start);
+  const flags = series.qualityFlags?.slice(start) ?? [];
+  const reported = values.filter((value) => value != null).length;
+  const flagged = values.filter((value, index) => value != null && flags[index]).length;
+  return (
+    <div className="quality-summary" aria-label="Realtor.com data coverage">
+      <span><strong>{reported}</strong> of {values.length} months reported</span>
+      <span className="quality-summary-flag"><i /> <strong>{flagged}</strong> provider-flagged</span>
+      <span>Hollow points identify flagged observations.</span>
+    </div>
+  );
+}
+
+type HotnessPoint = {
+  id: string;
+  name: string;
+  county: string | null;
+  demand: number;
+  supply: number;
+  flagged: boolean;
+  label: string;
+};
+
+function HotnessChartTooltip({ active, payload }: {
+  active?: boolean;
+  payload?: Array<{ payload?: HotnessPoint }>;
+}) {
+  const point = payload?.[0]?.payload;
+  if (!active || !point) return null;
+  return (
+    <div className="hotness-tooltip">
+      <strong>{point.name}</strong>
+      <span>{point.county}</span>
+      <span>Demand score: {point.demand.toFixed(1)}</span>
+      <span>Supply score: {point.supply.toFixed(1)}</span>
+      {point.flagged && <span className="quality-text">Provider flagged</span>}
+    </div>
+  );
+}
+
+function HotnessQuadrant({
+  dataset,
+  regions,
+  selectedId,
+}: {
+  dataset: Dataset;
+  regions: Region[];
+  selectedId: string;
+}) {
+  const points = regions.flatMap((region): HotnessPoint[] => {
+    const demand = metricSeries(dataset, region, "demand_score");
+    const supply = metricSeries(dataset, region, "supply_score");
+    const demandValue = demand.values.at(-1);
+    const supplyValue = supply.values.at(-1);
+    if (demandValue == null || supplyValue == null) return [];
+    return [{
+      id: region.id,
+      name: region.name,
+      county: region.county,
+      demand: demandValue,
+      supply: supplyValue,
+      flagged: Boolean(demand.qualityFlags?.at(-1) || supply.qualityFlags?.at(-1)),
+      label: region.id === selectedId ? region.name : "",
+    }];
+  });
+  const focus = points.filter((point) => point.id === selectedId);
+  const unflagged = points.filter((point) => point.id !== selectedId && !point.flagged);
+  const flagged = points.filter((point) => point.id !== selectedId && point.flagged);
+  const dates = dataset.metrics.hotness_score?.dates ?? [];
+  return (
+    <Card className="hotness-quadrant-card">
+      <CardHeader>
+        <p className="section-kicker">Demand × supply</p>
+        <CardTitle>Market Hotness quadrant</CardTitle>
+        <p className="quadrant-date">Latest common month · {dates.length ? shortDate(dates.at(-1)!) : "Unavailable"}</p>
+      </CardHeader>
+      <CardContent className="hotness-chart-wrap">
+        <div className="hotness-chart" aria-label="Demand score versus supply score by ZIP code">
+          <ResponsiveContainer width="100%" height="100%">
+            <ScatterChart margin={{ top: 12, right: 24, bottom: 14, left: 0 }}>
+              <CartesianGrid stroke="#dbe3e8" strokeDasharray="3 4" />
+              <XAxis type="number" dataKey="demand" name="Demand score" domain={[0, 100]} tick={{ fill: "#627180", fontSize: 11 }} label={{ value: "Demand score →", position: "insideBottom", offset: -8, fill: "#526a7a", fontSize: 11 }} />
+              <YAxis type="number" dataKey="supply" name="Supply score" domain={[0, 100]} width={44} tick={{ fill: "#627180", fontSize: 11 }} label={{ value: "Supply score →", angle: -90, position: "insideLeft", fill: "#526a7a", fontSize: 11 }} />
+              <ZAxis range={[34, 34]} />
+              <ReferenceLine x={50} stroke="#9aaab4" strokeDasharray="4 4" />
+              <ReferenceLine y={50} stroke="#9aaab4" strokeDasharray="4 4" />
+              <ChartTooltip cursor={{ strokeDasharray: "3 3" }} content={<HotnessChartTooltip />} />
+              <Scatter name="Reported ZIPs" data={unflagged} fill="#12355b" fillOpacity={0.48} />
+              <Scatter name="Provider flagged" data={flagged} fill="#fff7e8" stroke="#9a4b00" strokeWidth={1.5} />
+              <Scatter name="Selected ZIP" data={focus} fill="#ff7a1a" stroke="#7e3100" strokeWidth={1.5}>
+                <LabelList dataKey="label" position="top" fill="#7e3100" fontSize={11} fontWeight={700} />
+              </Scatter>
+            </ScatterChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="quadrant-key">
+          <span><i className="reported" />Reported</span>
+          <span><i className="flagged" />Provider flagged</span>
+          <span><i className="selected" />Selected ZIP</span>
+        </div>
+        <p className="data-note">Upper-right ZIPs combine stronger listing attention with faster-moving supply. Scores are relative rankings, not percentage changes.</p>
+      </CardContent>
+    </Card>
+  );
+}
+
 function CountyMap({
   county,
   mapData,
@@ -735,6 +993,7 @@ function CountyMap({
   onPaletteChange,
   provider,
   priceAdjustment,
+  showQuality = false,
 }: {
   county: string;
   mapData: MapData;
@@ -749,6 +1008,7 @@ function CountyMap({
   onPaletteChange: (palette: MapPaletteKey) => void;
   provider: string;
   priceAdjustment?: PriceAdjustment;
+  showQuality?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
@@ -806,21 +1066,25 @@ function CountyMap({
         const transformed = series
           ? transformValues(series.values, view, series.dates, indexBaseMonth, series.changeMode)
           : [];
-        const yoy = series
-          ? lastValue(transformValues(series.values, "yoy", series.dates, "", series.changeMode))?.value ?? null
-          : null;
+        const yoyValues = series
+          ? transformValues(series.values, "yoy", series.dates, "", series.changeMode)
+          : [];
+        const qualityFlags = series
+          ? transformQualityFlags(series.qualityFlags ?? [], view)
+          : [];
         return {
           id: shape.id,
           dataId: region?.id ?? null,
           name: shape.name,
           county: shape.county ?? region?.county ?? "",
-          value: lastValue(transformed)?.value ?? null,
-          yoy,
+          value: transformed.at(-1) ?? null,
+          yoy: yoyValues.at(-1) ?? null,
+          qualityFlagged: showQuality && Boolean(qualityFlags.at(-1)),
           unit: series?.unit ?? "number",
           changeMode: series?.changeMode ?? "percent",
         };
       }),
-    [dataset, datasetByPlace, indexBaseMonth, metric, priceAdjustment, shapes.regions, view],
+    [dataset, datasetByPlace, indexBaseMonth, metric, priceAdjustment, shapes.regions, showQuality, view],
   );
   const valueById = useMemo(
     () => new Map(values.map((item) => [item.id, item])),
@@ -851,6 +1115,7 @@ function CountyMap({
   }, [high, low, paletteKey, values, view]);
   const selected = values.find((item) => item.dataId === selectedId);
   const observed = values.filter((item) => item.value != null && Number.isFinite(item.value)).length;
+  const flagged = values.filter((item) => item.value != null && item.qualityFlagged).length;
   const countyLabel = county === "Both" ? "Orange and Los Angeles Counties" : county;
   const geographyLabel = dataset.geography === "zip" ? "ZIP code" : "City/community";
   const outsideGeographyLabel = dataset.geography === "zip"
@@ -910,8 +1175,9 @@ function CountyMap({
         const item = valueById.get(id);
         const isSelected = item?.dataId === selectedId;
         return {
-          color: isSelected ? "#ff7a1a" : "#ffffff",
-          weight: isSelected ? 3 : 1.2,
+          color: isSelected ? "#ff7a1a" : item?.qualityFlagged ? "#9a4b00" : "#ffffff",
+          weight: isSelected ? 3 : item?.qualityFlagged ? 2.2 : 1.2,
+          dashArray: item?.qualityFlagged ? "5 3" : undefined,
           opacity: 1,
           fillColor: fillById.get(id) ?? "#dce3e6",
           fillOpacity: isSelected ? 0.88 : 0.72,
@@ -931,9 +1197,14 @@ function CountyMap({
         growth.textContent = item?.dataId
           ? `Change from one year earlier: ${formatValue(item.yoy, item.unit, "yoy", false, item.changeMode)}`
           : "Boundary shown for geographic context";
+        const quality = document.createElement("span");
+        quality.textContent = item?.qualityFlagged
+          ? "Provider quality flag — review before reporting"
+          : "";
         const location = document.createElement("span");
         location.textContent = item?.county ?? "";
         tooltip.append(name, location, measure, growth);
+        if (item?.qualityFlagged) tooltip.append(quality);
         layer.bindTooltip(tooltip, { sticky: true, direction: "top" });
         if (item?.dataId) layer.on("click", () => onSelectRef.current(item.dataId!));
       },
@@ -995,6 +1266,7 @@ function CountyMap({
               <i className="map-gradient" style={{ background: `linear-gradient(90deg, ${palette.join(",")})` }} />
               {formatValue(high, values[0]?.unit ?? "number", view, false, values[0]?.changeMode)}
             </span>
+            {showQuality && <span className="map-legend-item" role="listitem"><i className="map-swatch flagged" />Provider flagged</span>}
             <span className="map-legend-item" role="listitem"><i className="map-swatch no-data" />No {provider} data</span>
             <span className="map-legend-item" role="listitem"><i className="map-swatch outside" />{outsideGeographyLabel}</span>
           </div>
@@ -1006,6 +1278,7 @@ function CountyMap({
           <span>{geographyLabel} · {selected.county}</span>
           <span>{metricLabel}: {formatValue(selected.value, selected.unit, view, false, selected.changeMode)}</span>
           <span>Change from one year earlier: {formatValue(selected.yoy, selected.unit, "yoy", false, selected.changeMode)}</span>
+          {selected.qualityFlagged && <span className="quality-text">Provider flagged</span>}
         </div>
       )}
       <div
@@ -1014,7 +1287,7 @@ function CountyMap({
         role="region"
         aria-label={`${countyLabel} ${geographyLabel.toLowerCase()} map of ${metricLabel.toLowerCase()}`}
       />
-      <p className="map-coverage">{observed} of {shapes.regions.length} boundaries have a current {provider} observation for this measure. Gray boundaries have no data; unshaded map areas are outside the displayed {dataset.geography === "city" ? "city/CDP" : "ZCTA"} geography. Hover or tap a boundary for details; click a data region to update the focus series.</p>
+      <p className="map-coverage">{observed} of {shapes.regions.length} boundaries have a current {provider} observation for this measure{showQuality ? `; ${flagged} are provider-flagged` : ""}. Gray boundaries have no data; unshaded map areas are outside the displayed {dataset.geography === "city" ? "city/CDP" : "ZCTA"} geography. Hover or tap a boundary for details; click a data region to update the focus series.</p>
     </div>
   );
 }
@@ -1102,7 +1375,8 @@ export default function MarketLab() {
   const [activityMetric, setActivityMetric] = useState<MetricKey>("months_supply");
   const [realtorMetric, setRealtorMetric] = useState<MetricKey>("active_listing_count");
   const [activityView, setActivityView] = useState<Exclude<ViewKey, "index">>("level");
-  const [realtorView, setRealtorView] = useState<Exclude<ViewKey, "index">>("yoy");
+  const [realtorView, setRealtorView] = useState<ViewKey>("yoy");
+  const [realtorIndexBaseRequest, setRealtorIndexBaseRequest] = useState("2020-01");
   const [activityTimeRange, setActivityTimeRange] = useState<TimeRange>("5y");
   const [realtorTimeRange, setRealtorTimeRange] = useState<TimeRange>("5y");
   const [activityRankBy, setActivityRankBy] = useState<RankKey>("growth");
@@ -1355,6 +1629,9 @@ export default function MarketLab() {
   const activityMetricOptions = (activityLens === "redfin" ? ACTIVITY_METRICS : REALTOR_METRICS)
     .filter((option) => activityDataset?.metrics[option.key]);
   const activityDates = activityDataset ? metricDates(activityDataset, activeActivityMetric) : [];
+  const activityIndexBaseMonth = activityLens === "realtor"
+    ? normalizedBaseMonth(activityDates, realtorIndexBaseRequest)
+    : "";
   const activityEligible = useMemo(
     () => activityDataset?.regions.filter((region) => county === "Both" || region.county === county) ?? [],
     [activityDataset, county],
@@ -1379,6 +1656,12 @@ export default function MarketLab() {
         activityPrimarySeries.changeMode,
       ))
     : null;
+  const activityLastFlagged = activityLens === "realtor" && activityLast
+    ? Boolean(activityPrimarySeries?.qualityFlags?.[activityLast.index])
+    : false;
+  const activityYoyFlagged = activityLens === "realtor" && activityYoy
+    ? Boolean(transformQualityFlags(activityPrimarySeries?.qualityFlags ?? [], "yoy")[activityYoy.index])
+    : false;
   const activityFiveYear = (() => {
     if (!activityPrimarySeries || !activityLast) return null;
     const prior = activityPrimarySeries.values[activityLast.index - 60];
@@ -1392,15 +1675,25 @@ export default function MarketLab() {
     return activityEligible
       .map((region) => {
         const series = metricSeries(activityDataset, region, activeActivityMetric);
-        const level = lastValue(series.values)?.value ?? null;
-        const yoy = lastValue(transformValues(series.values, "yoy", series.dates, "", series.changeMode))?.value ?? null;
-        return { region, level, yoy, unit: series.unit, changeMode: series.changeMode };
+        const yoyValues = transformValues(series.values, "yoy", series.dates, "", series.changeMode);
+        const level = series.values.at(-1) ?? null;
+        const yoy = yoyValues.at(-1) ?? null;
+        const levelFlagged = Boolean(series.qualityFlags?.at(-1));
+        const yoyFlagged = Boolean(transformQualityFlags(series.qualityFlags ?? [], "yoy").at(-1));
+        return {
+          region,
+          level,
+          yoy,
+          qualityFlagged: activityLens === "realtor" && (levelFlagged || yoyFlagged),
+          unit: series.unit,
+          changeMode: series.changeMode,
+        };
       })
       .filter((item) => item.level != null)
       .sort((a, b) => activeActivityRankBy === "growth"
         ? (b.yoy ?? -Infinity) - (a.yoy ?? -Infinity)
         : (b.level ?? -Infinity) - (a.level ?? -Infinity));
-  }, [activityDataset, activityEligible, activeActivityMetric, activeActivityRankBy]);
+  }, [activityDataset, activityEligible, activeActivityMetric, activeActivityRankBy, activityLens]);
   const activityRank = activityPrimary
     ? activityRanked.findIndex((item) => item.region.id === activityPrimary.id) + 1
     : 0;
@@ -1490,7 +1783,7 @@ export default function MarketLab() {
 
   function changeActivityView(next: string) {
     if (activityLens === "redfin") setActivityView(next as Exclude<ViewKey, "index">);
-    else setRealtorView(next as Exclude<ViewKey, "index">);
+    else setRealtorView(next as ViewKey);
   }
 
   function changeActivityTimeRange(next: TimeRange) {
@@ -1800,7 +2093,11 @@ export default function MarketLab() {
                   <LabelledSelect label="View" value={activeActivityView} onChange={changeActivityView}>
                     <NativeSelectOption value="level">Level</NativeSelectOption>
                     <NativeSelectOption value="yoy">Change from one year earlier</NativeSelectOption>
+                    {activityLens === "realtor" && <NativeSelectOption value="index">Indexed to 100</NativeSelectOption>}
                   </LabelledSelect>
+                  {activityLens === "realtor" && activeActivityView === "index" && (
+                    <IndexBaseControl value={activityIndexBaseMonth} dates={activityDates} onChange={setRealtorIndexBaseRequest} />
+                  )}
                 </div>
                 <div className="comparison-row">
                   <label className="control-label comparison-select">
@@ -1830,12 +2127,12 @@ export default function MarketLab() {
                   label={activityMetricMetadata.label}
                   definition={activityMetricMetadata.definition}
                   value={formatValue(activityLast?.value ?? null, activityPrimarySeries?.unit ?? "number", "level")}
-                  note={activityLast ? `${activityLens === "redfin" ? "Rolling window ending" : "As of"} ${shortDate(activityPrimarySeries!.dates[activityLast.index])}` : "No observation"}
+                  note={activityLast ? `${activityLens === "redfin" ? "Rolling window ending" : "As of"} ${shortDate(activityPrimarySeries!.dates[activityLast.index])}${activityLastFlagged ? " · provider flagged" : ""}` : "No observation"}
                 />
                 <Kpi
                   label="Change from one year earlier"
                   value={formatValue(activityYoy?.value ?? null, activityPrimarySeries?.unit ?? "number", "yoy", false, activityPrimarySeries?.changeMode)}
-                  note={activityLens === "redfin" ? "Versus the same rolling three-month window" : "Versus the same month one year earlier"}
+                  note={`${activityLens === "redfin" ? "Versus the same rolling three-month window" : "Versus the same month one year earlier"}${activityYoyFlagged ? " · provider flagged" : ""}`}
                 />
                 <Kpi
                   label="Five-year change"
@@ -1864,19 +2161,36 @@ export default function MarketLab() {
                     <div><p className="section-kicker">Local activity</p><CardTitle><MetricHeading metric={activityMetricMetadata} fallback={activityMetricMetadata.label} /></CardTitle></div>
                     <div className="chart-options">
                       <TimeRangeControl value={activeActivityTimeRange} onChange={changeActivityTimeRange} />
-                      <p>{activeActivityView === "level"
-                        ? activityLens === "redfin" ? "Rolling three-month level" : "Monthly level"
-                        : activityLens === "redfin" ? "Change from the same window one year earlier" : "Change from the same month one year earlier"}</p>
+                      <p>{activeActivityView === "index"
+                        ? `Indexed to ${shortDate(`${activityIndexBaseMonth}-01`)} = 100`
+                        : activeActivityView === "level"
+                          ? activityLens === "redfin" ? "Rolling three-month level" : activityMetricMetadata.source_product === "inventory" ? "Three-month average with monthly observations" : "Monthly level"
+                          : activityLens === "redfin" ? "Change from the same window one year earlier" : "Change from the same month one year earlier"}</p>
                     </div>
                   </CardHeader>
                   <CardContent className="p-3 pt-0 sm:p-5 sm:pt-0">
-                    <SeriesChart dataset={activityDataset} regions={activitySelectedRegions} metric={activeActivityMetric} view={activeActivityView} timeRange={activeActivityTimeRange} indexBaseMonth="" />
+                    <SeriesChart
+                      dataset={activityDataset}
+                      regions={activitySelectedRegions}
+                      metric={activeActivityMetric}
+                      view={activeActivityView}
+                      timeRange={activeActivityTimeRange}
+                      indexBaseMonth={activityIndexBaseMonth}
+                      showQuality={activityLens === "realtor"}
+                      smoothMonths={activityLens === "realtor" && activeActivityView === "level" && activityMetricMetadata.source_product === "inventory" ? 3 : 1}
+                    />
+                    {activityLens === "realtor" && (
+                      <QualityCoverage dataset={activityDataset} region={activityPrimary} metric={activeActivityMetric} timeRange={activeActivityTimeRange} />
+                    )}
                     <p className="data-note">{activityLens === "redfin"
                       ? "Redfin may revise recent observations. Thin local markets can be volatile even after three-month smoothing."
-                      : "Realtor.com may revise its full history each month. Provider-flagged ZIP-month observations are withheld, and thin ZIP markets can remain volatile."}</p>
+                      : "Realtor.com may revise its full history each month. Flagged observations remain visible but should be reviewed before reporting; thin ZIP markets can be volatile."}</p>
                   </CardContent>
                 </Card>
 
+                {activityLens === "realtor" && activeActivityMetric === "hotness_score" ? (
+                  <HotnessQuadrant dataset={activityDataset} regions={activityEligible} selectedId={activityPrimary?.id ?? ""} />
+                ) : (
                 <Card className="ranking-card">
                   <CardHeader>
                     <div className="ranking-title">
@@ -1894,17 +2208,18 @@ export default function MarketLab() {
                     {activityRanked.map((item, index) => (
                       <button key={item.region.id} onClick={() => selectActivityPrimary(item.region.id)} className={item.region.id === activityPrimary?.id ? "rank-row active" : "rank-row"}>
                         <span className="rank-number">{index + 1}</span>
-                        <span className="rank-name">{item.region.name}<small>{item.region.context}</small></span>
+                        <span className="rank-name">{item.region.name}{item.qualityFlagged ? <small className="quality-mini">Provider flagged</small> : <small>{item.region.context}</small>}</span>
                         <strong>{formatValue(item.level, item.unit, "level")}</strong>
                         <span className={(item.yoy ?? 0) < 0 ? "negative" : "positive"}>{formatValue(item.yoy, item.unit, "yoy", false, item.changeMode)}</span>
                       </button>
                     ))}
                   </CardContent>
                 </Card>
+                )}
               </section>
 
               <section className="maps-grid">
-                <CountyMap county={county} mapData={maps[activityLens === "redfin" ? geography : "zip"]} dataset={activityDataset} metric={activeActivityMetric} metricLabel={activityMetricMetadata.label} view={activeActivityView} indexBaseMonth="" selectedId={activityPrimary?.id ?? ""} onSelect={selectActivityPrimary} paletteKey={mapPalette} onPaletteChange={setMapPalette} provider={activityLens === "redfin" ? "Redfin" : "Realtor.com"} />
+                <CountyMap county={county} mapData={maps[activityLens === "redfin" ? geography : "zip"]} dataset={activityDataset} metric={activeActivityMetric} metricLabel={activityMetricMetadata.label} view={activeActivityView} indexBaseMonth={activityIndexBaseMonth} selectedId={activityPrimary?.id ?? ""} onSelect={selectActivityPrimary} paletteKey={mapPalette} onPaletteChange={setMapPalette} provider={activityLens === "redfin" ? "Redfin" : "Realtor.com"} showQuality={activityLens === "realtor"} />
               </section>
             </>
           )}
@@ -1996,7 +2311,7 @@ export default function MarketLab() {
             <Card><CardHeader><CardTitle>Realtor.com inventory and demand</CardTitle></CardHeader><CardContent className="method-copy"><p>Realtor.com® Economic Research supplies monthly ZIP-level active and new listings, the pending-to-active ratio, listing viewers relative to the U.S., and its Market Hotness score.</p><p>Hotness equally weights relative demand and supply scores based on listing attention and market speed. It is a comparative index, not a probability of sale. Provider-flagged ZIP-months are withheld from the visuals.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Geographies</CardTitle></CardHeader><CardContent className="method-copy"><p>City/community maps retain every Census incorporated place and Census-designated place (CDP) assigned to Orange or Los Angeles County, whether or not a provider reports data. Zillow and Redfin observations are matched independently, and an unincorporated CDP is never reassigned to a neighboring city.</p><p>ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs. Census places and ZCTAs do not necessarily cover or classify land in the same way.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Reading the maps</CardTitle></CardHeader><CardContent className="method-copy"><p>The legend distinguishes three states: <strong>colored</strong> means the selected provider reports a current observation; <strong>gray</strong> means an official city/CDP or mapped ZCTA boundary exists but the selected observation is unavailable; <strong>unshaded</strong> means the land falls outside the displayed place geography.</p><p>Unshaded county remainder, wilderness, and open space should not be interpreted as a missing housing market. For example, unshaded portions of Laguna Coast Wilderness Park are not a separate Census place. OpenStreetMap supplies the underlying geographic context.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Zillow, Redfin, Realtor.com, and BLS CPI are refreshed into independent versioned releases. Realtor.com Inventory and Hotness also advance independently because they can be published at different times.</p><p>Each pipeline checks schemas, dates, coverage, quality flags, and size before advancing its pointer. A failed update leaves the prior validated release available and does not block another source.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Zillow, Redfin, Realtor.com, and BLS CPI are refreshed into independent versioned releases. Realtor.com Inventory and Hotness also advance independently because they can be published at different times.</p><p>Each pipeline checks schemas, dates, coverage, quality flags, and size before advancing its pointer. Realtor.com observations carrying a row-level provider quality flag remain available but are marked in charts, rankings, and maps. A failed update leaves the prior validated release available and does not block another source.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Cost &amp; portability</CardTitle></CardHeader><CardContent className="method-copy"><p>The site is a static export with no database, application server, paid API, or paid map service. GitHub Actions performs periodic updates and GitHub Pages serves the files.</p><p>Large national source files are streamed without being stored. Only compact local visual data are published, with provider-specific size limits and three Realtor.com releases retained per product for rollback.</p></CardContent></Card>
           </section>
           <Card className="disclaimer-card">

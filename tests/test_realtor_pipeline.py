@@ -34,7 +34,7 @@ class RealtorPipelineTest(unittest.TestCase):
             {"o": 1, "v": [12, None, 14]},
         )
 
-    def test_stream_keeps_only_local_unflagged_rows(self):
+    def test_stream_keeps_local_rows_and_marks_provider_flags(self):
         rows = [
             {
                 "month_date_yyyymm": "202608",
@@ -79,17 +79,30 @@ class RealtorPipelineTest(unittest.TestCase):
         )
         self.assertEqual(scanned, 4)
         self.assertEqual(flagged, 1)
-        self.assertEqual(dates, {"2026-08-01"})
+        self.assertEqual(dates, {"2026-07-01", "2026-08-01"})
         self.assertEqual(
             selected["zcta:92831"]["2026-08-01"]["active_listing_count"],
             24,
         )
+        self.assertEqual(
+            selected["zcta:92831"]["2026-07-01"]["active_listing_count"],
+            999,
+        )
+        self.assertEqual(
+            selected["zcta:92831"]["2026-07-01"]["__quality_flag"],
+            1,
+        )
+        self.assertEqual(
+            selected["zcta:92831"]["2026-08-01"]["__quality_flag"],
+            0,
+        )
 
     def test_source_fingerprint_avoids_repeat_download(self):
-        existing = {"source": {"etag": '"abc"', "bytes": 10}}
+        existing = {"schema_version": 2, "source": {"etag": '"abc"', "bytes": 10}}
         current = {"etag": '"abc"', "bytes": 12, "last_modified": "later"}
         self.assertTrue(source_is_unchanged(existing, current))
         self.assertFalse(source_is_unchanged(existing, {**current, "etag": '"def"'}))
+        self.assertFalse(source_is_unchanged({"source": existing["source"]}, current))
 
     def test_retains_three_release_directories(self):
         with tempfile.TemporaryDirectory() as temporary:

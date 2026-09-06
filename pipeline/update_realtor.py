@@ -31,6 +31,7 @@ PUBLIC_DATA = ROOT / "public" / "data" / "realtor"
 ZILLOW_PUBLIC_DATA = ROOT / "public" / "data"
 USER_AGENT = "housing-market-lab/0.4 academic research"
 MISSING = {"", "NA", "N/A", "NULL", "null", "-"}
+SCHEMA_VERSION = 2
 
 
 def compact_json(payload: Any) -> bytes:
@@ -123,7 +124,7 @@ def current_manifest(product_key: str) -> dict[str, Any] | None:
 
 
 def source_is_unchanged(existing: dict[str, Any] | None, source: dict[str, Any]) -> bool:
-    if not existing:
+    if not existing or existing.get("schema_version") != SCHEMA_VERSION:
         return False
     previous = existing.get("source", {})
     if source["etag"] and previous.get("etag"):
@@ -159,9 +160,9 @@ def stream_selected_rows(
         date = month_date(row.get("month_date_yyyymm") or "")
         if date[:7] < start_month:
             continue
-        if (row.get("quality_flag") or "0").strip() not in {"", "0", "0.0"}:
+        is_flagged = (row.get("quality_flag") or "0").strip() not in {"", "0", "0.0"}
+        if is_flagged:
             flagged += 1
-            continue
         values = {
             metric: parse_value(
                 row.get(metric_config[metric]["field"]),
@@ -169,6 +170,7 @@ def stream_selected_rows(
             )
             for metric in product["metrics"]
         }
+        values["__quality_flag"] = int(is_flagged)
         selected[str(target["id"])][date] = values
         dates.add(date)
     return selected, dates, scanned, flagged
@@ -227,7 +229,16 @@ def fetch_product(
             for metric in product["metrics"]
         }
         if any(value for value in series.values()):
-            regions.append({**by_id[region_id], "series": series})
+            quality_indices = [
+                index
+                for index, date in enumerate(dates)
+                if observations.get(date, {}).get("__quality_flag") == 1
+            ]
+            regions.append({
+                **by_id[region_id],
+                "series": series,
+                "quality": {product["key"]: quality_indices},
+            })
     regions.sort(key=lambda item: (str(item["county"]), str(item["name"])))
     payload = {
         "geography": "zip",
@@ -241,7 +252,7 @@ def fetch_product(
             "latest_observation": dates[-1] if dates else "",
             "rows_scanned": scanned,
             "regions": len(regions),
-            "flagged_local_rows_suppressed": flagged,
+            "flagged_local_rows_retained": flagged,
         }
     )
     return payload, source
@@ -259,6 +270,14 @@ def validate_payload(payload: dict[str, Any], product: dict[str, Any]) -> None:
             raise ValueError(f"{product['key']}/{metric} has fewer than 60 months")
         if metadata["dates"] != sorted(set(metadata["dates"])):
             raise ValueError(f"{product['key']}/{metric} dates are not ordered and unique")
+    date_count = len(next(iter(payload["metrics"].values()))["dates"])
+    for region in payload["regions"]:
+        indices = region.get("quality", {}).get(product["key"], [])
+        if indices != sorted(set(indices)) or any(
+            not isinstance(index, int) or index < 0 or index >= date_count
+            for index in indices
+        ):
+            raise ValueError(f"{product['key']}/{region['id']} has invalid quality indices")
 
 
 def bundle_sha(files: dict[str, bytes]) -> str:
@@ -297,6 +316,7 @@ def publish_product(
     digest = bundle_sha(files)
     release = datetime.now(timezone.utc).strftime("%Y-%m-%d-r%H%M%S")
     manifest = {
+        "schema_version": SCHEMA_VERSION,
         "release": release,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "provider": config["provider"],

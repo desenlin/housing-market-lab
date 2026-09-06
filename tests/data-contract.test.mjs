@@ -93,6 +93,7 @@ test("Realtor.com pointers resolve independently to compact ZIP releases", async
       readJson(`${prefix}zip.json`),
     ]);
     assert.equal(manifest.provider, "Realtor.com® Economic Research");
+    assert.equal(manifest.schema_version, 2);
     assert.equal(manifest.product, product);
     assert.equal(manifest.retained_releases, 3);
     assert.equal(zip.regions.length, manifest.counts.zip);
@@ -101,6 +102,8 @@ test("Realtor.com pointers resolve independently to compact ZIP releases", async
     assert.ok(Object.values(zip.metrics).every((metric) => metric.frequency === "Monthly"));
     assert.ok(Object.values(zip.metrics).every((metric) => metric.dates.length >= 60));
     assert.ok(zip.regions.every((region) => region.id.startsWith("zcta:")));
+    assert.ok(zip.regions.every((region) => Array.isArray(region.quality?.[product])));
+    assert.equal(typeof manifest.source.flagged_local_rows_retained, "number");
   }
 });
 

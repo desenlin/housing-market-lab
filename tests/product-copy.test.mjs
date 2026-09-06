@@ -22,7 +22,9 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /View Redfin Data Center/);
   assert.match(source, /Inventory &amp; buyer interest — Realtor\.com/);
   assert.match(source, /View Realtor\.com Data Library/);
-  assert.match(source, /Provider-flagged ZIP-month observations are withheld/);
+  assert.match(source, /Flagged observations remain visible but should be reviewed before reporting/);
+  assert.match(source, /Hollow points identify flagged observations/);
+  assert.match(source, /Market Hotness quadrant/);
   assert.match(source, /three Realtor\.com releases retained per product for rollback/);
   assert.match(source, /Gray boundaries have no data/);
   assert.match(source, /Outside city\/CDP geography/);
