@@ -3,9 +3,10 @@
 
 The lab uses the Los Angeles-area CPI-U to express local values and rents in
 constant dollars and the U.S. CPI-U as a common benchmark in cross-metro
-figures. BLS is queried directly without a registration key. Requests are
-split into periods within the public API's ten-year unregistered limit.
-Missing official observations remain explicit nulls and are never filled.
+figures. The official BLS bulk file is preferred because it is not subject to
+the Public Data API's unregistered daily query quota. The API remains a
+fallback, with requests split within its ten-year unregistered limit. Missing
+official observations remain explicit nulls and are never filled.
 """
 
 from __future__ import annotations
@@ -66,6 +67,14 @@ def api_request(api_url: str, series_id: str, start_year: int, end_year: int) ->
         return json.loads(response.read())
 
 
+def bulk_request(bulk_url: str) -> str:
+    request = urllib.request.Request(bulk_url, headers={"User-Agent": USER_AGENT})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        if getattr(response, "status", 200) != 200:
+            raise RuntimeError(f"BLS bulk download returned HTTP {response.status}")
+        return response.read().decode("utf-8-sig")
+
+
 def parse_response(payload: dict[str, Any], expected_series_id: str) -> dict[str, float]:
     if payload.get("status") != "REQUEST_SUCCEEDED":
         raise ValueError(f"BLS request failed: {payload.get('message')}")
@@ -87,6 +96,41 @@ def parse_response(payload: dict[str, Any], expected_series_id: str) -> dict[str
         if not math.isfinite(value) or value <= 0:
             raise ValueError(f"Invalid CPI value for {row.get('year')} {period}")
         observations[month_end(int(row["year"]), month)] = value
+    return observations
+
+
+def parse_bulk_data(
+    payload: str,
+    series_ids: set[str],
+    start_year: int,
+    end_year: int,
+) -> dict[str, dict[str, float]]:
+    observations = {series_id: {} for series_id in series_ids}
+    for line_number, line in enumerate(payload.splitlines(), start=1):
+        if line_number == 1:
+            continue
+        columns = line.split("\t")
+        if len(columns) < 4:
+            continue
+        series_id, raw_year, period, raw_value = (column.strip() for column in columns[:4])
+        if series_id not in observations or not period.startswith("M") or period == "M13":
+            continue
+        if raw_value in {"", "-", "NA", "N/A"}:
+            continue
+        year = int(raw_year)
+        month = int(period[1:])
+        if year < start_year or year > end_year or month < 1 or month > 12:
+            continue
+        value = float(raw_value)
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError(f"Invalid CPI value for {series_id} {year} {period}")
+        date = month_end(year, month)
+        if date in observations[series_id]:
+            raise ValueError(f"Duplicate CPI date in BLS bulk data: {series_id} {date}")
+        observations[series_id][date] = value
+    missing = sorted(series_id for series_id, values in observations.items() if not values)
+    if missing:
+        raise ValueError(f"BLS bulk data did not contain required series: {missing}")
     return observations
 
 
@@ -135,6 +179,15 @@ def fetch_series(
         if overlap:
             raise ValueError(f"Duplicate CPI dates returned for {source['id']}: {sorted(overlap)[:3]}")
         observations.update(parsed)
+    return build_series(config, source, end_year, observations)
+
+
+def build_series(
+    config: dict[str, Any],
+    source: dict[str, Any],
+    end_year: int,
+    observations: dict[str, float],
+) -> dict[str, Any]:
     dates, values = complete_months(observations, int(config["start_year"]), end_year)
     observed = [value for value in values if value is not None]
     if len(dates) < 240 or len(observed) < 235:
@@ -152,6 +205,36 @@ def fetch_series(
         "latest_observation": dates[latest_index],
         "missing_observations": [date for date, value in zip(dates, values) if value is None],
     }
+
+
+def fetch_all_series(
+    config: dict[str, Any],
+    end_year: int,
+    bulk_fetcher: Callable[[str], str] = bulk_request,
+    api_fetcher: Callable[[str, str, int, int], dict[str, Any]] = api_request,
+) -> dict[str, Any]:
+    try:
+        bulk_payload = bulk_fetcher(config["bulk_url"])
+        observations = parse_bulk_data(
+            bulk_payload,
+            {source["id"] for source in config["series"]},
+            int(config["start_year"]),
+            end_year,
+        )
+        return {
+            source["key"]: build_series(config, source, end_year, observations[source["id"]])
+            for source in config["series"]
+        }
+    except (OSError, RuntimeError, ValueError, UnicodeError) as bulk_error:
+        try:
+            return {
+                source["key"]: fetch_series(config, source, end_year, api_fetcher)
+                for source in config["series"]
+            }
+        except (OSError, RuntimeError, ValueError) as api_error:
+            raise RuntimeError(
+                f"BLS bulk download failed ({bulk_error}); API fallback failed ({api_error})"
+            ) from api_error
 
 
 def existing_bundle_sha() -> str | None:
@@ -172,10 +255,7 @@ def main() -> None:
     parser.add_argument("--end-year", type=int, default=datetime.now(timezone.utc).year)
     args = parser.parse_args()
     config = json.loads(args.config.read_text())
-    series = {
-        source["key"]: fetch_series(config, source, args.end_year)
-        for source in config["series"]
-    }
+    series = fetch_all_series(config, args.end_year)
     dataset = {
         "provider": config["provider"],
         "frequency": "Monthly",

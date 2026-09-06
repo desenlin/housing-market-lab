@@ -1,6 +1,7 @@
 {
   "provider": "U.S. Bureau of Labor Statistics",
   "api_url": "https://api.bls.gov/publicAPI/v2/timeseries/data/",
+  "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.1.AllItems",
   "data_page": "https://www.bls.gov/cpi/data.htm",
   "start_year": 2000,
   "series": [

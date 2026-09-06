@@ -5,10 +5,13 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    # Zillow's monthly files do not arrive on a fixed day. Two lightweight
-    # attempts improve freshness while the last validated release stays live.
+    # BLS and Zillow publish independently and their monthly release order can
+    # change. Staggered checks let either provider advance as soon as it is
+    # available while each provider's last validated release stays live.
+    - cron: "23 13 12 * *"
     - cron: "23 13 18 * *"
     - cron: "23 13 24 * *"
+    - cron: "23 13 28 * *"
 
 permissions:
   contents: write

@@ -97,3 +97,41 @@ test("does not fill a housing month without an official CPI observation", async 
   );
   assert.deepEqual(adjusted.values, [102, null, 102]);
 });
+
+test("leaves a newer Zillow month null until its CPI observation arrives", async () => {
+  const { applyPriceAdjustment } = await vite.ssrLoadModule("/app/market-lab.tsx");
+  const adjusted = applyPriceAdjustment(
+    {
+      dates: ["2025-01-31", "2025-02-28", "2025-03-31"],
+      values: [100, 102, 104],
+      unit: "usd",
+      changeMode: "percent",
+    },
+    "zhvi",
+    {
+      basis: "real",
+      cpi: {
+        key: "la",
+        dates: ["2025-01-31", "2025-02-28"],
+        values: [100, 101],
+      },
+      baseMonth: "2025-02",
+    },
+  );
+
+  assert.deepEqual(adjusted.values, [101, 102, null]);
+});
+
+test("ignores a newer CPI month when Zillow has not published it", async () => {
+  const { normalizedRealBaseMonth } = await vite.ssrLoadModule("/app/market-lab.tsx");
+  const cpi = {
+    key: "la",
+    dates: ["2025-01-31", "2025-02-28", "2025-03-31"],
+    values: [100, 101, 102],
+  };
+
+  assert.equal(
+    normalizedRealBaseMonth(cpi, ["2025-01-31", "2025-02-28"], ""),
+    "2025-02",
+  );
+});

@@ -3,6 +3,7 @@ import unittest
 from pipeline.update_cpi import (
     complete_months,
     month_end,
+    parse_bulk_data,
     parse_response,
     year_chunks,
     yoy_values,
@@ -29,6 +30,24 @@ class CpiPipelineTest(unittest.TestCase):
             }]},
         }
         self.assertEqual(parse_response(payload, "EXAMPLE"), {"2024-02-29": 301.5})
+
+    def test_parse_bulk_data_filters_series_years_and_annual_average(self):
+        payload = "\n".join([
+            "series_id\tyear\tperiod\tvalue\tfootnote_codes",
+            "CUUR0000SA0      \t2023\tM12\t300.0\t",
+            "CUUR0000SA0      \t2024\tM01\t301.0\t",
+            "CUUR0000SA0      \t2024\tM13\t302.0\t",
+            "CUURS49ASA0      \t2024\tM01\t320.0\t",
+            "CUURS49ASA0      \t2024\tM02\t-\t",
+            "UNUSED           \t2024\tM01\t999.0\t",
+        ])
+        self.assertEqual(
+            parse_bulk_data(payload, {"CUUR0000SA0", "CUURS49ASA0"}, 2024, 2024),
+            {
+                "CUUR0000SA0": {"2024-01-31": 301.0},
+                "CUURS49ASA0": {"2024-01-31": 320.0},
+            },
+        )
 
     def test_missing_official_month_remains_null(self):
         observations = {"2025-09-30": 100.0, "2025-11-30": 102.0}

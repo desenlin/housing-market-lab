@@ -304,7 +304,7 @@ function observedCpiMonths(cpi: CpiSeries | null, dates: string[]) {
     .filter((month): month is string => month != null && housingMonths.has(month));
 }
 
-function normalizedRealBaseMonth(cpi: CpiSeries | null, dates: string[], requested: string) {
+export function normalizedRealBaseMonth(cpi: CpiSeries | null, dates: string[], requested: string) {
   const months = observedCpiMonths(cpi, dates);
   if (!months.length) return "";
   if (!requested) return months.at(-1)!;

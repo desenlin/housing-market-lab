@@ -53,9 +53,11 @@ flowchart TD
   G --> H[GitHub Pages and Sites]
 ```
 
-Raw source files are temporary. Zillow releases live in `public/data/releases/<release-id>/`; Redfin and BLS CPI releases live independently in `public/data/redfin/releases/<release-id>/` and `public/data/cpi/releases/<release-id>/`. Each provider has its own `latest.json` pointer, and a pointer changes only after that source's schema, date, coverage, and size checks succeed.
+Raw source files are temporary. Zillow releases live in `public/data/releases/<release-id>/`; Redfin and BLS CPI releases live independently in `public/data/redfin/releases/<release-id>/` and `public/data/cpi/releases/<release-id>/`. Each provider has its own `latest.json` pointer, and a pointer changes only after that source's schema, date, coverage, and size checks succeed. The CPI pipeline reads BLS's official bulk time-series file first and uses the Public Data API only as a fallback, avoiding routine dependence on the API's unregistered daily quota.
 
-The Pages workflow runs on pushes, manual dispatch, and two monthly refresh attempts. A failed provider download or validation does not replace that provider's prior working release or prevent the other provider from refreshing.
+The Pages workflow runs on pushes, manual dispatch, and four staggered monthly refresh attempts (the 12th, 18th, 24th, and 28th). Each scheduled attempt checks Zillow, Redfin, and BLS CPI independently. A failed provider download or validation does not replace that provider's prior working release or prevent another provider from refreshing.
+
+Provider releases do not need to arrive in the same order. If BLS CPI arrives before Zillow, the CPI pointer advances and waits for the next housing observation. If Zillow arrives first, nominal housing data advance immediately while real series stop at the latest month with an official observation in both datasets. A later successful refresh extends the real series automatically; the pipeline never carries CPI forward or substitutes a neighboring month.
 
 ## Local development
 

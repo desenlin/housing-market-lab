@@ -44,7 +44,7 @@ Redfin and Zillow activity variables should not be treated as interchangeable ev
 
 ## Consumer Price Index
 
-The independent CPI pipeline queries the [U.S. Bureau of Labor Statistics Public Data API](https://www.bls.gov/developers/) directly. It does not rely on a FRED mirror or require a registered API key. Requests are divided into ten-year blocks within the public unregistered API limit.
+The independent CPI pipeline reads the official BLS [`cu.data.1.AllItems`](https://download.bls.gov/pub/time.series/cu/cu.data.1.AllItems) bulk time-series file first and uses the [Public Data API](https://www.bls.gov/developers/) only as a fallback. It does not rely on a FRED mirror or require a registered API key. This avoids routine dependence on the API's unregistered daily query quota; fallback requests are divided into ten-year blocks within the public limit.
 
 Selected series:
 
@@ -90,6 +90,8 @@ Changing the constant-dollar base month rescales the displayed real dollar level
 ## Release checks
 
 A provider release is rejected unless all required files stream or download, date columns are ordered and sufficiently long, local coverage remains above conservative floors, and processed public data stays under its size guardrail. Zillow, Redfin, and BLS CPI use independent versioned directories and `latest.json` pointers, so a failure retains the prior release for that provider.
+
+The scheduled workflow checks all three providers on four staggered dates each month. Release timing is intentionally decoupled: a newer CPI release does not require a simultaneous Zillow release, and a newer Zillow release does not wait for CPI. Nominal housing observations remain available through Zillow's latest validated month. Constant-dollar levels, real changes, and same-month inflation comparisons use only exact months with official observations in both the selected housing series and selected CPI series; unmatched newer housing months remain unavailable in real terms until BLS publishes the corresponding CPI observation.
 
 Data provided by Zillow Group and Redfin. This repository does not redistribute the complete provider files.
 
