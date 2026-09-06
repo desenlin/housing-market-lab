@@ -1482,8 +1482,10 @@ export default function MarketLab() {
           const firstMetric = REALTOR_METRICS.find((option) => combined?.metrics[option.key]);
           if (firstMetric) setRealtorMetric(firstMetric.key);
           const orangeZips = combined?.regions.filter((region) => region.county === "Orange County") ?? [];
-          const preferred = orangeZips.find((region) => region.name === "92831") ?? orangeZips[0];
-          setRealtorSelectedIds(preferred ? [preferred.id] : []);
+          const preferred = ["92831", "92832", "92833"]
+            .map((name) => orangeZips.find((region) => region.name === name)?.id)
+            .filter((id): id is string => Boolean(id));
+          setRealtorSelectedIds(preferred.length ? preferred : orangeZips.slice(0, 3).map((region) => region.id));
           const failed = results.filter((result) => result.status === "rejected").length;
           if (failed) setRealtorError("One Realtor.com product is delayed or temporarily unavailable; the other validated release remains available.");
         } catch (caught) {
@@ -1734,9 +1736,12 @@ export default function MarketLab() {
     const nextRealtorRegions = realtorDataset?.regions.filter(
       (region) => next === "Both" || region.county === next,
     ) ?? [];
-    const realtorFirst = nextRealtorRegions.find((region) => region.name === "92831")
-      ?? nextRealtorRegions[0];
-    setRealtorSelectedIds(realtorFirst ? [realtorFirst.id] : []);
+    const realtorPreferred = ["92831", "92832", "92833"]
+      .map((name) => nextRealtorRegions.find((region) => region.name === name)?.id)
+      .filter((id): id is string => Boolean(id));
+    setRealtorSelectedIds(
+      realtorPreferred.length ? realtorPreferred : nextRealtorRegions.slice(0, 3).map((region) => region.id),
+    );
   }
 
   function addRegion() {
@@ -2208,7 +2213,7 @@ export default function MarketLab() {
                     {activityRanked.map((item, index) => (
                       <button key={item.region.id} onClick={() => selectActivityPrimary(item.region.id)} className={item.region.id === activityPrimary?.id ? "rank-row active" : "rank-row"}>
                         <span className="rank-number">{index + 1}</span>
-                        <span className="rank-name">{item.region.name}{item.qualityFlagged ? <small className="quality-mini">Provider flagged</small> : <small>{item.region.context}</small>}</span>
+                        <span className="rank-name">{item.region.name}<small className={item.qualityFlagged ? "quality-mini" : undefined}>{item.region.context}{item.qualityFlagged ? `${item.region.context ? " · " : ""}Provider flagged` : ""}</small></span>
                         <strong>{formatValue(item.level, item.unit, "level")}</strong>
                         <span className={(item.yoy ?? 0) < 0 ? "negative" : "positive"}>{formatValue(item.yoy, item.unit, "yoy", false, item.changeMode)}</span>
                       </button>
@@ -2308,7 +2313,7 @@ export default function MarketLab() {
             <Card><CardHeader><CardTitle>Nominal and real terms</CardTitle></CardHeader><CardContent className="method-copy"><p>Home values and rents can be shown in nominal dollars or converted to constant dollars using CPI-U. Local views default to the Los Angeles–Long Beach–Anaheim index, which covers Los Angeles and Orange Counties. Cross-metro views default to the U.S. city average.</p><p>Real value in base month <em>b</em> equals nominal value in month <em>t</em> multiplied by CPI<sub>b</sub>/CPI<sub>t</sub>. The base month changes displayed dollar levels but not real growth. Real rent is a purchasing-power measure, not an affordability measure.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>CPI and inflation</CardTitle></CardHeader><CardContent className="method-copy"><p>The lab retrieves monthly CPI-U, All Items directly from the U.S. Bureau of Labor Statistics: <code>CUURS49ASA0</code> for the LA area and <code>CUUR0000SA0</code> for the U.S. city average. Both are not seasonally adjusted.</p><p>Inflation is the exact change in CPI from the same month one year earlier. Officially missing CPI observations remain missing rather than being interpolated or carried forward.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Redfin activity measures</CardTitle></CardHeader><CardContent className="method-copy"><p>Redfin supplies months of supply, median days on market, the share sold above original list, the share of active listings with price reductions, and median sale price per square foot.</p><p>City and ZIP observations are rolling three-month windows. Share changes are shown in percentage points; days and months use absolute differences; price per square foot uses percent change.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Realtor.com inventory and demand</CardTitle></CardHeader><CardContent className="method-copy"><p>Realtor.com® Economic Research supplies monthly ZIP-level active and new listings, the pending-to-active ratio, listing viewers relative to the U.S., and its Market Hotness score.</p><p>Hotness equally weights relative demand and supply scores based on listing attention and market speed. It is a comparative index, not a probability of sale. Provider-flagged ZIP-months are withheld from the visuals.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Realtor.com inventory and demand</CardTitle></CardHeader><CardContent className="method-copy"><p>Realtor.com® Economic Research supplies monthly ZIP-level active and new listings, the pending-to-active ratio, listing viewers relative to the U.S., and its Market Hotness score.</p><p>Hotness equally weights relative demand and supply scores based on listing attention and market speed. It is a comparative index, not a probability of sale. Provider-flagged ZIP-months remain visible and are explicitly marked for review.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Geographies</CardTitle></CardHeader><CardContent className="method-copy"><p>City/community maps retain every Census incorporated place and Census-designated place (CDP) assigned to Orange or Los Angeles County, whether or not a provider reports data. Zillow and Redfin observations are matched independently, and an unincorporated CDP is never reassigned to a neighboring city.</p><p>ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs. Census places and ZCTAs do not necessarily cover or classify land in the same way.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Reading the maps</CardTitle></CardHeader><CardContent className="method-copy"><p>The legend distinguishes three states: <strong>colored</strong> means the selected provider reports a current observation; <strong>gray</strong> means an official city/CDP or mapped ZCTA boundary exists but the selected observation is unavailable; <strong>unshaded</strong> means the land falls outside the displayed place geography.</p><p>Unshaded county remainder, wilderness, and open space should not be interpreted as a missing housing market. For example, unshaded portions of Laguna Coast Wilderness Park are not a separate Census place. OpenStreetMap supplies the underlying geographic context.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Zillow, Redfin, Realtor.com, and BLS CPI are refreshed into independent versioned releases. Realtor.com Inventory and Hotness also advance independently because they can be published at different times.</p><p>Each pipeline checks schemas, dates, coverage, quality flags, and size before advancing its pointer. Realtor.com observations carrying a row-level provider quality flag remain available but are marked in charts, rankings, and maps. A failed update leaves the prior validated release available and does not block another source.</p></CardContent></Card>

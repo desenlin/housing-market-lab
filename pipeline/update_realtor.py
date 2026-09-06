@@ -31,7 +31,7 @@ PUBLIC_DATA = ROOT / "public" / "data" / "realtor"
 ZILLOW_PUBLIC_DATA = ROOT / "public" / "data"
 USER_AGENT = "housing-market-lab/0.4 academic research"
 MISSING = {"", "NA", "N/A", "NULL", "null", "-"}
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def compact_json(payload: Any) -> bytes:
@@ -67,6 +67,11 @@ def load_zip_reference() -> dict[str, dict[str, str | None]]:
     pointer = json.loads((ZILLOW_PUBLIC_DATA / "latest.json").read_text())
     release_dir = ZILLOW_PUBLIC_DATA / "releases" / pointer["release"]
     zip_map = json.loads((release_dir / "map-zip.json").read_text())
+    zip_data = json.loads((release_dir / "zip.json").read_text())
+    context_by_zip = {
+        str(region["name"]).zfill(5): region.get("context")
+        for region in zip_data["regions"]
+    }
     reference: dict[str, dict[str, str | None]] = {}
     for county, county_map in zip_map["counties"].items():
         for region in county_map["regions"]:
@@ -75,7 +80,7 @@ def load_zip_reference() -> dict[str, dict[str, str | None]]:
                 "id": region["id"],
                 "name": postal_code,
                 "county": county,
-                "context": None,
+                "context": context_by_zip.get(postal_code),
             }
     return reference
 

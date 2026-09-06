@@ -98,7 +98,7 @@ class RealtorPipelineTest(unittest.TestCase):
         )
 
     def test_source_fingerprint_avoids_repeat_download(self):
-        existing = {"schema_version": 2, "source": {"etag": '"abc"', "bytes": 10}}
+        existing = {"schema_version": 3, "source": {"etag": '"abc"', "bytes": 10}}
         current = {"etag": '"abc"', "bytes": 12, "last_modified": "later"}
         self.assertTrue(source_is_unchanged(existing, current))
         self.assertFalse(source_is_unchanged(existing, {**current, "etag": '"def"'}))
