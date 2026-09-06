@@ -40,6 +40,13 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Real rent is a purchasing-power measure, not an affordability measure/);
   assert.match(source, /className="footer-emphasis" href="https:\/\/desenlin\.com\/"/);
   assert.match(source, /className="footer-emphasis" href="https:\/\/business\.fullerton\.edu\/academics\/finance"/);
+  assert.match(source, /className="footer-emphasis" href="https:\/\/www\.fullerton\.edu\/"/);
+  assert.match(source, /About &amp; contact/);
+  assert.match(source, /function togglePlaceSelection/);
+  assert.match(source, /function toggleActivityPlaceSelection/);
+  assert.match(source, /aria-pressed=\{selectedIds\.includes\(item\.region\.id\)\}/);
+  assert.match(source, /aria-pressed=\{activeActivitySelectedIds\.includes\(item\.region\.id\)\}/);
+  assert.match(source, /Select a place from the ranking or add a comparison to display the chart/);
   assert.match(source, /Citation:<\/strong> Lin, D\. \(2026\)\. <cite>Housing Market Lab<\/cite> \[Computer software\]/);
 });
 

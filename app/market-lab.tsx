@@ -753,6 +753,14 @@ function SeriesChart({
 
   const overlayById = new Map(overlays.map((overlay) => [overlay.id, overlay]));
 
+  if (!regions.length) {
+    return (
+      <div className="chart-empty" role="status">
+        Select a place from the ranking or add a comparison to display the chart.
+      </div>
+    );
+  }
+
   return (
     <div className="h-[360px] min-w-0 w-full" aria-label="Housing market time-series chart">
       <ResponsiveContainer width="100%" height="100%">
@@ -1642,7 +1650,7 @@ export default function MarketLab() {
     const selected = activeActivitySelectedIds
       .map((id) => activityEligible.find((region) => region.id === id))
       .filter((region): region is Region => Boolean(region));
-    return selected.length ? selected : activityEligible.slice(0, 1);
+    return selected;
   })();
   const activityPrimary = activitySelectedRegions[0];
   const activityPrimarySeries = activityDataset && activityPrimary
@@ -1754,6 +1762,14 @@ export default function MarketLab() {
     setSelectedIds((current) => [id, ...current.filter((item) => item !== id)].slice(0, 5));
   }
 
+  function togglePlaceSelection(id: string) {
+    setSelectedIds((current) => {
+      if (current.includes(id)) return current.filter((item) => item !== id);
+      if (current.length >= 5) return current;
+      return [id, ...current];
+    });
+  }
+
   function addActivityRegion() {
     if (!activeActivityAddId || activeActivitySelectedIds.includes(activeActivityAddId) || activeActivitySelectedIds.length >= 5) return;
     if (activityLens === "redfin") {
@@ -1770,6 +1786,19 @@ export default function MarketLab() {
       setActivitySelectedIds((current) => [id, ...current.filter((item) => item !== id)].slice(0, 5));
     } else {
       setRealtorSelectedIds((current) => [id, ...current.filter((item) => item !== id)].slice(0, 5));
+    }
+  }
+
+  function toggleActivityPlaceSelection(id: string) {
+    const toggle = (current: string[]) => {
+      if (current.includes(id)) return current.filter((item) => item !== id);
+      if (current.length >= 5) return current;
+      return [id, ...current];
+    };
+    if (activityLens === "redfin") {
+      setActivitySelectedIds(toggle);
+    } else {
+      setRealtorSelectedIds(toggle);
     }
   }
 
@@ -2034,7 +2063,12 @@ export default function MarketLab() {
               </CardHeader>
               <CardContent className="ranking-list">
                 {ranked.map((item, index) => (
-                  <button key={item.region.id} onClick={() => selectPrimary(item.region.id)} className={item.region.id === primary?.id ? "rank-row active" : "rank-row"}>
+                  <button
+                    key={item.region.id}
+                    onClick={() => togglePlaceSelection(item.region.id)}
+                    className={`rank-row${item.region.id === primary?.id ? " active" : selectedIds.includes(item.region.id) ? " selected" : ""}`}
+                    aria-pressed={selectedIds.includes(item.region.id)}
+                  >
                     <span className="rank-number">{index + 1}</span>
                     <span className="rank-name">{item.region.name}<small>{item.region.context}</small></span>
                     <strong>{formatValue(item.level, item.unit, "level")}</strong>
@@ -2211,7 +2245,12 @@ export default function MarketLab() {
                   </CardHeader>
                   <CardContent className="ranking-list">
                     {activityRanked.map((item, index) => (
-                      <button key={item.region.id} onClick={() => selectActivityPrimary(item.region.id)} className={item.region.id === activityPrimary?.id ? "rank-row active" : "rank-row"}>
+                      <button
+                        key={item.region.id}
+                        onClick={() => toggleActivityPlaceSelection(item.region.id)}
+                        className={`rank-row${item.region.id === activityPrimary?.id ? " active" : activeActivitySelectedIds.includes(item.region.id) ? " selected" : ""}`}
+                        aria-pressed={activeActivitySelectedIds.includes(item.region.id)}
+                      >
                         <span className="rank-number">{index + 1}</span>
                         <span className="rank-name">{item.region.name}<small className={item.qualityFlagged ? "quality-mini" : undefined}>{item.region.context}{item.qualityFlagged ? `${item.region.context ? " · " : ""}Provider flagged` : ""}</small></span>
                         <strong>{formatValue(item.level, item.unit, "level")}</strong>
@@ -2346,16 +2385,24 @@ export default function MarketLab() {
       </Tabs>
 
       <footer>
-        <p>
-          Created by{" "}
-          <a className="footer-emphasis" href="https://desenlin.com/" target="_blank" rel="noreferrer">Desen Lin</a>,{" "}
-          <a className="footer-emphasis" href="https://business.fullerton.edu/academics/finance" target="_blank" rel="noreferrer">Department of Finance</a>, California State University, Fullerton.
-        </p>
-        <p className="footer-citation">
-          <strong>Citation:</strong> Lin, D. (2026). <cite>Housing Market Lab</cite> [Computer software].{" "}
-          <a href="https://desenlin.com/housing-market-lab/">https://desenlin.com/housing-market-lab/</a>
-        </p>
-        <p>For instruction and academic research · Not financial advice · Third-party data terms apply</p>
+        <div className="footer-project">
+          <p>
+            Created by{" "}
+            <a className="footer-emphasis" href="https://desenlin.com/" target="_blank" rel="noreferrer">Desen Lin</a>,{" "}
+            <a className="footer-emphasis" href="https://business.fullerton.edu/academics/finance" target="_blank" rel="noreferrer">Department of Finance</a>,{" "}
+            <a className="footer-emphasis" href="https://www.fullerton.edu/" target="_blank" rel="noreferrer">California State University, Fullerton</a>.
+          </p>
+          <p className="footer-citation">
+            <strong>Citation:</strong> Lin, D. (2026). <cite>Housing Market Lab</cite> [Computer software].{" "}
+            <a href="https://desenlin.com/housing-market-lab/">https://desenlin.com/housing-market-lab/</a>
+          </p>
+          <p>For instruction and academic research · Not financial advice · Third-party data terms apply</p>
+        </div>
+        <nav className="footer-about" aria-label="About and contact">
+          <strong>About &amp; contact</strong>
+          <a href="https://desenlin.com/" target="_blank" rel="noreferrer">Faculty website</a>
+          <a href="https://business.fullerton.edu/academics/finance" target="_blank" rel="noreferrer">Finance department</a>
+        </nav>
       </footer>
     </main>
     </TooltipProvider>
