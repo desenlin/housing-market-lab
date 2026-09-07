@@ -188,7 +188,18 @@ button, select { font: inherit; }
 .metro-toggle i { width: 8px; height: 8px; border: 1px solid #8ba0ad; background: white; }
 .metro-toggle.active { border-color: #d96818; background: #fff2e7; color: #853700; font-weight: 700; }
 .metro-toggle.active i { border-color: #ff7a1a; background: #ff7a1a; }
-.regional-chart [data-slot="card-content"] { min-height: 410px; }
+.regional-visual-grid { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, .88fr); gap: 16px; align-items: stretch; }
+.regional-visual-grid > .chart-card { min-width: 0; overflow: hidden; }
+.regional-visual-grid .chart-header { align-items: start; }
+.regional-visual-grid .chart-header h3 { font-size: 20px; line-height: 1.2; }
+.regional-visual-grid .regional-chart [data-slot="card-content"], .cycle-chart-wrap { min-height: 410px; }
+.cycle-card .chart-header h3 { display: flex; align-items: center; gap: 7px; }
+.cycle-chart-wrap { padding: 4px 12px 13px !important; }
+.regional-cycle-chart { height: 360px; min-width: 0; }
+.cycle-key { display: grid; gap: 3px; margin: 0 5px; color: #657681; font-size: 11px; line-height: 1.35; }
+.cycle-key span:first-child { color: #173752; font-weight: 750; }
+.cycle-tooltip { display: grid; gap: 3px; border: 1px solid #cbd6dc; border-radius: 7px; background: #fff; box-shadow: 0 10px 25px rgb(18 53 91 / .15); padding: 8px 10px; color: #506675; font-size: 12px; }
+.cycle-tooltip strong { color: #12355b; font-size: 13px; }
 .method-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
 .about-objectives { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .about-objectives > div, .about-principles { border-color: #ccd7dd; border-radius: 9px; box-shadow: 0 3px 15px rgb(16 47 80 / .045); }
@@ -227,6 +238,7 @@ footer p { margin: 0; }
   .kpi-grid { grid-template-columns: 1fr 1fr; } .analysis-grid { grid-template-columns: 1fr; }
   .ranking-list { max-height: 330px; }
   .about-objectives { grid-template-columns: 1fr; }
+  .regional-visual-grid { grid-template-columns: 1fr; }
   footer { grid-template-columns: 1fr; }
   .footer-about { justify-items: start; text-align: left; }
   .hotness-chart { height: 360px; }

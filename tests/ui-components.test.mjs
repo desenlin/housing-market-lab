@@ -135,3 +135,33 @@ test("ignores a newer CPI month when Zillow has not published it", async () => {
     "2025-02",
   );
 });
+
+test("uses distinct, evenly spaced time-axis labels", async () => {
+  const { timeAxisTicks } = await vite.ssrLoadModule("/app/market-lab.tsx");
+  const dates = Array.from({ length: 132 }, (_, index) => {
+    const date = new Date(Date.UTC(2015, index, 28));
+    return date.toISOString().slice(0, 10);
+  });
+  const ticks = timeAxisTicks(dates);
+
+  assert.equal(ticks.length, 6);
+  assert.equal(new Set(ticks.map((date) => date.slice(0, 4))).size, ticks.length);
+  assert.equal(ticks[0].slice(0, 4), "2015");
+  assert.equal(ticks.at(-1).slice(0, 4), "2025");
+});
+
+test("uses a focused y-axis while preserving meaningful change baselines", async () => {
+  const { valueAxisDomain } = await vite.ssrLoadModule("/app/market-lab.tsx");
+  const rows = [
+    { date: "2025-01-31", metro: 0.985 },
+    { date: "2025-02-28", metro: 1.015 },
+  ];
+
+  const levelDomain = valueAxisDomain(rows, ["metro"], "level");
+  const changeDomain = valueAxisDomain([{ metro: 0.012 }, { metro: 0.019 }], ["metro"], "yoy");
+
+  assert.ok(levelDomain[0] > 0.9);
+  assert.ok(levelDomain[1] < 1.1);
+  assert.ok(changeDomain[0] < 0);
+  assert.ok(changeDomain[1] > 0.019);
+});

@@ -18,6 +18,8 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Prices &amp; Rents/);
   assert.match(source, /Market Conditions/);
   assert.match(source, /Metro Comparisons/);
+  assert.match(source, /Latest cycle position/);
+  assert.match(source, /Inventory growth vs\./);
   assert.match(source, /<TabsTrigger value="methods">Data &amp; methods<\/TabsTrigger>\s*<TabsTrigger value="about">About<\/TabsTrigger>/);
   assert.match(source, /Housing evidence for learning, research, and public discussion/);
   assert.match(source, /Support instruction/);

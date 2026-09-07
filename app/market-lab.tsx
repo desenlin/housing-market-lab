@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   CartesianGrid,
+  Cell,
   Legend,
   LabelList,
   Line,
@@ -525,6 +526,41 @@ function shortDate(date: string) {
   );
 }
 
+export function timeAxisTicks(dates: string[], maxTicks = 6) {
+  if (!dates.length) return [];
+  if (dates.length <= 18) {
+    const count = Math.min(maxTicks, dates.length);
+    return [...new Set(Array.from({ length: count }, (_, index) =>
+      dates[Math.round(index * (dates.length - 1) / Math.max(1, count - 1))],
+    ))];
+  }
+  const firstDateByYear = dates.filter((date, index) =>
+    index === 0 || date.slice(0, 4) !== dates[index - 1].slice(0, 4),
+  );
+  if (firstDateByYear.length <= maxTicks) return firstDateByYear;
+  return [...new Set(Array.from({ length: maxTicks }, (_, index) =>
+    firstDateByYear[Math.round(index * (firstDateByYear.length - 1) / (maxTicks - 1))],
+  ))];
+}
+
+export function valueAxisDomain(
+  rows: Record<string, string | number | boolean | null>[],
+  dataKeys: string[],
+  view: "level" | "yoy" | "index",
+) {
+  const values = rows.flatMap((row) => dataKeys
+    .map((key) => row[key])
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value)));
+  if (!values.length) return [0, 1] as [number, number];
+  if (view === "yoy") values.push(0);
+  if (view === "index") values.push(100);
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const span = maximum - minimum;
+  const padding = span > 0 ? span * 0.06 : Math.max(Math.abs(maximum) * 0.03, 0.01);
+  return [minimum - padding, maximum + padding] as [number, number];
+}
+
 function LabelledSelect({
   label,
   value,
@@ -742,7 +778,7 @@ function SeriesChart({
     });
     const rangeStart = timeRangeStart(rows.length, timeRange);
     const indexStart = view === "index"
-      ? Math.max(0, rows.findIndex((row) => row.date.startsWith(indexBaseMonth)))
+      ? Math.max(0, rows.findIndex((row) => String(row.date).startsWith(indexBaseMonth)))
       : 0;
     return {
       unit: first.unit,
@@ -752,6 +788,13 @@ function SeriesChart({
   }, [dataset, regions, metric, view, timeRange, indexBaseMonth, overlays, priceAdjustment, showQuality, smoothMonths]);
 
   const overlayById = new Map(overlays.map((overlay) => [overlay.id, overlay]));
+  const timeTicks = timeAxisTicks(chart.rows.map((row) => String(row.date)));
+  const showMonthOnAxis = chart.rows.length <= 18;
+  const valueKeys = [
+    ...regions.flatMap((region) => smoothMonths > 1 ? [region.id, `${region.id}__raw`] : [region.id]),
+    ...overlays.map((overlay) => overlay.id),
+  ];
+  const valueDomain = valueAxisDomain(chart.rows, valueKeys, view);
 
   if (!regions.length) {
     return (
@@ -768,14 +811,15 @@ function SeriesChart({
           <CartesianGrid stroke="#dbe3e8" strokeDasharray="3 4" vertical={false} />
           <XAxis
             dataKey="date"
-            tickFormatter={(date) => String(date).slice(0, 4)}
-            minTickGap={42}
+            ticks={timeTicks}
+            tickFormatter={(date) => showMonthOnAxis ? shortDate(String(date)) : String(date).slice(0, 4)}
             tick={{ fill: "#627180", fontSize: 12 }}
             axisLine={{ stroke: "#b9c6cf" }}
             tickLine={false}
           />
           <YAxis
             width={78}
+            domain={valueDomain}
             tickFormatter={(value) => formatValue(Number(value), chart.unit, view, true, chart.changeMode)}
             tick={{ fill: "#627180", fontSize: 12 }}
             axisLine={false}
@@ -864,6 +908,152 @@ function SeriesChart({
         </LineChart>
       </ResponsiveContainer>
     </div>
+  );
+}
+
+type RegionalCyclePoint = {
+  id: string;
+  name: string;
+  inventoryGrowth: number;
+  homeValueGrowth: number;
+  color: string;
+  selected: boolean;
+};
+
+function RegionalCycleTooltip({ active, payload, real }: {
+  active?: boolean;
+  payload?: { payload?: RegionalCyclePoint }[];
+  real: boolean;
+}) {
+  const point = payload?.[0]?.payload;
+  if (!active || !point) return null;
+  return (
+    <div className="cycle-tooltip">
+      <strong>{point.name}</strong>
+      <span>For-sale inventory: {formatValue(point.inventoryGrowth, "homes", "yoy")}</span>
+      <span>{real ? "Real home value" : "Home value"}: {formatValue(point.homeValueGrowth, "usd", "yoy")}</span>
+    </div>
+  );
+}
+
+function growthDomain(values: number[]) {
+  const minimum = Math.min(0, ...values);
+  const maximum = Math.max(0, ...values);
+  const padding = Math.max((maximum - minimum) * 0.14, 0.015);
+  return [minimum - padding, maximum + padding] as [number, number];
+}
+
+function RegionalCycleChart({
+  dataset,
+  selectedIds,
+  cpi,
+}: {
+  dataset: Dataset;
+  selectedIds: string[];
+  cpi: CpiSeries | null;
+}) {
+  const snapshot = useMemo(() => {
+    const valueDates = metricDates(dataset, "zhvi");
+    const inventoryDates = metricDates(dataset, "inventory");
+    const valueAdjustment: PriceAdjustment | undefined = cpi
+      ? {
+          basis: "real",
+          cpi,
+          baseMonth: normalizedRealBaseMonth(cpi, valueDates, ""),
+        }
+      : undefined;
+    const series = dataset.regions.map((region) => {
+      const inventory = metricSeries(dataset, region, "inventory");
+      const homeValue = metricSeries(dataset, region, "zhvi", valueAdjustment);
+      const inventoryGrowth = transformValues(inventory.values, "yoy", inventory.dates);
+      const homeValueGrowth = transformValues(homeValue.values, "yoy", homeValue.dates);
+      return {
+        region,
+        inventoryByMonth: new Map(inventory.dates.map((date, index) => [date.slice(0, 7), inventoryGrowth[index]])),
+        valueByMonth: new Map(homeValue.dates.map((date, index) => [date.slice(0, 7), homeValueGrowth[index]])),
+      };
+    });
+    const valueMonths = new Set(valueDates.map((date) => date.slice(0, 7)));
+    const sharedMonths = inventoryDates
+      .map((date) => date.slice(0, 7))
+      .filter((month) => valueMonths.has(month));
+    const month = [...sharedMonths].reverse().find((candidate) =>
+      series.every(({ inventoryByMonth, valueByMonth }) =>
+        inventoryByMonth.get(candidate) != null && valueByMonth.get(candidate) != null,
+      ),
+    );
+    if (!month) return { month: "", points: [] as RegionalCyclePoint[] };
+    const points = series.map(({ region, inventoryByMonth, valueByMonth }) => {
+      const selectedIndex = selectedIds.indexOf(region.id);
+      return {
+        id: region.id,
+        name: region.name,
+        inventoryGrowth: inventoryByMonth.get(month) as number,
+        homeValueGrowth: valueByMonth.get(month) as number,
+        color: selectedIndex >= 0 ? COLORS[selectedIndex % COLORS.length] : "#9baab4",
+        selected: selectedIndex >= 0,
+      };
+    });
+    return { month, points };
+  }, [dataset, selectedIds, cpi]);
+
+  if (!snapshot.points.length) {
+    return <div className="chart-empty">A common home-value and inventory observation is not available.</div>;
+  }
+
+  const xDomain = growthDomain(snapshot.points.map((point) => point.inventoryGrowth));
+  const yDomain = growthDomain(snapshot.points.map((point) => point.homeValueGrowth));
+  return (
+    <>
+      <div className="regional-cycle-chart" aria-label="Metro housing cycle position chart">
+        <ResponsiveContainer width="100%" height="100%">
+          <ScatterChart margin={{ top: 32, right: 28, bottom: 34, left: 8 }}>
+            <CartesianGrid stroke="#dbe3e8" strokeDasharray="3 4" />
+            <XAxis
+              type="number"
+              dataKey="inventoryGrowth"
+              domain={xDomain}
+              tickFormatter={(value) => `${Math.round(Number(value) * 100)}%`}
+              tick={{ fill: "#627180", fontSize: 11 }}
+              axisLine={{ stroke: "#b9c6cf" }}
+              tickLine={false}
+              label={{ value: "For-sale inventory growth", position: "insideBottom", offset: -24, fill: "#526675", fontSize: 11 }}
+            />
+            <YAxis
+              type="number"
+              dataKey="homeValueGrowth"
+              domain={yDomain}
+              width={52}
+              tickFormatter={(value) => `${Math.round(Number(value) * 100)}%`}
+              tick={{ fill: "#627180", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              label={{ value: cpi ? "Real home-value growth" : "Home-value growth", angle: -90, position: "insideLeft", offset: 5, fill: "#526675", fontSize: 11 }}
+            />
+            <ZAxis range={[75, 75]} />
+            <ReferenceLine x={0} stroke="#7f8f99" strokeWidth={1.2} />
+            <ReferenceLine y={0} stroke="#7f8f99" strokeWidth={1.2} />
+            <ChartTooltip cursor={{ strokeDasharray: "3 3" }} content={<RegionalCycleTooltip real={Boolean(cpi)} />} />
+            <Scatter data={snapshot.points} isAnimationActive={false}>
+              {snapshot.points.map((point) => (
+                <Cell
+                  key={point.id}
+                  fill={point.color}
+                  fillOpacity={point.selected ? 1 : 0.48}
+                  stroke={point.selected ? "#ffffff" : "#6d7f8b"}
+                  strokeWidth={point.selected ? 2 : 1}
+                />
+              ))}
+              <LabelList dataKey="name" position="top" offset={7} fill="#3f5667" fontSize={11} fontWeight={700} />
+            </Scatter>
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="cycle-key">
+        <span>As of {shortDate(`${snapshot.month}-01`)}</span>
+        <span>Selected metros use the line-chart colors; other comparison metros are gray.</span>
+      </div>
+    </>
   );
 }
 
@@ -2108,9 +2298,9 @@ export default function MarketLab() {
                 <div className="source-strip">
                   <SourceBadge
                     provider={activityLens === "redfin" ? "Redfin" : "Realtor.com® Economic Research"}
-                    frequency={activityLens === "redfin" ? redfinManifest.frequency : "Monthly"}
+                    frequency={activityLens === "redfin" ? redfinManifest?.frequency ?? "Rolling three-month" : "Monthly"}
                   />
-                  <span>Data through {shortDate(activityDates.at(-1) ?? (activityLens === "redfin" ? redfinManifest.release : realtorCurrentManifest?.release ?? manifest.release))}</span>
+                  <span>Data through {shortDate(activityDates.at(-1) ?? (activityLens === "redfin" ? redfinManifest?.release ?? manifest.release : realtorCurrentManifest?.release ?? manifest.release))}</span>
                   {activityLens === "realtor" && realtorError && <span className="source-warning">{realtorError}</span>}
                 </div>
                 <div className="control-grid activity-controls">
@@ -2278,7 +2468,7 @@ export default function MarketLab() {
           <section className="control-deck">
             <div className="source-strip">
               <SourceBadge provider="Zillow" frequency="Monthly" />
-              {regionalMetricSupportsReal && (regionalBasis === "real" || ((regionalView === "yoy" || regionalView === "index") && showRegionalInflation)) && cpiManifest && (
+              {cpiManifest && (
                 <SourceBadge provider="BLS CPI-U" frequency="Monthly" />
               )}
               <span>Metro comparison</span>
@@ -2322,25 +2512,44 @@ export default function MarketLab() {
               })}
             </div>
           </section>
-          <Card className="chart-card regional-chart">
-            <CardHeader className="chart-header">
-              <div><p className="section-kicker">Metro comparison</p><CardTitle><MetricHeading metric={regionalMetricMetadata} fallback={REGIONAL_METRICS.find((item) => item.key === regionalMetric)?.label ?? regionalMetric} /></CardTitle></div>
-              <div className="chart-options">
-                {(regionalView === "yoy" || regionalView === "index") && regionalCpi && regionalMetricSupportsReal && (
-                  <InflationToggle checked={showRegionalInflation} onCheckedChange={setShowRegionalInflation} label={`Plot ${regionalCpi.label}${regionalView === "yoy" ? " inflation" : ""}`} />
-                )}
-                <p>{regionalView === "index"
-                  ? `${shortDate(`${regionalIndexBaseMonth}-01`)} = 100`
-                  : regionalView === "level" && regionalBasis === "real"
-                    ? `${shortDate(`${regionalRealBaseMonth}-01`)} dollars`
-                    : "Choose up to five metros"}</p>
-              </div>
-            </CardHeader>
-            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-              <SeriesChart dataset={datasets.metro} regions={regionalRegions} metric={regionalMetric} view={regionalView} timeRange={regionalTimeRange} indexBaseMonth={regionalIndexBaseMonth} priceAdjustment={regionalPriceAdjustment} overlays={regionalInflationOverlays} />
-              {regionalBasis === "real" && <p className="data-note">Real metro series use the selected CPI-U deflator and end with its latest available observation.</p>}
-            </CardContent>
-          </Card>
+          <section className="regional-visual-grid">
+            <Card className="chart-card regional-chart">
+              <CardHeader className="chart-header">
+                <div><p className="section-kicker">Trend comparison</p><CardTitle><MetricHeading metric={regionalMetricMetadata} fallback={REGIONAL_METRICS.find((item) => item.key === regionalMetric)?.label ?? regionalMetric} /></CardTitle></div>
+                <div className="chart-options">
+                  {(regionalView === "yoy" || regionalView === "index") && regionalCpi && regionalMetricSupportsReal && (
+                    <InflationToggle checked={showRegionalInflation} onCheckedChange={setShowRegionalInflation} label={`Plot ${regionalCpi.label}${regionalView === "yoy" ? " inflation" : ""}`} />
+                  )}
+                  <p>{regionalView === "index"
+                    ? `${shortDate(`${regionalIndexBaseMonth}-01`)} = 100`
+                    : regionalView === "level" && regionalBasis === "real"
+                      ? `${shortDate(`${regionalRealBaseMonth}-01`)} dollars`
+                      : "Choose up to five metros"}</p>
+                </div>
+              </CardHeader>
+              <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                <SeriesChart dataset={datasets.metro} regions={regionalRegions} metric={regionalMetric} view={regionalView} timeRange={regionalTimeRange} indexBaseMonth={regionalIndexBaseMonth} priceAdjustment={regionalPriceAdjustment} overlays={regionalInflationOverlays} />
+                {regionalBasis === "real" && <p className="data-note">Real metro series use the selected CPI-U deflator and end with its latest available observation.</p>}
+              </CardContent>
+            </Card>
+            <Card className="chart-card cycle-card">
+              <CardHeader className="chart-header">
+                <div>
+                  <p className="section-kicker">Latest cycle position</p>
+                  <CardTitle>
+                    Inventory growth vs. {cpi?.series.us ? "real " : ""}home-value growth
+                    <DefinitionHelp
+                      label="Metro cycle position"
+                      definition={`Each point compares the change in for-sale inventory from one year earlier with the change in ${cpi?.series.us ? "U.S. CPI-adjusted " : "nominal "}home values over the same period. It is a descriptive cycle indicator, not a forecast.`}
+                    />
+                  </CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="cycle-chart-wrap">
+                <RegionalCycleChart dataset={datasets.metro} selectedIds={regionalIds} cpi={cpi?.series.us ?? null} />
+              </CardContent>
+            </Card>
+          </section>
         </TabsContent>
 
         <TabsContent value="methods" className="space-y-5">
