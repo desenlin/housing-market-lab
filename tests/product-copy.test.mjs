@@ -51,6 +51,10 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /U\.S\. CPI-U/);
   assert.match(source, /Common deflator: U\.S\. CPI-U/);
   assert.doesNotMatch(source, /regionalDeflatorKey/);
+  assert.match(source, /Add a metro comparison \(up to five\)/);
+  assert.match(source, /NativeSelectOptGroup key=\{censusRegion\} label=\{censusRegion\}/);
+  assert.match(source, /aria-label={`Remove \$\{region\.name\} from comparison`}/);
+  assert.doesNotMatch(source, /className=\{checked \? "metro-toggle active"/);
   assert.match(source, /nearby Riverside, CA is outlined in orange/);
   assert.match(source, /Real rent is a purchasing-power measure, not an affordability measure/);
   assert.match(source, /className="footer-emphasis" href="https:\/\/desenlin\.com\/"/);

@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   NativeSelect,
+  NativeSelectOptGroup,
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1593,6 +1594,7 @@ export default function MarketLab() {
   const [regionalTimeRange, setRegionalTimeRange] = useState<TimeRange>("max");
   const [regionalIndexBaseRequest, setRegionalIndexBaseRequest] = useState("2015-01");
   const [regionalIds, setRegionalIds] = useState<string[]>([]);
+  const [regionalAddId, setRegionalAddId] = useState("");
   const [copied, setCopied] = useState(false);
   const [activityMetric, setActivityMetric] = useState<MetricKey>("months_supply");
   const [realtorMetric, setRealtorMetric] = useState<MetricKey>("active_listing_count");
@@ -1992,6 +1994,12 @@ export default function MarketLab() {
       setRealtorSelectedIds((current) => [...current, activeActivityAddId]);
       setRealtorAddId("");
     }
+  }
+
+  function addRegionalMetro() {
+    if (!regionalAddId || regionalIds.includes(regionalAddId) || regionalIds.length >= 5) return;
+    setRegionalIds((current) => [...current, regionalAddId]);
+    setRegionalAddId("");
   }
 
   function selectActivityPrimary(id: string) {
@@ -2535,22 +2543,42 @@ export default function MarketLab() {
               </div>
             )}
             <TimeRangeControl value={regionalTimeRange} onChange={setRegionalTimeRange} />
-            <div className="metro-groups">
-              {(["West", "Midwest", "South", "Northeast"] as const).map((censusRegion) => (
-                <div className="metro-group" key={censusRegion}>
-                  <p>{censusRegion}</p>
-                  <div className="metro-checks">
-                    {datasets.metro.regions.filter((region) => region.census_region === censusRegion).sort((a, b) => {
-                      const roleOrder = { focus: 0, nearby: 1 } as const;
-                      return (a.role ? roleOrder[a.role] : 2) - (b.role ? roleOrder[b.role] : 2)
-                        || (a.division ?? "").localeCompare(b.division ?? "")
-                        || a.name.localeCompare(b.name);
-                    }).map((region) => {
-                      const checked = regionalIds.includes(region.id);
-                      return <button key={region.id} className={checked ? "metro-toggle active" : "metro-toggle"} title={region.division} onClick={() => setRegionalIds((ids) => checked ? ids.filter((id) => id !== region.id) : ids.length < 5 ? [...ids, region.id] : ids)}><i />{region.name}<small>{region.division}</small></button>;
-                    })}
-                  </div>
-                </div>
+            <div className="comparison-row regional-comparison-row">
+              <label className="control-label comparison-select">
+                <span>Add a metro comparison (up to five)</span>
+                <NativeSelect value={regionalAddId} onChange={(event) => setRegionalAddId(event.target.value)} className="w-full" disabled={regionalIds.length >= 5}>
+                  <NativeSelectOption value="">{regionalIds.length >= 5 ? "Five-metro maximum reached" : "Choose a metro…"}</NativeSelectOption>
+                  {(["West", "Midwest", "South", "Northeast"] as const).map((censusRegion) => (
+                    <NativeSelectOptGroup key={censusRegion} label={censusRegion}>
+                      {datasets.metro.regions
+                        .filter((region) => region.census_region === censusRegion && !regionalIds.includes(region.id))
+                        .sort((a, b) => (a.division ?? "").localeCompare(b.division ?? "") || a.name.localeCompare(b.name))
+                        .map((region) => (
+                          <NativeSelectOption key={region.id} value={region.id}>
+                            {region.name}{region.division ? ` · ${region.division}` : ""}
+                          </NativeSelectOption>
+                        ))}
+                    </NativeSelectOptGroup>
+                  ))}
+                </NativeSelect>
+              </label>
+              <Button variant="outline" onClick={addRegionalMetro} disabled={!regionalAddId || regionalIds.length >= 5}><Plus /> Add</Button>
+              <p className="selection-count" aria-live="polite">{regionalIds.length} of 5 selected</p>
+            </div>
+            <div className="chips" aria-label="Selected metro comparisons">
+              {regionalRegions.map((region, index) => (
+                <button
+                  key={region.id}
+                  type="button"
+                  className="chip"
+                  onClick={() => setRegionalIds((current) => current.filter((id) => id !== region.id))}
+                  aria-label={`Remove ${region.name} from comparison`}
+                  title={`Remove ${region.name}`}
+                >
+                  <i style={{ background: COLORS[index % COLORS.length] }} />
+                  {region.name}
+                  <X aria-hidden="true" />
+                </button>
               ))}
             </div>
           </section>
