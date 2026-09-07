@@ -52,6 +52,9 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Common deflator: U\.S\. CPI-U/);
   assert.doesNotMatch(source, /regionalDeflatorKey/);
   assert.match(source, /Add a metro comparison \(up to five\)/);
+  assert.match(source, /20 largest U\.S\. metropolitan statistical areas/);
+  assert.match(source, /San Jose is retained as a selected California comparator/);
+  assert.match(source, /region\.population_rank \? `#\$\{region\.population_rank\} · `/);
   assert.match(source, /NativeSelectOptGroup key=\{censusRegion\} label=\{censusRegion\}/);
   assert.match(source, /aria-label={`Remove \$\{region\.name\} from comparison`}/);
   assert.doesNotMatch(source, /className=\{checked \? "metro-toggle active"/);

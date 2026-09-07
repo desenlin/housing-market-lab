@@ -24,7 +24,7 @@ Created by **[Desen Lin](https://desenlin.com/)**, California State University, 
 - Indexed comparisons with a user-selected starting month
 - City/community and ZIP rankings sortable by current value or 12-month growth
 - Interactive OpenStreetMap context maps with pan, zoom, focused mainland defaults, hover details, gray **No data** boundaries, and a separate legend state for land outside city/CDP geography
-- State-qualified metro comparisons spanning all nine Census divisions, including inventory, days to pending, price-cut share, and sale-to-list measures
+- Population-ranked comparisons of the 20 largest U.S. metropolitan statistical areas, plus San Jose as a selected California comparator, including inventory, days-to-pending, price-cut-share, and sale-to-list measures
 - LA-area and U.S. CPI-U benchmarks, including year-over-year inflation overlays
 
 Local real-value views may use the LA-area CPI-U. Cross-metro real-value views instead use one U.S. city-average CPI-U series for every metro, avoiding incomparable local-index coverage and publication schedules.

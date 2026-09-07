@@ -41,25 +41,29 @@ test("metro comparison contains the intended unique markets", async () => {
   const names = metro.regions.map((region) => region.name);
   assert.deepEqual([...new Set(names)].sort(), [
     "Atlanta, GA",
-    "Austin, TX",
     "Boston, MA",
     "Chicago, IL",
     "Dallas, TX",
     "Denver, CO",
+    "Detroit, MI",
+    "Houston, TX",
     "Los Angeles, CA",
+    "Miami, FL",
     "Minneapolis, MN",
-    "Nashville, TN",
     "New York, NY",
+    "Orlando, FL",
+    "Philadelphia, PA",
     "Phoenix, AZ",
     "Riverside, CA",
     "San Diego, CA",
     "San Francisco, CA",
     "San Jose, CA",
     "Seattle, WA",
+    "Tampa, FL",
+    "Washington, DC",
   ]);
   assert.deepEqual([...new Set(metro.regions.map((region) => region.division))].sort(), [
     "East North Central",
-    "East South Central",
     "Middle Atlantic",
     "Mountain",
     "New England",
@@ -68,6 +72,11 @@ test("metro comparison contains the intended unique markets", async () => {
     "West North Central",
     "West South Central",
   ]);
+  assert.deepEqual(
+    metro.regions.flatMap((region) => region.population_rank ?? []).sort((a, b) => a - b),
+    Array.from({ length: 20 }, (_, index) => index + 1),
+  );
+  assert.equal(metro.regions.find((region) => region.name === "San Jose, CA")?.selection_note, "Selected California comparator");
   assert.equal(metro.regions.find((region) => region.name === "Riverside, CA")?.role, "nearby");
 });
 

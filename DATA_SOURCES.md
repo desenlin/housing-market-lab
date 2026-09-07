@@ -16,7 +16,7 @@ Selected series:
 | Listings with a price cut | Share of active listings | — | Yes |
 | Mean sale-to-list ratio | Sale price ÷ final list price | — | Yes |
 
-Local filtering retains California observations whose `CountyName` is Orange County or Los Angeles County. The metro comparison retains the original Southern California, Bay Area, Phoenix, and Austin markets and adds Seattle, Denver, Dallas, Minneapolis, Chicago, Nashville, Atlanta, New York, and Boston. Labels include state abbreviations, and the resulting curated set spans all nine Census divisions.
+Local filtering retains California observations whose `CountyName` is Orange County or Los Angeles County. The metro comparison uses the 20 largest U.S. metropolitan statistical areas ranked by the Census Bureau's July 1, 2025 population estimates, as compiled in the [Metropolitan statistical area table](https://en.wikipedia.org/wiki/Metropolitan_statistical_area). Los Angeles, Riverside, and San Diego remain the default Southern California comparison; San Jose is retained separately as a selected California comparator. Short display labels follow Zillow's metro names and include state abbreviations. The combined set contains 21 metros across eight Census divisions.
 
 Values are rounded only in the compact published files: currency and counts to whole units, days to one decimal, and shares/ratios to five decimals.
 

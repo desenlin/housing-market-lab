@@ -88,6 +88,8 @@ type Region = {
   context: string | null;
   census_region?: "Northeast" | "Midwest" | "South" | "West";
   division?: string;
+  population_rank?: number;
+  selection_note?: string;
   role?: "focus" | "nearby";
   series: Record<string, Value[] | { o: number; v: Value[] }>;
   quality?: Partial<Record<"inventory" | "hotness", number[]>>;
@@ -2505,7 +2507,7 @@ export default function MarketLab() {
         <TabsContent value="regional" className="space-y-5">
           <section className="regional-intro">
             <div><p className="section-kicker">Context</p><h2>How does Los Angeles fit into the housing cycle?</h2></div>
-            <p>Compare Southern California with a curated national set spanning all nine Census divisions. These metro-level measures add market liquidity and competition signals that are not consistently available for every city or ZIP.</p>
+            <p>Compare Los Angeles, Riverside, and San Diego with the 20 largest U.S. metropolitan statistical areas by July 1, 2025 population. San Jose is retained as a selected California comparator; the full set spans eight Census divisions.</p>
           </section>
           <section className="control-deck">
             <div className="source-strip">
@@ -2552,10 +2554,10 @@ export default function MarketLab() {
                     <NativeSelectOptGroup key={censusRegion} label={censusRegion}>
                       {datasets.metro.regions
                         .filter((region) => region.census_region === censusRegion && !regionalIds.includes(region.id))
-                        .sort((a, b) => (a.division ?? "").localeCompare(b.division ?? "") || a.name.localeCompare(b.name))
+                        .sort((a, b) => (a.population_rank ?? 999) - (b.population_rank ?? 999) || a.name.localeCompare(b.name))
                         .map((region) => (
                           <NativeSelectOption key={region.id} value={region.id}>
-                            {region.name}{region.division ? ` · ${region.division}` : ""}
+                            {region.population_rank ? `#${region.population_rank} · ` : `${region.selection_note ?? "Selected comparator"} · `}{region.name}{region.division ? ` · ${region.division}` : ""}
                           </NativeSelectOption>
                         ))}
                     </NativeSelectOptGroup>
@@ -2576,7 +2578,7 @@ export default function MarketLab() {
                   title={`Remove ${region.name}`}
                 >
                   <i style={{ background: COLORS[index % COLORS.length] }} />
-                  {region.name}
+                  {region.population_rank ? `#${region.population_rank} · ` : ""}{region.name}{region.selection_note ? " · selected comparator" : ""}
                   <X aria-hidden="true" />
                 </button>
               ))}

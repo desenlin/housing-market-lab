@@ -222,6 +222,8 @@ def extract_source(
                     "context": secondary,
                     "census_region": metro.get("census_region") if geography == "metro" else None,
                     "division": metro.get("division") if geography == "metro" else None,
+                    "population_rank": metro.get("population_rank") if geography == "metro" else None,
+                    "selection_note": metro.get("selection_note") if geography == "metro" else None,
                     "role": metro.get("role") if geography == "metro" else None,
                     "values": values,
                 }
@@ -263,6 +265,8 @@ def combine_geography(
                     **({
                         "census_region": region["census_region"],
                         "division": region["division"],
+                        "population_rank": region["population_rank"],
+                        "selection_note": region["selection_note"],
                         "role": region["role"],
                     } if geography == "metro" else {}),
                     "series": {},
@@ -307,6 +311,15 @@ def validate_payloads(payloads: dict[str, dict[str, Any]], config: dict[str, Any
         raise RuntimeError(
             f"metro coverage mismatch: missing {sorted(expected_metros - actual_metros)}; "
             f"unexpected {sorted(actual_metros - expected_metros)}"
+        )
+    population_ranks = sorted(
+        region["population_rank"]
+        for region in payloads["metro"]["regions"]
+        if region.get("population_rank") is not None
+    )
+    if population_ranks != list(range(1, 21)):
+        raise RuntimeError(
+            f"top-20 metro population ranks are incomplete or duplicated: {population_ranks}"
         )
     required_metro_metrics = {
         item["metric"] for item in config["sources"] if item["geography"] == "metro"

@@ -80,6 +80,8 @@ class PipelineHelpersTest(unittest.TestCase):
                     "context": "Riverside, CA",
                     "census_region": "West",
                     "division": "Pacific",
+                    "population_rank": 12,
+                    "selection_note": None,
                     "role": "nearby",
                     "values": [500000],
                 }],
@@ -88,6 +90,8 @@ class PipelineHelpersTest(unittest.TestCase):
         region = payload["regions"][0]
         self.assertEqual(region["census_region"], "West")
         self.assertEqual(region["division"], "Pacific")
+        self.assertEqual(region["population_rank"], 12)
+        self.assertIsNone(region["selection_note"])
         self.assertEqual(region["role"], "nearby")
 
 
