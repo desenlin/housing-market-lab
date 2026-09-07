@@ -23,6 +23,8 @@ type PermitMetricKey =
   | "large_multifamily_share"
   | "units_per_1000_stock";
 type Frequency = "annual" | "monthly";
+type AnnualChartRange = "10y" | "20y" | "30y" | "max";
+type MonthlyChartRange = "1y" | "3y" | "max";
 type Value = number | null;
 
 type PermitMetric = {
@@ -312,6 +314,8 @@ export function PermitPanel({ mapData, onManifest }: { mapData: MapData; onManif
   const [county, setCounty] = useState("Orange County");
   const [metric, setMetric] = useState<PermitMetricKey>("total_units");
   const [date, setDate] = useState("");
+  const [annualChartRange, setAnnualChartRange] = useState<AnnualChartRange>("max");
+  const [monthlyChartRange, setMonthlyChartRange] = useState<MonthlyChartRange>("max");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [addId, setAddId] = useState("");
   const onManifestRef = useRef(onManifest);
@@ -367,9 +371,14 @@ export function PermitPanel({ mapData, onManifest }: { mapData: MapData; onManif
       .sort((a, b) => (b.series[metric][dateIndex] ?? -Infinity) - (a.series[metric][dateIndex] ?? -Infinity));
   }, [dataset, dateIndex, eligible, metric]);
   const primaryRank = primary ? ranked.findIndex((region) => region.id === primary.id) + 1 : 0;
-  const chartData = dataset?.dates.map((chartDate, index) => Object.fromEntries([
+  const chartRange = frequency === "annual" ? annualChartRange : monthlyChartRange;
+  const chartPointLimit = chartRange === "max"
+    ? dataset?.dates.length ?? 0
+    : Number.parseInt(chartRange, 10) * (frequency === "monthly" ? 12 : 1);
+  const chartStartIndex = dataset ? Math.max(0, dataset.dates.length - chartPointLimit) : 0;
+  const chartData = dataset?.dates.slice(chartStartIndex).map((chartDate, offset) => Object.fromEntries([
     ["date", chartDate],
-    ...selected.map((region) => [region.id, region.series[metric][index]]),
+    ...selected.map((region) => [region.id, region.series[metric][chartStartIndex + offset]]),
   ])) ?? [];
 
   if (error) return <div className="permit-status permit-error"><strong>Building permits are temporarily unavailable.</strong><span>{error}</span></div>;
@@ -377,6 +386,8 @@ export function PermitPanel({ mapData, onManifest }: { mapData: MapData; onManif
 
   const currentIsPreliminary = frequency === "monthly" && selectedDate > `${historyManifest.latest_final_year}-12`;
   const counties = county === "Both" ? ["Orange County", "Los Angeles County"] : [county];
+  const chartStartDate = dataset.dates[chartStartIndex];
+  const chartEndDate = dataset.dates.at(-1)!;
   return (
     <div className="permit-stack">
       <section className="regional-intro permit-intro">
@@ -414,8 +425,36 @@ export function PermitPanel({ mapData, onManifest }: { mapData: MapData; onManif
 
       <section className="analysis-grid permit-analysis-grid">
         <Card className="chart-card">
-          <CardHeader className="chart-header"><div><p className="section-kicker">Trend comparison</p><CardTitle>{metricInfo.label}</CardTitle></div><p className="permit-definition">{metricInfo.definition}</p></CardHeader>
+          <CardHeader className="chart-header permit-chart-header">
+            <div><p className="section-kicker">Trend comparison</p><CardTitle>{metricInfo.label}</CardTitle></div>
+            <div className="permit-chart-options">
+              <p className="permit-definition">{metricInfo.definition}</p>
+              <LabelledSelect
+                label="Chart range"
+                value={chartRange}
+                onChange={(value) => frequency === "annual"
+                  ? setAnnualChartRange(value as AnnualChartRange)
+                  : setMonthlyChartRange(value as MonthlyChartRange)}
+              >
+                {frequency === "annual" ? (
+                  <>
+                    <NativeSelectOption value="10y">Last 10 years</NativeSelectOption>
+                    <NativeSelectOption value="20y">Last 20 years</NativeSelectOption>
+                    <NativeSelectOption value="30y">Last 30 years</NativeSelectOption>
+                    <NativeSelectOption value="max">Full series · since 1980</NativeSelectOption>
+                  </>
+                ) : (
+                  <>
+                    <NativeSelectOption value="1y">Last 12 months</NativeSelectOption>
+                    <NativeSelectOption value="3y">Last 3 years</NativeSelectOption>
+                    <NativeSelectOption value="max">Full series · since 2022</NativeSelectOption>
+                  </>
+                )}
+              </LabelledSelect>
+            </div>
+          </CardHeader>
           <CardContent className="permit-chart-wrap">
+            <p className="permit-chart-window">Showing {formatDate(chartStartDate)}–{formatDate(chartEndDate)}</p>
             <div className="permit-chart" aria-label={`${metricInfo.label} trend`}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 14, right: 16, bottom: 5, left: 4 }}>

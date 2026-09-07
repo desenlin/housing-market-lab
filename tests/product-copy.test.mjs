@@ -82,3 +82,14 @@ test("uses the academic website Google Analytics property", async () => {
   const layout = await readProjectFile("app/layout.tsx");
   assert.match(layout, /G-MDGMSFPEH2/);
 });
+
+test("building permits chart offers frequency-appropriate history windows", async () => {
+  const source = await readProjectFile("components/permits/permit-panel.tsx");
+  assert.match(source, /label="Chart range"/);
+  assert.match(source, /Last 10 years/);
+  assert.match(source, /Last 20 years/);
+  assert.match(source, /Last 30 years/);
+  assert.match(source, /Full series · since 1980/);
+  assert.match(source, /Last 12 months/);
+  assert.match(source, /Full series · since 2022/);
+});

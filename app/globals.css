@@ -184,8 +184,12 @@ button, select { font: inherit; }
 .permit-kpis .kpi-card:last-child { border-color: #e5b995; background: #fffaf6; }
 .permit-quality-value { font-size: 22px; }
 .permit-analysis-grid { grid-template-columns: minmax(0, 1.65fr) minmax(330px, .8fr); }
+.permit-chart-header { align-items: center; }
+.permit-chart-options { display: flex; align-items: end; justify-content: flex-end; gap: 14px; }
+.permit-chart-options .control-label { min-width: 178px; }
 .permit-definition { max-width: 320px; margin: 0; color: #71818c; font-size: 11px; line-height: 1.45; text-align: right; }
 .permit-chart-wrap { padding: 10px 13px 13px !important; }
+.permit-chart-window { margin: 0 5px 5px; color: #657681; font-size: 11px; font-weight: 700; }
 .permit-chart { width: 100%; height: 400px; }
 .permit-ranking .ranking-list { max-height: 468px; }
 .permit-rank-columns, .permit-rank-row { display: grid; grid-template-columns: 25px minmax(130px, 1fr) 105px; gap: 8px; align-items: center; }
@@ -298,6 +302,8 @@ footer p { margin: 0; }
   .comparison-row { align-items: stretch; flex-wrap: wrap; } .comparison-select { min-width: 100%; }
   .price-controls { grid-template-columns: 1fr; }
   .permit-controls, .permit-county-summary { grid-template-columns: 1fr; }
+  .permit-chart-options { align-items: stretch; flex-direction: column-reverse; }
+  .permit-chart-options .control-label { min-width: 0; }
   .permit-definition { max-width: none; text-align: left; }
   .kpi-grid { grid-template-columns: 1fr 1fr; gap: 8px; } .kpi-value { font-size: 21px; }
   .chart-header { display: block !important; } .chart-options { justify-content: flex-start; margin-top: 12px; } .chart-options > p { width: 100%; text-align: left; }
