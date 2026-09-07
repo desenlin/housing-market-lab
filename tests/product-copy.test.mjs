@@ -49,6 +49,9 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Real \(inflation-adjusted\)/);
   assert.match(source, /LA-area CPI-U/);
   assert.match(source, /U\.S\. CPI-U/);
+  assert.match(source, /Common deflator: U\.S\. CPI-U/);
+  assert.doesNotMatch(source, /regionalDeflatorKey/);
+  assert.match(source, /nearby Riverside, CA is outlined in orange/);
   assert.match(source, /Real rent is a purchasing-power measure, not an affordability measure/);
   assert.match(source, /className="footer-emphasis" href="https:\/\/desenlin\.com\/"/);
   assert.match(source, /className="footer-emphasis" href="https:\/\/business\.fullerton\.edu\/academics\/finance"/);

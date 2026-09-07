@@ -231,12 +231,18 @@ button, select { font: inherit; }
 .quadrant-key i.flagged { border: 1.5px solid #9a4b00; background: #fff7e8; opacity: 1; }
 .quadrant-key i.selected { border: 1px solid #7e3100; background: #ff7a1a; opacity: 1; }
 .regional-controls { max-width: 860px; grid-template-columns: 1.5fr 1fr 1fr; }
+.regional-price-controls { grid-template-columns: minmax(150px, .8fr) minmax(180px, 1fr) minmax(320px, 2fr); }
 .regional-controls + .time-range, .regional-price-controls + .time-range { margin-top: 15px; padding-top: 14px; border-top: 1px solid #e0e7ea; }
-.metro-checks { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; }
-.metro-toggle { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid #c7d3d9; border-radius: 5px; background: #f9fbfb; color: #4b6272; font-size: 12px; cursor: pointer; }
+.metro-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px; margin-top: 16px; }
+.metro-group { min-width: 0; }
+.metro-group > p { margin: 0 0 6px; color: #6c7c87; font-size: 10px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.metro-checks { display: flex; flex-wrap: wrap; gap: 7px; }
+.metro-toggle { display: inline-grid; grid-template-columns: 8px auto; align-items: center; column-gap: 7px; padding: 7px 10px; border: 1px solid #c7d3d9; border-radius: 5px; background: #f9fbfb; color: #4b6272; font-size: 12px; line-height: 1.15; text-align: left; cursor: pointer; }
+.metro-toggle small { grid-column: 2; color: #81909a; font-size: 9px; font-weight: 500; }
 .metro-toggle i { width: 8px; height: 8px; border: 1px solid #8ba0ad; background: white; }
 .metro-toggle.active { border-color: #d96818; background: #fff2e7; color: #853700; font-weight: 700; }
 .metro-toggle.active i { border-color: #ff7a1a; background: #ff7a1a; }
+.metro-toggle.active small { color: #9a5a2c; }
 .regional-visual-grid { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, .88fr); gap: 16px; align-items: stretch; }
 .regional-visual-grid > .chart-card { min-width: 0; overflow: hidden; }
 .regional-visual-grid .chart-header { align-items: start; }
@@ -310,6 +316,7 @@ footer p { margin: 0; }
   .ranking-title { display: block; } .ranking-title .control-label { margin-top: 10px; }
   .map-heading { align-items: start; } .map-tools { justify-items: start; } .map-heading { display: grid; } .map-legend { justify-content: flex-start; }
   .leaflet-map { height: 430px; }
+  .metro-groups { grid-template-columns: 1fr; }
   .hotness-chart { height: 330px; }
   .regional-intro, .method-grid { grid-template-columns: 1fr; gap: 18px; }
   .provenance-grid { grid-template-columns: 1fr; }

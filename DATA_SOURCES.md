@@ -16,7 +16,7 @@ Selected series:
 | Listings with a price cut | Share of active listings | — | Yes |
 | Mean sale-to-list ratio | Sale price ÷ final list price | — | Yes |
 
-Local filtering retains California observations whose `CountyName` is Orange County or Los Angeles County. The metro comparison retains Los Angeles, Riverside, San Diego, San Francisco, San Jose, Phoenix, and Austin.
+Local filtering retains California observations whose `CountyName` is Orange County or Los Angeles County. The metro comparison retains the original Southern California, Bay Area, Phoenix, and Austin markets and adds Seattle, Denver, Dallas, Minneapolis, Chicago, Nashville, Atlanta, New York, and Boston. Labels include state abbreviations, and the resulting curated set spans all nine Census divisions.
 
 Values are rounded only in the compact published files: currency and counts to whole units, days to one decimal, and shares/ratios to five decimals.
 

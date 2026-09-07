@@ -34,6 +34,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PermitPanel, type PermitManifest } from "@/components/permits/permit-panel";
+import { DEFAULT_MAP_FIT_OPTIONS, focusedMapBounds } from "@/lib/map-view";
 
 type Value = number | null;
 type MetricKey =
@@ -84,6 +85,9 @@ type Region = {
   name: string;
   county: string | null;
   context: string | null;
+  census_region?: "Northeast" | "Midwest" | "South" | "West";
+  division?: string;
+  role?: "focus" | "nearby";
   series: Record<string, Value[] | { o: number; v: Value[] }>;
   quality?: Partial<Record<"inventory" | "hotness", number[]>>;
 };
@@ -920,6 +924,9 @@ type RegionalCyclePoint = {
   homeValueGrowth: number;
   color: string;
   selected: boolean;
+  spotlight: boolean;
+  role?: "focus" | "nearby";
+  label: string;
 };
 
 function RegionalCycleTooltip({ active, payload, real }: {
@@ -987,6 +994,7 @@ function RegionalCycleChart({
     if (!month) return { month: "", points: [] as RegionalCyclePoint[] };
     const points = series.map(({ region, inventoryByMonth, valueByMonth }) => {
       const selectedIndex = selectedIds.indexOf(region.id);
+      const spotlight = region.role === "focus" || region.role === "nearby";
       return {
         id: region.id,
         name: region.name,
@@ -994,6 +1002,9 @@ function RegionalCycleChart({
         homeValueGrowth: valueByMonth.get(month) as number,
         color: selectedIndex >= 0 ? COLORS[selectedIndex % COLORS.length] : "#9baab4",
         selected: selectedIndex >= 0,
+        spotlight,
+        role: region.role,
+        label: selectedIndex >= 0 || spotlight ? region.name : "",
       };
     });
     return { month, points };
@@ -1041,19 +1052,19 @@ function RegionalCycleChart({
                 <Cell
                   key={point.id}
                   fill={point.color}
-                  fillOpacity={point.selected ? 1 : 0.48}
-                  stroke={point.selected ? "#ffffff" : "#6d7f8b"}
-                  strokeWidth={point.selected ? 2 : 1}
+                  fillOpacity={point.selected || point.spotlight ? 1 : 0.42}
+                  stroke={point.role === "nearby" ? "#d85d08" : point.role === "focus" ? "#12355b" : point.selected ? "#ffffff" : "#6d7f8b"}
+                  strokeWidth={point.spotlight ? 3 : point.selected ? 2 : 1}
                 />
               ))}
-              <LabelList dataKey="name" position="top" offset={7} fill="#3f5667" fontSize={11} fontWeight={700} />
+              <LabelList dataKey="label" position="top" offset={7} fill="#3f5667" fontSize={10} fontWeight={700} />
             </Scatter>
           </ScatterChart>
         </ResponsiveContainer>
       </div>
       <div className="cycle-key">
         <span>As of {shortDate(`${snapshot.month}-01`)}</span>
-        <span>Selected metros use the line-chart colors; other comparison metros are gray.</span>
+        <span>Selected metros use the line-chart colors. Los Angeles, CA is outlined in navy; nearby Riverside, CA is outlined in orange. Hover gray points for other metro names.</span>
       </div>
     </>
   );
@@ -1422,7 +1433,7 @@ function CountyMap({
     layerRef.current = overlay;
     const fitKey = `${county}:${dataset.geography}`;
     if (lastFitKey.current !== fitKey) {
-      map.fitBounds(L.latLngBounds(shapes.bounds), { padding: [18, 18], maxZoom: 11 });
+      map.fitBounds(L.latLngBounds(focusedMapBounds(county, shapes.bounds)), DEFAULT_MAP_FIT_OPTIONS);
       lastFitKey.current = fitKey;
     }
     map.invalidateSize({ pan: false });
@@ -1445,7 +1456,7 @@ function CountyMap({
   function resetMap() {
     const L = leafletRef.current;
     if (L && mapRef.current) {
-      mapRef.current.fitBounds(L.latLngBounds(shapes.bounds), { padding: [18, 18], maxZoom: 11 });
+      mapRef.current.fitBounds(L.latLngBounds(focusedMapBounds(county, shapes.bounds)), DEFAULT_MAP_FIT_OPTIONS);
     }
   }
 
@@ -1597,7 +1608,6 @@ export default function MarketLab() {
   const [realBaseRequest, setRealBaseRequest] = useState("");
   const [showLocalInflation, setShowLocalInflation] = useState(true);
   const [regionalPriceBasis, setRegionalPriceBasis] = useState<PriceBasis>("nominal");
-  const [regionalDeflatorKey, setRegionalDeflatorKey] = useState<CpiSeriesKey>("us");
   const [regionalRealBaseRequest, setRegionalRealBaseRequest] = useState("");
   const [showRegionalInflation, setShowRegionalInflation] = useState(true);
 
@@ -1709,7 +1719,7 @@ export default function MarketLab() {
         setSelectedIds(defaults.length ? defaults : orangeCities.slice(0, 3).map((region) => region.id));
         const metros = (metro as Dataset).regions;
         setRegionalIds(
-          ["Los Angeles", "Riverside", "San Diego"]
+          ["Los Angeles, CA", "Riverside, CA", "San Diego, CA"]
             .map((name) => metros.find((region) => region.name === name)?.id)
             .filter((id): id is string => Boolean(id)),
         );
@@ -1775,7 +1785,7 @@ export default function MarketLab() {
   const regionalDates = datasets ? metricDates(datasets.metro, regionalMetric) : [];
   const regionalIndexBaseMonth = normalizedBaseMonth(regionalDates, regionalIndexBaseRequest);
   const regionalMetricSupportsReal = regionalMetric === "zhvi" || regionalMetric === "zori";
-  const regionalCpi = cpi?.series[regionalDeflatorKey] ?? null;
+  const regionalCpi = cpi?.series.us ?? null;
   const regionalRealBaseMonth = normalizedRealBaseMonth(regionalCpi, regionalDates, regionalRealBaseRequest);
   const regionalBasis: PriceBasis = regionalMetricSupportsReal && regionalPriceBasis === "real" && regionalCpi
     ? "real"
@@ -2487,7 +2497,7 @@ export default function MarketLab() {
         <TabsContent value="regional" className="space-y-5">
           <section className="regional-intro">
             <div><p className="section-kicker">Context</p><h2>How does Los Angeles fit into the housing cycle?</h2></div>
-            <p>Compare a consistent set of Western and high-growth metros. These metro-level measures add market liquidity and competition signals that are not consistently available for every city or ZIP.</p>
+            <p>Compare Southern California with a curated national set spanning all nine Census divisions. These metro-level measures add market liquidity and competition signals that are not consistently available for every city or ZIP.</p>
           </section>
           <section className="control-deck">
             <div className="source-strip">
@@ -2518,22 +2528,30 @@ export default function MarketLab() {
                 </LabelledSelect>
                 {regionalBasis === "real" && (
                   <>
-                    <LabelledSelect label="Deflator" value={regionalDeflatorKey} onChange={(next) => setRegionalDeflatorKey(next as CpiSeriesKey)}>
-                      <NativeSelectOption value="us">U.S. CPI-U</NativeSelectOption>
-                      <NativeSelectOption value="la">LA-area CPI-U</NativeSelectOption>
-                    </LabelledSelect>
                     <RealBaseControl value={regionalRealBaseMonth} dates={regionalRealBaseMonths} onChange={setRegionalRealBaseRequest} />
-                    <p className="price-basis-note">U.S. CPI-U is the default common deflator when comparing metros.</p>
+                    <p className="price-basis-note"><strong>Common deflator: U.S. CPI-U.</strong> Applying one national index preserves comparability across metros; local CPI series are not mixed because their coverage and release frequencies differ.</p>
                   </>
                 )}
               </div>
             )}
             <TimeRangeControl value={regionalTimeRange} onChange={setRegionalTimeRange} />
-            <div className="metro-checks">
-              {datasets.metro.regions.map((region) => {
-                const checked = regionalIds.includes(region.id);
-                return <button key={region.id} className={checked ? "metro-toggle active" : "metro-toggle"} onClick={() => setRegionalIds((ids) => checked ? ids.filter((id) => id !== region.id) : ids.length < 5 ? [...ids, region.id] : ids)}><i />{region.name}</button>;
-              })}
+            <div className="metro-groups">
+              {(["West", "Midwest", "South", "Northeast"] as const).map((censusRegion) => (
+                <div className="metro-group" key={censusRegion}>
+                  <p>{censusRegion}</p>
+                  <div className="metro-checks">
+                    {datasets.metro.regions.filter((region) => region.census_region === censusRegion).sort((a, b) => {
+                      const roleOrder = { focus: 0, nearby: 1 } as const;
+                      return (a.role ? roleOrder[a.role] : 2) - (b.role ? roleOrder[b.role] : 2)
+                        || (a.division ?? "").localeCompare(b.division ?? "")
+                        || a.name.localeCompare(b.name);
+                    }).map((region) => {
+                      const checked = regionalIds.includes(region.id);
+                      return <button key={region.id} className={checked ? "metro-toggle active" : "metro-toggle"} title={region.division} onClick={() => setRegionalIds((ids) => checked ? ids.filter((id) => id !== region.id) : ids.length < 5 ? [...ids, region.id] : ids)}><i />{region.name}<small>{region.division}</small></button>;
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
           <section className="regional-visual-grid">
@@ -2553,7 +2571,7 @@ export default function MarketLab() {
               </CardHeader>
               <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                 <SeriesChart dataset={datasets.metro} regions={regionalRegions} metric={regionalMetric} view={regionalView} timeRange={regionalTimeRange} indexBaseMonth={regionalIndexBaseMonth} priceAdjustment={regionalPriceAdjustment} overlays={regionalInflationOverlays} />
-                {regionalBasis === "real" && <p className="data-note">Real metro series use the selected CPI-U deflator and end with its latest available observation.</p>}
+                {regionalBasis === "real" && <p className="data-note">All real metro series use the U.S. city-average CPI-U and end with its latest available observation.</p>}
               </CardContent>
             </Card>
             <Card className="chart-card cycle-card">
@@ -2583,13 +2601,13 @@ export default function MarketLab() {
           </section>
           <section className="method-grid">
             <Card><CardHeader><CardTitle>Zillow measures</CardTitle></CardHeader><CardContent className="method-copy"><p><strong>ZHVI</strong> estimates the typical mid-tier home value. <strong>ZORI</strong> tracks typical observed asking rent. The price–rent multiple is ZHVI divided by twelve months of ZORI.</p><p>Monthly year-over-year change compares each observation with the same month one year earlier. In indexed views, the user-selected starting month equals 100.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Nominal and real terms</CardTitle></CardHeader><CardContent className="method-copy"><p>Home values and rents can be shown in nominal dollars or converted to constant dollars using CPI-U. Local views default to the Los Angeles–Long Beach–Anaheim index, which covers Los Angeles and Orange Counties. Cross-metro views default to the U.S. city average.</p><p>Real value in base month <em>b</em> equals nominal value in month <em>t</em> multiplied by CPI<sub>b</sub>/CPI<sub>t</sub>. The base month changes displayed dollar levels but not real growth. Real rent is a purchasing-power measure, not an affordability measure.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Nominal and real terms</CardTitle></CardHeader><CardContent className="method-copy"><p>Home values and rents can be shown in nominal dollars or converted to constant dollars using CPI-U. Local views default to the Los Angeles–Long Beach–Anaheim index, which covers Los Angeles and Orange Counties. Cross-metro views use the U.S. city average as a single common deflator; mixing local CPIs would introduce differences in geographic coverage and publication frequency.</p><p>Real value in base month <em>b</em> equals nominal value in month <em>t</em> multiplied by CPI<sub>b</sub>/CPI<sub>t</sub>. The base month changes displayed dollar levels but not real growth. Real rent is a purchasing-power measure, not an affordability measure.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>CPI and inflation</CardTitle></CardHeader><CardContent className="method-copy"><p>The lab retrieves monthly CPI-U, All Items directly from the U.S. Bureau of Labor Statistics: <code>CUURS49ASA0</code> for the LA area and <code>CUUR0000SA0</code> for the U.S. city average. Both are not seasonally adjusted.</p><p>Inflation is the exact change in CPI from the same month one year earlier. Officially missing CPI observations remain missing rather than being interpolated or carried forward.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Redfin activity measures</CardTitle></CardHeader><CardContent className="method-copy"><p>Redfin supplies months of supply, median days on market, the share sold above original list, the share of active listings with price reductions, and median sale price per square foot.</p><p>City and ZIP observations are rolling three-month windows. Share changes are shown in percentage points; days and months use absolute differences; price per square foot uses percent change.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Realtor.com inventory and demand</CardTitle></CardHeader><CardContent className="method-copy"><p>Realtor.com® Economic Research supplies monthly ZIP-level active and new listings, the pending-to-active ratio, listing viewers relative to the U.S., and its Market Hotness score.</p><p>Hotness equally weights relative demand and supply scores based on listing attention and market speed. It is a comparative index, not a probability of sale. Provider-flagged ZIP-months remain visible and are explicitly marked for review.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Building permits</CardTitle></CardHeader><CardContent className="method-copy"><p>The U.S. Census Bureau Building Permits Survey reports new privately owned housing units authorized by permit-issuing jurisdictions. The lab groups units into single-unit, 2–4-unit, and 5+-unit structures and shows annual history from 1980 and comparable local monthly history from 2022.</p><p>Current-year monthly observations are preliminary and may be revised or imputed. Annual data become final after the Census Bureau’s revision cycle. Permit authorization is an early production indicator, not a housing start or completion.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Geographies</CardTitle></CardHeader><CardContent className="method-copy"><p>City/community maps retain every Census incorporated place and Census-designated place (CDP) assigned to Orange or Los Angeles County, whether or not a provider reports data. Zillow and Redfin observations are matched independently, and an unincorporated CDP is never reassigned to a neighboring city.</p><p>ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs. Census places and ZCTAs do not necessarily cover or classify land in the same way.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Reading the maps</CardTitle></CardHeader><CardContent className="method-copy"><p>The legend distinguishes three states: <strong>colored</strong> means the selected provider reports a current observation; <strong>gray</strong> means an official city/CDP or mapped ZCTA boundary exists but the selected observation is unavailable; <strong>unshaded</strong> means the land falls outside the displayed place geography.</p><p>Unshaded county remainder, wilderness, and open space should not be interpreted as a missing housing market. For example, unshaded portions of Laguna Coast Wilderness Park are not a separate Census place. OpenStreetMap supplies the underlying geographic context.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Reading the maps</CardTitle></CardHeader><CardContent className="method-copy"><p>The legend distinguishes three states: <strong>colored</strong> means the selected provider reports a current observation; <strong>gray</strong> means an official city/CDP or mapped ZCTA boundary exists but the selected observation is unavailable; <strong>unshaded</strong> means the land falls outside the displayed place geography. Maps open on a focused mainland view; offshore boundaries remain in the map geometry and can be reached by panning.</p><p>Unshaded county remainder, wilderness, and open space should not be interpreted as a missing housing market. For example, unshaded portions of Laguna Coast Wilderness Park are not a separate Census place. OpenStreetMap supplies the underlying geographic context.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Zillow, Redfin, Realtor.com, BLS CPI, and Census building permits are refreshed into independent versioned releases. Realtor.com products advance independently, as do final permit history and open preliminary permit years.</p><p>Each pipeline checks schemas, dates, coverage, quality flags, and size before advancing its pointer. The permit updater rebuilds the 1980–present archive only when a new final annual file appears; routine checks touch only the small open-year layer. A failed update leaves the prior validated release available and does not block another source.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Cost &amp; portability</CardTitle></CardHeader><CardContent className="method-copy"><p>The site is a static export with no database, application server, paid API, or paid map service. GitHub Actions performs periodic updates and GitHub Pages serves the files.</p><p>Large national source files are streamed without being stored. Only compact local visual data are published, with provider-specific size limits and three Realtor.com releases retained per product for rollback.</p></CardContent></Card>
           </section>

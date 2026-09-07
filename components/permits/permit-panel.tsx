@@ -14,6 +14,7 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { DEFAULT_MAP_FIT_OPTIONS, focusedMapBounds } from "@/lib/map-view";
 
 type PermitMetricKey =
   | "total_units"
@@ -269,7 +270,7 @@ function PermitMap({ mapData, dataset, county, metric, dateIndex, selectedId, on
     }).addTo(map);
     const fitKey = county;
     if (lastFit.current !== fitKey) {
-      map.fitBounds(L.latLngBounds(shapes.bounds), { padding: [18, 18], maxZoom: 11 });
+      map.fitBounds(L.latLngBounds(focusedMapBounds(county, shapes.bounds)), DEFAULT_MAP_FIT_OPTIONS);
       lastFit.current = fitKey;
     }
     map.invalidateSize({ pan: false });
@@ -277,7 +278,7 @@ function PermitMap({ mapData, dataset, county, metric, dateIndex, selectedId, on
 
   function resetMap() {
     const L = leafletRef.current;
-    if (L && mapRef.current) mapRef.current.fitBounds(L.latLngBounds(shapes.bounds), { padding: [18, 18], maxZoom: 11 });
+    if (L && mapRef.current) mapRef.current.fitBounds(L.latLngBounds(focusedMapBounds(county, shapes.bounds)), DEFAULT_MAP_FIT_OPTIONS);
   }
 
   const reported = values.filter((item) => item.region && item.value != null).length;

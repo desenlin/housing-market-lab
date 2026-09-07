@@ -220,6 +220,9 @@ def extract_source(
                     "name": label,
                     "county": county,
                     "context": secondary,
+                    "census_region": metro.get("census_region") if geography == "metro" else None,
+                    "division": metro.get("division") if geography == "metro" else None,
+                    "role": metro.get("role") if geography == "metro" else None,
                     "values": values,
                 }
             )
@@ -257,6 +260,11 @@ def combine_geography(
                     "name": region["name"],
                     "county": region["county"],
                     "context": region["context"],
+                    **({
+                        "census_region": region["census_region"],
+                        "division": region["division"],
+                        "role": region["role"],
+                    } if geography == "metro" else {}),
                     "series": {},
                 },
             )
@@ -279,7 +287,7 @@ def combine_geography(
     return {"geography": geography, "metrics": metrics, "regions": regions}
 
 
-def validate_payloads(payloads: dict[str, dict[str, Any]]) -> None:
+def validate_payloads(payloads: dict[str, dict[str, Any]], config: dict[str, Any]) -> None:
     thresholds = {"city": 140, "zip": 340, "metro": 5}
     for geography, minimum in thresholds.items():
         count = len(payloads[geography]["regions"])
@@ -293,6 +301,23 @@ def validate_payloads(payloads: dict[str, dict[str, Any]]) -> None:
     }
     if rent_counts["city"] < 110 or rent_counts["zip"] < 300:
         raise RuntimeError(f"rent coverage collapsed: {rent_counts}")
+    expected_metros = {item["label"] for item in config["metros"]}
+    actual_metros = {region["name"] for region in payloads["metro"]["regions"]}
+    if actual_metros != expected_metros:
+        raise RuntimeError(
+            f"metro coverage mismatch: missing {sorted(expected_metros - actual_metros)}; "
+            f"unexpected {sorted(actual_metros - expected_metros)}"
+        )
+    required_metro_metrics = {
+        item["metric"] for item in config["sources"] if item["geography"] == "metro"
+    }
+    incomplete = {
+        region["name"]: sorted(required_metro_metrics - set(region["series"]))
+        for region in payloads["metro"]["regions"]
+        if required_metro_metrics - set(region["series"])
+    }
+    if incomplete:
+        raise RuntimeError(f"metro metric coverage incomplete: {incomplete}")
 
 
 def download_zip(url: str, destination: Path) -> None:
@@ -566,7 +591,7 @@ def main() -> None:
             geography: combine_geography(geography, extracted)
             for geography in ("city", "zip", "metro")
         }
-        validate_payloads(payloads)
+        validate_payloads(payloads, config)
         maps = {} if args.skip_maps else build_maps(payloads, config, temp_dir)
 
         bundle_files: dict[str, bytes] = {

@@ -40,14 +40,35 @@ test("metro comparison contains the intended unique markets", async () => {
   const metro = await readJson(`releases/${latest.release}/metro.json`);
   const names = metro.regions.map((region) => region.name);
   assert.deepEqual([...new Set(names)].sort(), [
-    "Austin",
-    "Los Angeles",
-    "Phoenix",
-    "Riverside",
-    "San Diego",
-    "San Francisco",
-    "San Jose",
+    "Atlanta, GA",
+    "Austin, TX",
+    "Boston, MA",
+    "Chicago, IL",
+    "Dallas, TX",
+    "Denver, CO",
+    "Los Angeles, CA",
+    "Minneapolis, MN",
+    "Nashville, TN",
+    "New York, NY",
+    "Phoenix, AZ",
+    "Riverside, CA",
+    "San Diego, CA",
+    "San Francisco, CA",
+    "San Jose, CA",
+    "Seattle, WA",
   ]);
+  assert.deepEqual([...new Set(metro.regions.map((region) => region.division))].sort(), [
+    "East North Central",
+    "East South Central",
+    "Middle Atlantic",
+    "Mountain",
+    "New England",
+    "Pacific",
+    "South Atlantic",
+    "West North Central",
+    "West South Central",
+  ]);
+  assert.equal(metro.regions.find((region) => region.name === "Riverside, CA")?.role, "nearby");
 });
 
 test("Redfin pointer resolves to an independent local activity release", async () => {

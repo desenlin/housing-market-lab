@@ -2,13 +2,22 @@
   "data_page": "https://www.zillow.com/research/data/",
   "counties": ["Orange County", "Los Angeles County"],
   "metros": [
-    {"label": "Los Angeles", "match": "Los Angeles, CA"},
-    {"label": "Riverside", "match": "Riverside, CA"},
-    {"label": "San Diego", "match": "San Diego, CA"},
-    {"label": "San Francisco", "match": "San Francisco, CA"},
-    {"label": "San Jose", "match": "San Jose, CA"},
-    {"label": "Phoenix", "match": "Phoenix, AZ"},
-    {"label": "Austin", "match": "Austin, TX"}
+    {"label": "Los Angeles, CA", "match": "Los Angeles, CA", "census_region": "West", "division": "Pacific", "role": "focus"},
+    {"label": "Riverside, CA", "match": "Riverside, CA", "census_region": "West", "division": "Pacific", "role": "nearby"},
+    {"label": "San Diego, CA", "match": "San Diego, CA", "census_region": "West", "division": "Pacific"},
+    {"label": "San Francisco, CA", "match": "San Francisco, CA", "census_region": "West", "division": "Pacific"},
+    {"label": "San Jose, CA", "match": "San Jose, CA", "census_region": "West", "division": "Pacific"},
+    {"label": "Seattle, WA", "match": "Seattle, WA", "census_region": "West", "division": "Pacific"},
+    {"label": "Phoenix, AZ", "match": "Phoenix, AZ", "census_region": "West", "division": "Mountain"},
+    {"label": "Denver, CO", "match": "Denver, CO", "census_region": "West", "division": "Mountain"},
+    {"label": "Austin, TX", "match": "Austin, TX", "census_region": "South", "division": "West South Central"},
+    {"label": "Dallas, TX", "match": "Dallas, TX", "census_region": "South", "division": "West South Central"},
+    {"label": "Nashville, TN", "match": "Nashville, TN", "census_region": "South", "division": "East South Central"},
+    {"label": "Atlanta, GA", "match": "Atlanta, GA", "census_region": "South", "division": "South Atlantic"},
+    {"label": "Minneapolis, MN", "match": "Minneapolis, MN", "census_region": "Midwest", "division": "West North Central"},
+    {"label": "Chicago, IL", "match": "Chicago, IL", "census_region": "Midwest", "division": "East North Central"},
+    {"label": "New York, NY", "match": "New York, NY", "census_region": "Northeast", "division": "Middle Atlantic"},
+    {"label": "Boston, MA", "match": "Boston, MA", "census_region": "Northeast", "division": "New England"}
   ],
   "sources": [
     {

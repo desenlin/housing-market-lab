@@ -66,6 +66,30 @@ class PipelineHelpersTest(unittest.TestCase):
         )
         self.assertEqual(payload["regions"][0]["series"]["zhvi"], {"o": 1, "v": [100, 101]})
 
+    def test_metro_metadata_is_preserved(self):
+        payload = combine_geography(
+            "metro",
+            [{
+                "geography": "metro",
+                "metric": "zhvi",
+                "dates": ["2024-01-31"],
+                "regions": [{
+                    "id": "2",
+                    "name": "Riverside, CA",
+                    "county": None,
+                    "context": "Riverside, CA",
+                    "census_region": "West",
+                    "division": "Pacific",
+                    "role": "nearby",
+                    "values": [500000],
+                }],
+            }],
+        )
+        region = payload["regions"][0]
+        self.assertEqual(region["census_region"], "West")
+        self.assertEqual(region["division"], "Pacific")
+        self.assertEqual(region["role"], "nearby")
+
 
 if __name__ == "__main__":
     unittest.main()
