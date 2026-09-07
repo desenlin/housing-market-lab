@@ -20,6 +20,7 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Metro Comparisons/);
   assert.match(source, /Latest cycle position/);
   assert.match(source, /Inventory growth vs\./);
+  assert.match(source, /<TabsTrigger value="activity">Market Conditions<\/TabsTrigger>\s*<TabsTrigger value="permits">Building Permits<\/TabsTrigger>/);
   assert.match(source, /<TabsTrigger value="methods">Data &amp; methods<\/TabsTrigger>\s*<TabsTrigger value="about">About<\/TabsTrigger>/);
   assert.match(source, /Housing evidence for learning, research, and public discussion/);
   assert.match(source, /Support instruction/);
@@ -74,6 +75,7 @@ test("repository front page includes citation and academic-use limits", async ()
   assert.match(notices, /Zillow Research/);
   assert.match(notices, /Redfin Data Center/);
   assert.match(notices, /Realtor\.com Economic Research/);
+  assert.match(notices, /Building Permits Survey/);
 });
 
 test("uses the academic website Google Analytics property", async () => {

@@ -44,12 +44,13 @@ BLS-published material is public domain except for identified third-party photog
 
 ## U.S. Census Bureau
 
-- **Material used:** Census cartographic boundary files and geographic reference information.
+- **Material used:** Building Permits Survey place-level housing-unit authorizations, ACS five-year total housing units, Census cartographic boundary files, and geographic reference information.
+- **Permit source:** [Census Building Permits Survey](https://www.census.gov/construction/bps/) and [HUD SOCDS verification interface](https://www.huduser.gov/socds/permits/)
 - **Source:** [Census cartographic boundary files](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html)
 - **Citation guidance:** [Citing Census data and geographic products](https://www.census.gov/about/policies/citation.html)
 - **Attribution:** U.S. Census Bureau, with the boundary vintage recorded in [DATA_SOURCES.md](DATA_SOURCES.md).
 
-Derived classifications and conclusions are the responsibility of Housing Market Lab and do not imply Census Bureau endorsement.
+U.S. Census Bureau data and publications are generally public domain; provider marks and any identified third-party content remain excluded. The lab records release provenance, labels preliminary and imputed permit observations, and does not imply that HUD produced a separate estimate. Derived classifications and conclusions are the responsibility of Housing Market Lab and do not imply Census Bureau or HUD endorsement.
 
 ## OpenStreetMap
 

@@ -81,6 +81,27 @@ Both series are CPI-U, All Items, monthly, with an index reference base of 1982�
 
 The pipeline constructs a complete monthly calendar and preserves an unavailable official observation as `null`; it does not interpolate or carry CPI forward. Consequently, real housing observations end with the latest month for which both the housing measure and selected CPI exist. The local index has a smaller sample and can be more volatile than the national index, so year-over-year inflation is emphasized over month-to-month change.
 
+## Building Permits Survey
+
+The permit pipeline downloads the Census Bureau's documented comma-delimited West-region place files underlying the [Building Permits Survey](https://www.census.gov/construction/bps/). [HUD SOCDS Building Permits](https://www.huduser.gov/socds/permits/) remains linked in the interface as a convenient jurisdiction-level verification tool. The project attributes the observations to the U.S. Census Bureau rather than describing SOCDS as a separate statistical source.
+
+| Display measure | Construction categories | Interpretation |
+|---|---|---|
+| All units authorized | 1-unit + 2-unit + 3–4-unit + 5+-unit structures | New privately owned housing units authorized by permits |
+| Single-unit housing | 1-unit structures | Attached or detached single-unit structures |
+| Units in 2–4-unit buildings | 2-unit + 3–4-unit structures | Small multifamily authorizations |
+| Units in 5+-unit buildings | 5+-unit structures | Larger multifamily authorizations |
+| 5+-unit share | 5+-unit housing units ÷ all authorized units | Structure mix among authorized units |
+| Units per 1,000 existing units | All authorized units ÷ ACS housing stock × 1,000 | Permitting intensity relative to the current housing base |
+
+Annual place files are retained from 1980 through the latest final year. Monthly place files begin in January 2022 because the BPS local-area estimation method changed then; starting at the method break provides a more coherent comparison window. Current-year monthly records are preliminary, can be revised, and can include Census-imputed values. Final annual files also disclose reported-only components and months reported; the compact release stores month indexes where reported and published totals differ.
+
+The geographic unit is the permit-issuing jurisdiction, not every Census place. The current reference contains 122 incorporated cities and the Los Angeles County and Orange County unincorporated-area aggregates. Census-designated places such as Rossmoor do not receive a separate BPS observation: their map boundaries are labelled as included in the appropriate county unincorporated total and are never assigned a duplicated county value. County totals shown in the interface sum incorporated jurisdictions plus the unincorporated aggregate.
+
+Modern records are joined by five-digit Census place FIPS. Older BPS identifiers were reused as the permitting universe changed, so legacy rows are joined by county and a normalized jurisdiction name instead of treating the raw six-digit BPS identifier as stable. Unit tests preserve this rule. The normalization denominator is the configured ACS five-year table `B25001` (total housing units); the unincorporated denominator is the county estimate less the included incorporated-place estimates.
+
+Final history and open years have independent atomic pointers. A routine check discovers the newest cumulative revised monthly file and rebuilds only the provisional bundle. Annual history, final 2022–present monthly data, and the ACS denominator are rebuilt only when the latest final annual year changes. Coverage must remain at 89 Los Angeles County jurisdictions and 35 Orange County jurisdictions, duplicate jurisdiction-dates are rejected, and compact history/provisional releases are capped separately before publication.
+
 ## Census cartographic boundaries
 
 - 2025 California Places, 1:500,000 cartographic boundary file
@@ -113,9 +134,9 @@ Changing the constant-dollar base month rescales the displayed real dollar level
 
 ## Release checks
 
-A provider release is rejected unless all required files stream or download, date columns are ordered and sufficiently long, local coverage remains above conservative floors, and processed public data stays under its size guardrail. Zillow, Redfin, Realtor.com Inventory, Realtor.com Hotness, and BLS CPI use independent versioned directories and `latest.json` pointers, so a failure retains the prior release for that provider or product.
+A provider release is rejected unless all required files stream or download, date columns are ordered and sufficiently long, local coverage remains above conservative floors, and processed public data stays under its size guardrail. Zillow, Redfin, Realtor.com Inventory, Realtor.com Hotness, BLS CPI, final permit history, and provisional permit years use independent versioned directories and `latest.json` pointers, so a failure retains the prior release for that provider or product.
 
-The scheduled workflow checks all three providers on four staggered dates each month. Release timing is intentionally decoupled: a newer CPI release does not require a simultaneous Zillow release, and a newer Zillow release does not wait for CPI. Nominal housing observations remain available through Zillow's latest validated month. Constant-dollar levels, real changes, and same-month inflation comparisons use only exact months with official observations in both the selected housing series and selected CPI series; unmatched newer housing months remain unavailable in real terms until BLS publishes the corresponding CPI observation.
+The scheduled workflow checks all providers on four staggered dates each month. Release timing is intentionally decoupled: a newer CPI release does not require a simultaneous Zillow release, and a newer Zillow release does not wait for CPI. Nominal housing observations remain available through Zillow's latest validated month. Constant-dollar levels, real changes, and same-month inflation comparisons use only exact months with official observations in both the selected housing series and selected CPI series; unmatched newer housing months remain unavailable in real terms until BLS publishes the corresponding CPI observation.
 
 Data provided by Zillow Group, Redfin, and Realtor.com® Economic Research. This repository does not redistribute the complete provider files. See [THIRD_PARTY_DATA.md](THIRD_PARTY_DATA.md) for source-specific attribution and reuse limits.
 

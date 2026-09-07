@@ -124,3 +124,34 @@ test("BLS CPI pointer resolves to complete LA-area and U.S. series", async () =>
   assert.equal(cpi.series.la.seasonal_adjustment, "Not seasonally adjusted");
   assert.ok(cpi.series.la.values.some((value) => value === null));
 });
+
+test("building permit pointers separate final history from the open preliminary year", async () => {
+  const [historyPointer, provisionalPointer] = await Promise.all([
+    readJson("permits/history/latest.json"),
+    readJson("permits/provisional/latest.json"),
+  ]);
+  const historyPrefix = `permits/history/releases/${historyPointer.release}/`;
+  const provisionalPrefix = `permits/provisional/releases/${provisionalPointer.release}/`;
+  const [historyManifest, annual, finalMonthly, provisionalManifest, openMonthly] = await Promise.all([
+    readJson(`${historyPrefix}manifest.json`),
+    readJson(`${historyPrefix}annual.json`),
+    readJson(`${historyPrefix}monthly.json`),
+    readJson(`${provisionalPrefix}manifest.json`),
+    readJson(`${provisionalPrefix}monthly.json`),
+  ]);
+  assert.equal(historyManifest.provider, "U.S. Census Bureau Building Permits Survey");
+  assert.equal(historyManifest.counts.jurisdictions, 124);
+  assert.equal(historyManifest.counts.cities, 122);
+  assert.equal(annual.dates[0], "1980");
+  assert.equal(annual.dates.at(-1), String(historyManifest.latest_final_year));
+  assert.equal(annual.dates.length, historyManifest.latest_final_year - 1979);
+  assert.equal(finalMonthly.dates[0], "2022-01");
+  assert.ok(openMonthly.dates.every((date) => Number(date.slice(0, 4)) > historyManifest.latest_final_year));
+  assert.equal(openMonthly.dates.at(-1), provisionalManifest.latest_observation);
+  assert.equal(annual.regions.length, 124);
+  assert.equal(openMonthly.regions.length, 124);
+  assert.ok(annual.regions.every((region) => region.series.total_units.length === annual.dates.length));
+  assert.ok(openMonthly.regions.every((region) => region.quality.imputed.every((index) => index < openMonthly.dates.length)));
+  assert.ok(annual.regions.some((region) => region.name === "Orange County Unincorporated Area"));
+  assert.ok(!annual.regions.some((region) => region.name === "Rossmoor"));
+});

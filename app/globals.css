@@ -58,6 +58,7 @@ button, select { font: inherit; }
 .source-badge.realtor { border-color: #efc17c; background: #fff7e8; color: #875300; }
 .source-badge.zillow-derived { border-color: #c7c1e6; background: #f3f0ff; color: #493e91; }
 .source-badge.bls { border-color: #a7c8b8; background: #eef8f2; color: #22624d; }
+.source-badge.census { border-color: #9fc3d8; background: #edf7fb; color: #15516f; }
 .source-warning { color: #875300; font-weight: 650; }
 .control-grid { display: grid; grid-template-columns: 1.2fr 1.3fr 1.35fr 1.2fr; gap: 12px; }
 .control-label { display: grid; gap: 6px; color: #4d6070; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
@@ -171,6 +172,43 @@ button, select { font: inherit; }
 .regional-intro { display: grid; grid-template-columns: 1fr 1fr; align-items: end; gap: 40px; border-bottom: 1px solid #c9d5db; padding: 10px 2px 20px; }
 .regional-intro h2 { max-width: 620px; margin: 0; color: #12355b; font-family: Georgia, serif; font-size: clamp(28px, 4vw, 43px); line-height: 1.08; }
 .regional-intro > p { margin: 0; color: #566b7a; line-height: 1.65; }
+.permit-stack { display: grid; gap: 20px; }
+.permit-intro { border-bottom-color: #9fc3d8; }
+.permit-intro .section-kicker { color: #155f82; }
+.permit-controls { grid-template-columns: 1fr 1.25fr 1.5fr 1.25fr; }
+.permit-status-chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 9px; font-size: 11px; font-weight: 800; }
+.permit-status-chip.preliminary { border: 1px solid #efc17c; background: #fff7e8; color: #875300; }
+.permit-status-chip.final { border: 1px solid #a7c8b8; background: #eef8f2; color: #22624d; }
+.permit-add { min-height: 35px; border: 1px solid #12355b; border-radius: 5px; background: #12355b; color: white; padding: 0 16px; font-weight: 750; cursor: pointer; }
+.permit-add:disabled { border-color: #bdcbd2; background: #e5ebee; color: #8796a0; cursor: not-allowed; }
+.permit-kpis .kpi-card:last-child { border-color: #e5b995; background: #fffaf6; }
+.permit-quality-value { font-size: 22px; }
+.permit-analysis-grid { grid-template-columns: minmax(0, 1.65fr) minmax(330px, .8fr); }
+.permit-definition { max-width: 320px; margin: 0; color: #71818c; font-size: 11px; line-height: 1.45; text-align: right; }
+.permit-chart-wrap { padding: 10px 13px 13px !important; }
+.permit-chart { width: 100%; height: 400px; }
+.permit-ranking .ranking-list { max-height: 468px; }
+.permit-rank-columns, .permit-rank-row { display: grid; grid-template-columns: 25px minmax(130px, 1fr) 105px; gap: 8px; align-items: center; }
+.permit-rank-columns { margin-top: 10px; color: #7a8993; font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.permit-rank-columns span:last-child { text-align: right; }
+.permit-rank-row { width: 100%; border: 0; border-bottom: 1px solid #edf1f3; background: white; padding: 9px 15px; color: #173752; text-align: left; cursor: pointer; }
+.permit-rank-row:hover, .permit-rank-row.active { background: #fff5ed; }
+.permit-rank-row strong { font-size: 11px; text-align: right; white-space: nowrap; }
+.permit-county-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.permit-county-summary > div { border-color: #ccd7dd; box-shadow: none; }
+.permit-county-summary dl { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 0; }
+.permit-county-summary dl div { border-left: 3px solid #9fc3d8; padding-left: 10px; }
+.permit-county-summary dt { color: #71818c; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.permit-county-summary dd { margin: 4px 0 0; color: #12355b; font-family: Georgia, serif; font-size: 22px; font-weight: 700; }
+.permit-county-summary p { margin: 13px 0 0; color: #71818c; font-size: 11px; line-height: 1.45; }
+.permit-map-panel .leaflet-map { margin-top: 12px; }
+.map-swatch.permit-cdp { border-style: dashed; background: #e8edf0; }
+.permit-method-note a { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; color: #b94d00; font-weight: 700; text-decoration: none; }
+.permit-method-note a:hover { text-decoration: underline; }
+.permit-method-note a svg { width: 13px; }
+.permit-status { min-height: 330px; display: flex; align-items: center; justify-content: center; gap: 10px; color: #526a7a; }
+.permit-status .loader { width: 22px; height: 22px; }
+.permit-error { flex-direction: column; border: 1px solid #e5b995; border-radius: 8px; background: #fffaf6; color: #875300; }
 .activity-intro { border-bottom-color: #efb8b1; }
 .activity-intro .section-kicker { color: #a12622; }
 .activity-controls { grid-template-columns: 1.65fr 1fr 1.15fr 1.45fr 1.15fr; }
@@ -246,6 +284,7 @@ footer p { margin: 0; }
   .ranking-list { max-height: 330px; }
   .about-objectives { grid-template-columns: 1fr; }
   .regional-visual-grid { grid-template-columns: 1fr; }
+  .permit-analysis-grid { grid-template-columns: 1fr; }
   footer { grid-template-columns: 1fr; }
   .footer-about { justify-items: start; text-align: left; }
   .hotness-chart { height: 360px; }
@@ -258,6 +297,8 @@ footer p { margin: 0; }
   .main-tabs button { font-size: 12px; } .control-grid, .regional-controls, .activity-controls { grid-template-columns: 1fr; max-width: none; }
   .comparison-row { align-items: stretch; flex-wrap: wrap; } .comparison-select { min-width: 100%; }
   .price-controls { grid-template-columns: 1fr; }
+  .permit-controls, .permit-county-summary { grid-template-columns: 1fr; }
+  .permit-definition { max-width: none; text-align: left; }
   .kpi-grid { grid-template-columns: 1fr 1fr; gap: 8px; } .kpi-value { font-size: 21px; }
   .chart-header { display: block !important; } .chart-options { justify-content: flex-start; margin-top: 12px; } .chart-options > p { width: 100%; text-align: left; }
   .ranking-title { display: block; } .ranking-title .control-label { margin-top: 10px; }

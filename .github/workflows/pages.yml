@@ -43,7 +43,7 @@ jobs:
 
       - name: Refresh and validate provider data
         id: refresh
-        if: github.event_name != 'push' || hashFiles('public/data/redfin/latest.json') == '' || hashFiles('public/data/realtor/inventory/latest.json') == '' || hashFiles('public/data/realtor/hotness/latest.json') == '' || hashFiles('public/data/cpi/latest.json') == '' || contains(github.event.head_commit.message, '[refresh-data]')
+        if: github.event_name != 'push' || hashFiles('public/data/redfin/latest.json') == '' || hashFiles('public/data/realtor/inventory/latest.json') == '' || hashFiles('public/data/realtor/hotness/latest.json') == '' || hashFiles('public/data/cpi/latest.json') == '' || hashFiles('public/data/permits/history/latest.json') == '' || hashFiles('public/data/permits/provisional/latest.json') == '' || contains(github.event.head_commit.message, '[refresh-data]')
         env:
           FULL_REFRESH: ${{ contains(github.event.head_commit.message, '[refresh-data]') }}
         run: |
@@ -55,6 +55,8 @@ jobs:
             realtor_status=$?
             python pipeline/update_cpi.py
             cpi_status=$?
+            python pipeline/update_permits.py
+            permits_status=$?
             set -e
             if [ "$redfin_status" -ne 0 ]; then
               echo "::warning::Redfin refresh failed; retaining its prior validated release."
@@ -65,7 +67,10 @@ jobs:
             if [ "$cpi_status" -ne 0 ]; then
               echo "::warning::BLS CPI refresh failed; retaining its prior validated release."
             fi
-            if [ "$redfin_status" -ne 0 ] && [ "$realtor_status" -ne 0 ] && [ "$cpi_status" -ne 0 ]; then
+            if [ "$permits_status" -ne 0 ]; then
+              echo "::warning::Census building permits refresh failed; retaining its prior validated releases."
+            fi
+            if [ "$redfin_status" -ne 0 ] && [ "$realtor_status" -ne 0 ] && [ "$cpi_status" -ne 0 ] && [ "$permits_status" -ne 0 ]; then
               exit 1
             fi
             exit 0
@@ -79,6 +84,8 @@ jobs:
           realtor_status=$?
           python pipeline/update_cpi.py
           cpi_status=$?
+          python pipeline/update_permits.py
+          permits_status=$?
           set -e
           if [ "$zillow_status" -ne 0 ]; then
             echo "::warning::Zillow refresh failed; retaining its prior validated release."
@@ -92,7 +99,10 @@ jobs:
           if [ "$cpi_status" -ne 0 ]; then
             echo "::warning::BLS CPI refresh failed; retaining its prior validated release."
           fi
-          if [ "$zillow_status" -ne 0 ] && [ "$redfin_status" -ne 0 ] && [ "$realtor_status" -ne 0 ] && [ "$cpi_status" -ne 0 ]; then
+          if [ "$permits_status" -ne 0 ]; then
+            echo "::warning::Census building permits refresh failed; retaining its prior validated releases."
+          fi
+          if [ "$zillow_status" -ne 0 ] && [ "$redfin_status" -ne 0 ] && [ "$realtor_status" -ne 0 ] && [ "$cpi_status" -ne 0 ] && [ "$permits_status" -ne 0 ]; then
             exit 1
           fi
 

@@ -17,6 +17,7 @@ Created by **[Desen Lin](https://desenlin.com/)**, California State University, 
 - A derived price–rent multiple
 - Redfin months of supply, median days on market, sales above original list, price-drop share, and median sale price per square foot
 - Realtor.com monthly ZIP-level active and new listings, pending ratio, listing viewers relative to the U.S., and Market Hotness
+- Census Building Permits Survey annual history from 1980 and monthly place-level observations from 2022, with explicit preliminary and imputation status
 - Explicit source and reporting-window labels, with hover/focus definitions for market concepts
 - Current levels and explicitly labeled changes from one year earlier
 - User-selected one-, three-, and five-year or maximum chart windows
@@ -34,6 +35,7 @@ The application is a static Next.js/Vinext export. It uses no database, paid API
 - [Redfin Data Center](https://www.redfin.com/news/data-center/downloads/) supplies local listing and transaction activity in rolling three-month windows.
 - [Realtor.com® Economic Research](https://www.realtor.com/research/data/) supplies monthly ZIP-level inventory and buyer-interest measures.
 - [U.S. Bureau of Labor Statistics CPI](https://www.bls.gov/cpi/data.htm) supplies monthly LA-area and U.S. all-items CPI-U observations.
+- [U.S. Census Bureau Building Permits Survey](https://www.census.gov/construction/bps/) supplies permit-jurisdiction housing-unit authorizations; [HUD SOCDS](https://www.huduser.gov/socds/permits/) provides a public lookup interface for verification.
 - [US Census Bureau cartographic boundary files](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html) supply place and ZCTA boundaries.
 - [OpenStreetMap](https://www.openstreetmap.org/copyright) supplies contextual basemap tiles. Map data © OpenStreetMap contributors.
 
@@ -48,24 +50,31 @@ flowchart TD
   L[Realtor.com Research] --> M[Inventory pipeline]
   L --> N[Hotness pipeline]
   I[BLS CPI-U] --> J[CPI pipeline]
+  Q[Census BPS] --> R[Permit pipeline]
   C --> E[Zillow release pointer]
   D --> F[Redfin release pointer]
   M --> O[Inventory release pointer]
   N --> P[Hotness release pointer]
   J --> K[CPI release pointer]
+  R --> S[Final history pointer]
+  R --> T[Open-year pointer]
   E --> G[Static interactive site]
   F --> G
   O --> G
   P --> G
   K --> G
+  S --> G
+  T --> G
   G --> H[GitHub Pages and Sites]
 ```
 
-Raw source files are temporary. Zillow releases live in `public/data/releases/<release-id>/`; Redfin and BLS CPI releases live independently in `public/data/redfin/releases/<release-id>/` and `public/data/cpi/releases/<release-id>/`. Realtor.com Inventory and Hotness use separate directories and pointers under `public/data/realtor/` because they can be published at different times. Each pointer changes only after that source's schema, date, coverage, quality, and size checks succeed. The CPI pipeline reads BLS's official bulk time-series file first and uses the Public Data API only as a fallback, avoiding routine dependence on the API's unregistered daily quota.
+Raw source files are temporary. Zillow releases live in `public/data/releases/<release-id>/`; Redfin and BLS CPI releases live independently in `public/data/redfin/releases/<release-id>/` and `public/data/cpi/releases/<release-id>/`. Realtor.com Inventory and Hotness use separate directories and pointers under `public/data/realtor/` because they can be published at different times. Building permits use `history` and `provisional` pointers under `public/data/permits/`, allowing final annual history and open monthly years to advance independently. Each pointer changes only after that source's schema, date, coverage, quality, and size checks succeed. The CPI pipeline reads BLS's official bulk time-series file first and uses the Public Data API only as a fallback, avoiding routine dependence on the API's unregistered daily quota.
+
+Routine permit refreshes download only the latest cumulative West-region monthly file, publish roughly 80 KB of local observations when it changes, and leave the final-history bundle untouched. The 1980–present annual archive and fixed ACS housing-stock denominator are rebuilt only after a new final annual BPS file appears. This keeps the four monthly workflow checks lightweight while preserving a complete auditable history.
 
 The Realtor.com pipeline first compares the upstream ETag or modification metadata with the last validated release. It streams the large national history only when the source changes, never saves that national file, and publishes only compact chart-ready observations for the two-county ZIP reference. Reported observations are retained when Realtor.com assigns its row-level quality flag; compact month-index lists carry those flags into charts, rankings, and maps without duplicating the series. Each Realtor.com product is capped at 5 MB per release and retains the latest three validated releases, providing rollback without unbounded repository growth.
 
-The Pages workflow runs on pushes, manual dispatch, and four staggered monthly refresh attempts (the 12th, 18th, 24th, and 28th). Each scheduled attempt checks Zillow, Redfin, Realtor.com Inventory, Realtor.com Hotness, and BLS CPI independently. A failed provider download or validation does not replace that provider's prior working release or prevent another provider from refreshing.
+The Pages workflow runs on pushes, manual dispatch, and four staggered monthly refresh attempts (the 12th, 18th, 24th, and 28th). Each scheduled attempt checks Zillow, Redfin, Realtor.com Inventory, Realtor.com Hotness, BLS CPI, and Census building permits independently. A failed provider download or validation does not replace that provider's prior working release or prevent another provider from refreshing.
 
 Provider releases do not need to arrive in the same order. If BLS CPI arrives before Zillow, the CPI pointer advances and waits for the next housing observation. If Zillow arrives first, nominal housing data advance immediately while real series stop at the latest month with an official observation in both datasets. A later successful refresh extends the real series automatically; the pipeline never carries CPI forward or substitutes a neighboring month.
 
@@ -80,6 +89,7 @@ python pipeline/update_data.py
 python pipeline/update_redfin.py
 python pipeline/update_realtor.py
 python pipeline/update_cpi.py
+python pipeline/update_permits.py
 npm run dev
 ```
 

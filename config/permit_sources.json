@@ -1,0 +1,27 @@
+{
+  "provider": "U.S. Census Bureau Building Permits Survey",
+  "data_page": "https://www.census.gov/construction/bps/",
+  "socds_page": "https://www.huduser.gov/socds/permits/",
+  "methodology_page": "https://www.census.gov/construction/bps/methodology.html",
+  "documentation_page": "https://www2.census.gov/econ/bps/Documentation/placeasc.pdf",
+  "annual_directory": "https://www2.census.gov/econ/bps/Place/West%20Region/",
+  "monthly_directory": "https://www2.census.gov/econ/bps/Detailed%20Revised%20Monthly/West%20Region/",
+  "acs_table_url": "https://www2.census.gov/programs-surveys/acs/summary_file/{year}/table-based-SF/data/5YRData/acsdt5y{year}-b25001.dat",
+  "annual_start_year": 1980,
+  "monthly_start_year": 2022,
+  "acs_year": 2024,
+  "counties": {
+    "037": {
+      "name": "Los Angeles County",
+      "expected_jurisdictions": 89
+    },
+    "059": {
+      "name": "Orange County",
+      "expected_jurisdictions": 35
+    }
+  },
+  "max_history_bytes": 5000000,
+  "max_provisional_bytes": 1000000,
+  "keep_history_releases": 2,
+  "keep_provisional_releases": 3
+}
