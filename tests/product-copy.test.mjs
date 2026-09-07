@@ -34,6 +34,9 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /View Realtor\.com Data Library/);
   assert.match(source, /Flagged observations remain visible but should be reviewed before reporting/);
   assert.match(source, /Hollow points identify flagged observations/);
+  assert.match(source, /Solid: trailing three-month average/);
+  assert.match(source, /Dashed with points: reported monthly observations/);
+  assert.match(source, /Simple moving average; no polynomial fit/);
   assert.match(source, /Market Hotness quadrant/);
   assert.match(source, /three Realtor\.com releases retained per product for rollback/);
   assert.match(source, /Gray boundaries have no data/);

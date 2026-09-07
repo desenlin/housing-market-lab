@@ -860,7 +860,8 @@ function SeriesChart({
                   name={region.id}
                   legendType="none"
                   stroke={color}
-                  strokeOpacity={0.26}
+                  strokeDasharray="4 3"
+                  strokeOpacity={0.42}
                   strokeWidth={1}
                   dot={dot}
                   connectNulls={false}
@@ -1054,6 +1055,16 @@ function RegionalCycleChart({
         <span>Selected metros use the line-chart colors; other comparison metros are gray.</span>
       </div>
     </>
+  );
+}
+
+function InventoryLineGuide() {
+  return (
+    <div className="series-guide" aria-label="Realtor.com inventory chart line guide">
+      <span><i className="series-guide-line smoothed" aria-hidden="true" />Solid: trailing three-month average</span>
+      <span><i className="series-guide-line monthly" aria-hidden="true" />Dashed with points: reported monthly observations</span>
+      <span className="series-guide-method">Simple moving average; no polynomial fit.</span>
+    </div>
   );
 }
 
@@ -2409,6 +2420,9 @@ export default function MarketLab() {
                       showQuality={activityLens === "realtor"}
                       smoothMonths={activityLens === "realtor" && activeActivityView === "level" && activityMetricMetadata.source_product === "inventory" ? 3 : 1}
                     />
+                    {activityLens === "realtor" && activeActivityView === "level" && activityMetricMetadata.source_product === "inventory" && (
+                      <InventoryLineGuide />
+                    )}
                     {activityLens === "realtor" && (
                       <QualityCoverage dataset={activityDataset} region={activityPrimary} metric={activeActivityMetric} timeRange={activeActivityTimeRange} />
                     )}

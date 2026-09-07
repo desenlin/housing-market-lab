@@ -101,6 +101,13 @@ button, select { font: inherit; }
 .time-range button.active { background: #12355b; border-color: #12355b; color: white; }
 .index-base input { min-height: 30px; border: 1px solid #c4d0d7; border-radius: 5px; background: #fff; color: #173752; padding: 3px 7px; font-size: 12px; font-weight: 650; letter-spacing: 0; text-transform: none; }
 .data-note { margin: 6px 5px 0; color: #7d5a42; background: #fff5ec; padding: 8px 10px; font-size: 12px; }
+.series-guide { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin: 2px 5px 8px; color: #526979; font-size: 11px; }
+.series-guide > span { display: inline-flex; align-items: center; gap: 6px; }
+.series-guide-line { position: relative; display: inline-block; width: 28px; height: 8px; flex: 0 0 auto; }
+.series-guide-line::before { position: absolute; top: 3px; right: 0; left: 0; border-top: 2px solid #385b75; content: ""; }
+.series-guide-line.monthly::before { border-top-style: dashed; border-top-width: 1px; opacity: .7; }
+.series-guide-line.monthly::after { position: absolute; top: 1px; left: 12px; width: 5px; height: 5px; border-radius: 50%; background: #385b75; content: ""; opacity: .7; }
+.series-guide-method { color: #73838e; font-style: italic; }
 .quality-summary { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 4px 5px 8px; border-top: 1px solid #e4eaed; padding-top: 8px; color: #607381; font-size: 12px; }
 .quality-summary strong { color: #173752; }
 .quality-summary-flag { color: #875300; }
