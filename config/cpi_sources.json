@@ -4,6 +4,13 @@
   "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.1.AllItems",
   "data_page": "https://www.bls.gov/cpi/data.htm",
   "start_year": 2000,
+  "real_value_interpolation": [
+    {
+      "month": "2025-10",
+      "method": "log_linear",
+      "reason": "BLS did not publish October 2025 CPI because the 2025 lapse in federal appropriations prevented data collection."
+    }
+  ],
   "series": [
     {
       "key": "la",

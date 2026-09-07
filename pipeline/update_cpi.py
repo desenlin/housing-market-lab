@@ -6,7 +6,8 @@ constant dollars and the U.S. CPI-U as a common benchmark in cross-metro
 figures. The official BLS bulk file is preferred because it is not subject to
 the Public Data API's unregistered daily query quota. The API remains a
 fallback, with requests split within its ten-year unregistered limit. Missing
-official observations remain explicit nulls and are never filled.
+official observations remain explicit nulls. A disclosed interpolation policy
+is published separately for the application's derived real-value calculations.
 """
 
 from __future__ import annotations
@@ -260,6 +261,7 @@ def main() -> None:
         "provider": config["provider"],
         "frequency": "Monthly",
         "data_page": config["data_page"],
+        "real_value_interpolation": config.get("real_value_interpolation", []),
         "series": series,
     }
     dataset_bytes = compact_json(dataset)
@@ -277,6 +279,7 @@ def main() -> None:
         "attribution": "Consumer Price Index data provided by the U.S. Bureau of Labor Statistics.",
         "data_page": config["data_page"],
         "frequency": "Monthly",
+        "real_value_interpolation": config.get("real_value_interpolation", []),
         "bundle_sha256": bundle_sha,
         "series": {
             key: {

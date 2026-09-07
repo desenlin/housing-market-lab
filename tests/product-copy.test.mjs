@@ -60,6 +60,9 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.doesNotMatch(source, /className=\{checked \? "metro-toggle active"/);
   assert.match(source, /nearby Riverside, CA is outlined in orange/);
   assert.match(source, /Real rent is a purchasing-power measure, not an affordability measure/);
+  assert.match(source, /October 2025 uses a log-linear CPI interpolation/);
+  assert.match(source, /Only derived real housing calculations fill that single gap/);
+  assert.match(source, /official CPI overlays retain the gap/i);
   assert.match(source, /className="footer-emphasis" href="https:\/\/desenlin\.com\/"/);
   assert.match(source, /className="footer-emphasis" href="https:\/\/business\.fullerton\.edu\/academics\/finance"/);
   assert.match(source, /className="footer-emphasis" href="https:\/\/www\.fullerton\.edu\/"/);

@@ -27,7 +27,7 @@ Created by **[Desen Lin](https://desenlin.com/)**, California State University, 
 - Population-ranked comparisons of the 20 largest U.S. metropolitan statistical areas, plus San Jose as a selected California comparator, including inventory, days-to-pending, price-cut-share, and sale-to-list measures
 - LA-area and U.S. CPI-U benchmarks, including year-over-year inflation overlays
 
-Local real-value views may use the LA-area CPI-U. Cross-metro real-value views instead use one U.S. city-average CPI-U series for every metro, avoiding incomparable local-index coverage and publication schedules.
+Local real-value views may use the LA-area CPI-U. Cross-metro real-value views instead use one U.S. city-average CPI-U series for every metro, avoiding incomparable local-index coverage and publication schedules. The official October 2025 CPI gap remains visible in CPI overlays; derived real housing series use a disclosed log-linear interpolation for that one month only.
 
 The application is a static Next.js/Vinext export. It uses no database, paid API, paid map service, or continuously running server. Google Analytics measures aggregate traffic using the same property as the academic website.
 
@@ -78,7 +78,7 @@ The Realtor.com pipeline first compares the upstream ETag or modification metada
 
 The Pages workflow runs on pushes, manual dispatch, and four staggered monthly refresh attempts (the 12th, 18th, 24th, and 28th). Each scheduled attempt checks Zillow, Redfin, Realtor.com Inventory, Realtor.com Hotness, BLS CPI, and Census building permits independently. A failed provider download or validation does not replace that provider's prior working release or prevent another provider from refreshing.
 
-Provider releases do not need to arrive in the same order. If BLS CPI arrives before Zillow, the CPI pointer advances and waits for the next housing observation. If Zillow arrives first, nominal housing data advance immediately while real series stop at the latest month with an official observation in both datasets. A later successful refresh extends the real series automatically; the pipeline never carries CPI forward or substitutes a neighboring month.
+Provider releases do not need to arrive in the same order. If BLS CPI arrives before Zillow, the CPI pointer advances and waits for the next housing observation. If Zillow arrives first, nominal housing data advance immediately while real series stop at the latest month with an observation in both datasets. A later successful refresh extends the real series automatically. CPI is never carried forward; the only derived exception is the documented October 2025 geometric interpolation between the adjacent official months.
 
 ## Local development
 

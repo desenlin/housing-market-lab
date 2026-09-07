@@ -83,7 +83,7 @@ test("calculates real growth as an exact CPI ratio", async () => {
   assert.ok(Math.abs(realYoy[12] - (1.2 / 1.1 - 1)) < 1e-12);
 });
 
-test("does not fill a housing month without an official CPI observation", async () => {
+test("does not fill a missing CPI observation without an approved rule", async () => {
   const { applyPriceAdjustment } = await vite.ssrLoadModule("/app/market-lab.tsx");
   const dates = ["2025-09-30", "2025-10-31", "2025-11-30"];
   const adjusted = applyPriceAdjustment(
@@ -96,6 +96,29 @@ test("does not fill a housing month without an official CPI observation", async 
     },
   );
   assert.deepEqual(adjusted.values, [102, null, 102]);
+});
+
+test("log-linearly interpolates only the approved October 2025 real-value deflator", async () => {
+  const { applyPriceAdjustment } = await vite.ssrLoadModule("/app/market-lab.tsx");
+  const dates = ["2025-09-30", "2025-10-31", "2025-11-30"];
+  const cpiValues = [100, null, 104];
+  const adjusted = applyPriceAdjustment(
+    { dates, values: [100, 101, 102], unit: "usd", changeMode: "percent" },
+    "zori",
+    {
+      basis: "real",
+      cpi: { key: "us", dates, values: cpiValues },
+      baseMonth: "2025-11",
+      interpolationRules: [{
+        month: "2025-10",
+        method: "log_linear",
+        reason: "Administrative collection gap",
+      }],
+    },
+  );
+
+  assert.ok(Math.abs(adjusted.values[1] - 101 * 104 / Math.sqrt(100 * 104)) < 1e-12);
+  assert.equal(cpiValues[1], null);
 });
 
 test("leaves a newer Zillow month null until its CPI observation arrives", async () => {

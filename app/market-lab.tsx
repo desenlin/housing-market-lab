@@ -192,10 +192,17 @@ type CpiSeries = {
   missing_observations: string[];
 };
 
+type CpiInterpolationRule = {
+  month: string;
+  method: "log_linear";
+  reason: string;
+};
+
 type CpiDataset = {
   provider: string;
   frequency: string;
   data_page: string;
+  real_value_interpolation?: CpiInterpolationRule[];
   series: Record<CpiSeriesKey, CpiSeries>;
 };
 
@@ -206,6 +213,7 @@ type CpiManifest = {
   attribution: string;
   data_page: string;
   frequency: string;
+  real_value_interpolation?: CpiInterpolationRule[];
   bundle_sha256: string;
   series: Record<CpiSeriesKey, {
     id: string;
@@ -219,6 +227,7 @@ type PriceAdjustment = {
   basis: PriceBasis;
   cpi: CpiSeries | null;
   baseMonth: string;
+  interpolationRules?: CpiInterpolationRule[];
 };
 
 type ChartOverlay = {
@@ -316,6 +325,25 @@ function mergeDatasets(datasets: Dataset[]): Dataset | null {
   };
 }
 
+export function cpiValuesForRealAdjustment(
+  cpi: Pick<CpiSeries, "dates" | "values">,
+  rules: CpiInterpolationRule[] = [],
+) {
+  const values = [...cpi.values];
+  const approvedMonths = new Set(
+    rules.filter((rule) => rule.method === "log_linear").map((rule) => rule.month),
+  );
+  cpi.dates.forEach((date, index) => {
+    if (values[index] != null || !approvedMonths.has(date.slice(0, 7))) return;
+    const previous = values[index - 1];
+    const next = values[index + 1];
+    if (previous != null && next != null && previous > 0 && next > 0) {
+      values[index] = Math.sqrt(previous * next);
+    }
+  });
+  return new Map(cpi.dates.map((date, index) => [date.slice(0, 7), values[index]]));
+}
+
 export function applyPriceAdjustment(
   series: { dates: string[]; values: Value[]; unit: string; changeMode: ChangeMode; qualityFlags?: boolean[] },
   metric: MetricKey,
@@ -327,8 +355,9 @@ export function applyPriceAdjustment(
     !adjustment.baseMonth ||
     (metric !== "zhvi" && metric !== "zori")
   ) return series;
-  const cpiByMonth = new Map(
-    adjustment.cpi.dates.map((date, index) => [date.slice(0, 7), adjustment.cpi!.values[index]]),
+  const cpiByMonth = cpiValuesForRealAdjustment(
+    adjustment.cpi,
+    adjustment.interpolationRules,
   );
   const baseCpi = cpiByMonth.get(adjustment.baseMonth);
   if (baseCpi == null || baseCpi === 0) return { ...series, values: series.values.map(() => null) };
@@ -959,10 +988,12 @@ function RegionalCycleChart({
   dataset,
   selectedIds,
   cpi,
+  interpolationRules,
 }: {
   dataset: Dataset;
   selectedIds: string[];
   cpi: CpiSeries | null;
+  interpolationRules: CpiInterpolationRule[];
 }) {
   const snapshot = useMemo(() => {
     const valueDates = metricDates(dataset, "zhvi");
@@ -972,6 +1003,7 @@ function RegionalCycleChart({
           basis: "real",
           cpi,
           baseMonth: normalizedRealBaseMonth(cpi, valueDates, ""),
+          interpolationRules,
         }
       : undefined;
     const series = dataset.regions.map((region) => {
@@ -1011,7 +1043,7 @@ function RegionalCycleChart({
       };
     });
     return { month, points };
-  }, [dataset, selectedIds, cpi]);
+  }, [dataset, selectedIds, cpi, interpolationRules]);
 
   if (!snapshot.points.length) {
     return <div className="chart-empty">A common home-value and inventory observation is not available.</div>;
@@ -1784,6 +1816,7 @@ export default function MarketLab() {
     basis: localBasis,
     cpi: localCpi,
     baseMonth: realBaseMonth,
+    interpolationRules: cpi?.real_value_interpolation ?? [],
   };
   const localRealBaseMonths = observedCpiMonths(localCpi, localDates);
   const regionalDates = datasets ? metricDates(datasets.metro, regionalMetric) : [];
@@ -1798,6 +1831,7 @@ export default function MarketLab() {
     basis: regionalBasis,
     cpi: regionalCpi,
     baseMonth: regionalRealBaseMonth,
+    interpolationRules: cpi?.real_value_interpolation ?? [],
   };
   const regionalRealBaseMonths = observedCpiMonths(regionalCpi, regionalDates);
   const eligible = useMemo(
@@ -2265,7 +2299,7 @@ export default function MarketLab() {
               <CardContent className="p-3 pt-0 sm:p-5 sm:pt-0">
                 <SeriesChart dataset={dataset} regions={selectedRegions} metric={metric} view={view} timeRange={timeRange} indexBaseMonth={indexBaseMonth} priceAdjustment={localPriceAdjustment} overlays={localInflationOverlays} />
                 {localBasis === "real" && (
-                  <p className="data-note">Real observations end with the latest available CPI month. The selected CPI-U series is not seasonally adjusted; year-over-year comparisons are preferable to month-to-month interpretation.</p>
+                  <p className="data-note">October 2025 uses a log-linear CPI interpolation between September and November because BLS did not publish that month. Official CPI overlays retain the gap; no other missing or trailing CPI month is filled.</p>
                 )}
                 {metric !== "zhvi" && selectedRegions.some((region) => metricSeries(dataset, region, metric).values.every((value) => value == null)) && (
                   <p className="data-note">Some regions are omitted where Zillow does not publish a usable rent history.</p>
@@ -2601,7 +2635,7 @@ export default function MarketLab() {
               </CardHeader>
               <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                 <SeriesChart dataset={datasets.metro} regions={regionalRegions} metric={regionalMetric} view={regionalView} timeRange={regionalTimeRange} indexBaseMonth={regionalIndexBaseMonth} priceAdjustment={regionalPriceAdjustment} overlays={regionalInflationOverlays} />
-                {regionalBasis === "real" && <p className="data-note">All real metro series use the U.S. city-average CPI-U and end with its latest available observation.</p>}
+                {regionalBasis === "real" && <p className="data-note">All real metro series use U.S. city-average CPI-U. October 2025 uses a log-linear interpolation between September and November; official CPI overlays retain the gap.</p>}
               </CardContent>
             </Card>
             <Card className="chart-card cycle-card">
@@ -2618,7 +2652,7 @@ export default function MarketLab() {
                 </div>
               </CardHeader>
               <CardContent className="cycle-chart-wrap">
-                <RegionalCycleChart dataset={datasets.metro} selectedIds={regionalIds} cpi={cpi?.series.us ?? null} />
+                <RegionalCycleChart dataset={datasets.metro} selectedIds={regionalIds} cpi={cpi?.series.us ?? null} interpolationRules={cpi?.real_value_interpolation ?? []} />
               </CardContent>
             </Card>
           </section>
@@ -2632,7 +2666,7 @@ export default function MarketLab() {
           <section className="method-grid">
             <Card><CardHeader><CardTitle>Zillow measures</CardTitle></CardHeader><CardContent className="method-copy"><p><strong>ZHVI</strong> estimates the typical mid-tier home value. <strong>ZORI</strong> tracks typical observed asking rent. The price–rent multiple is ZHVI divided by twelve months of ZORI.</p><p>Monthly year-over-year change compares each observation with the same month one year earlier. In indexed views, the user-selected starting month equals 100.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Nominal and real terms</CardTitle></CardHeader><CardContent className="method-copy"><p>Home values and rents can be shown in nominal dollars or converted to constant dollars using CPI-U. Local views default to the Los Angeles–Long Beach–Anaheim index, which covers Los Angeles and Orange Counties. Cross-metro views use the U.S. city average as a single common deflator; mixing local CPIs would introduce differences in geographic coverage and publication frequency.</p><p>Real value in base month <em>b</em> equals nominal value in month <em>t</em> multiplied by CPI<sub>b</sub>/CPI<sub>t</sub>. The base month changes displayed dollar levels but not real growth. Real rent is a purchasing-power measure, not an affordability measure.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>CPI and inflation</CardTitle></CardHeader><CardContent className="method-copy"><p>The lab retrieves monthly CPI-U, All Items directly from the U.S. Bureau of Labor Statistics: <code>CUURS49ASA0</code> for the LA area and <code>CUUR0000SA0</code> for the U.S. city average. Both are not seasonally adjusted.</p><p>Inflation is the exact change in CPI from the same month one year earlier. Officially missing CPI observations remain missing rather than being interpolated or carried forward.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>CPI and inflation</CardTitle></CardHeader><CardContent className="method-copy"><p>The lab retrieves monthly CPI-U, All Items directly from the U.S. Bureau of Labor Statistics: <code>CUURS49ASA0</code> for the LA area and <code>CUUR0000SA0</code> for the U.S. city average. Both are not seasonally adjusted.</p><p>Inflation overlays use only official observations. Because BLS could not collect October 2025 data during the federal appropriations lapse, the official series remains missing for that month. Only derived real housing calculations fill that single gap with the geometric midpoint of September and November CPI, equivalent to log-linear interpolation. No other missing or trailing month is filled.</p><p><a href="https://www.bls.gov/cpi/additional-resources/2025-federal-government-shutdown-impact-cpi.htm" target="_blank" rel="noreferrer">Read the BLS explanation <ExternalLink /></a></p></CardContent></Card>
             <Card><CardHeader><CardTitle>Redfin activity measures</CardTitle></CardHeader><CardContent className="method-copy"><p>Redfin supplies months of supply, median days on market, the share sold above original list, the share of active listings with price reductions, and median sale price per square foot.</p><p>City and ZIP observations are rolling three-month windows. Share changes are shown in percentage points; days and months use absolute differences; price per square foot uses percent change.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Realtor.com inventory and demand</CardTitle></CardHeader><CardContent className="method-copy"><p>Realtor.com® Economic Research supplies monthly ZIP-level active and new listings, the pending-to-active ratio, listing viewers relative to the U.S., and its Market Hotness score.</p><p>Hotness equally weights relative demand and supply scores based on listing attention and market speed. It is a comparative index, not a probability of sale. Provider-flagged ZIP-months remain visible and are explicitly marked for review.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Building permits</CardTitle></CardHeader><CardContent className="method-copy"><p>The U.S. Census Bureau Building Permits Survey reports new privately owned housing units authorized by permit-issuing jurisdictions. The lab groups units into single-unit, 2–4-unit, and 5+-unit structures and shows annual history from 1980 and comparable local monthly history from 2022.</p><p>Current-year monthly observations are preliminary and may be revised or imputed. Annual data become final after the Census Bureau’s revision cycle. Permit authorization is an early production indicator, not a housing start or completion.</p></CardContent></Card>

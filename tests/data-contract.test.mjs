@@ -153,6 +153,15 @@ test("BLS CPI pointer resolves to complete LA-area and U.S. series", async () =>
   assert.equal(cpi.series.us.dates.length, cpi.series.us.yoy.length);
   assert.equal(cpi.series.la.seasonal_adjustment, "Not seasonally adjusted");
   assert.ok(cpi.series.la.values.some((value) => value === null));
+  assert.deepEqual(cpi.real_value_interpolation.map(({ month, method }) => ({ month, method })), [
+    { month: "2025-10", method: "log_linear" },
+  ]);
+  assert.deepEqual(manifest.real_value_interpolation, cpi.real_value_interpolation);
+  for (const series of Object.values(cpi.series)) {
+    const october = series.dates.findIndex((date) => date.startsWith("2025-10"));
+    assert.equal(series.values[october], null);
+    assert.ok(series.missing_observations.includes(series.dates[october]));
+  }
 });
 
 test("building permit pointers separate final history from the open preliminary year", async () => {
