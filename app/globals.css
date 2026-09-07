@@ -190,7 +190,10 @@ button, select { font: inherit; }
 .metro-toggle.active i { border-color: #ff7a1a; background: #ff7a1a; }
 .regional-chart [data-slot="card-content"] { min-height: 410px; }
 .method-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-.method-grid h3, .provenance-card h3, .disclaimer-card h3 { color: #12355b; font-family: Georgia, serif; font-size: 22px; }
+.about-objectives { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.about-objectives > div, .about-principles { border-color: #ccd7dd; border-radius: 9px; box-shadow: 0 3px 15px rgb(16 47 80 / .045); }
+.about-objectives .section-kicker { color: #d85d08; }
+.method-grid h3, .provenance-card h3, .disclaimer-card h3, .about-objectives h3, .about-principles h3 { color: #12355b; font-family: Georgia, serif; font-size: 22px; }
 .method-copy { color: #506675; font-size: 14px; line-height: 1.65; }
 .method-copy p { margin: 0; } .method-copy p + p { margin-top: 10px; }
 .method-copy code { color: #9d3f00; background: #fff2e8; padding: 1px 4px; }
@@ -223,6 +226,7 @@ footer p { margin: 0; }
   .price-controls { grid-template-columns: 1fr 1fr; }
   .kpi-grid { grid-template-columns: 1fr 1fr; } .analysis-grid { grid-template-columns: 1fr; }
   .ranking-list { max-height: 330px; }
+  .about-objectives { grid-template-columns: 1fr; }
   footer { grid-template-columns: 1fr; }
   .footer-about { justify-items: start; text-align: left; }
   .hotness-chart { height: 360px; }

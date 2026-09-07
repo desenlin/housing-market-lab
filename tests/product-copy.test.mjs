@@ -18,6 +18,12 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Prices &amp; Rents/);
   assert.match(source, /Market Conditions/);
   assert.match(source, /Metro Comparisons/);
+  assert.match(source, /<TabsTrigger value="methods">Data &amp; methods<\/TabsTrigger>\s*<TabsTrigger value="about">About<\/TabsTrigger>/);
+  assert.match(source, /Housing evidence for learning, research, and public discussion/);
+  assert.match(source, /Support instruction/);
+  assert.match(source, /Facilitate research/);
+  assert.match(source, /Inform public discussion/);
+  assert.match(source, /do not necessarily reflect the positions of California State University, Fullerton/);
   assert.match(source, /Source: \{provider\}/);
   assert.match(source, /Definition of \$\{label\}/);
   assert.match(source, /rolling three-month window/i);

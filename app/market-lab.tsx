@@ -1931,6 +1931,7 @@ export default function MarketLab() {
           <TabsTrigger value="activity">Market Conditions</TabsTrigger>
           <TabsTrigger value="regional">Metro Comparisons</TabsTrigger>
           <TabsTrigger value="methods">Data &amp; methods</TabsTrigger>
+          <TabsTrigger value="about">About</TabsTrigger>
         </TabsList>
 
         <TabsContent value="local" className="space-y-5">
@@ -2379,6 +2380,41 @@ export default function MarketLab() {
                 <a className="source-link" href={cpiManifest?.data_page ?? "https://www.bls.gov/cpi/data.htm"} target="_blank" rel="noreferrer">View BLS CPI source data <ExternalLink /></a>
                 <a className="source-link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">View OpenStreetMap attribution <ExternalLink /></a>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="about" className="space-y-5">
+          <section className="regional-intro">
+            <div><p className="section-kicker">About the project</p><h2>Housing evidence for learning, research, and public discussion.</h2></div>
+            <p>The Housing Market Lab is an instructional and research-oriented platform that brings together selected public real estate and housing-market data from multiple sources in a consistent, locally focused interface. Its primary geographic focus is Los Angeles and Orange Counties, with city-, ZIP-code-, and metropolitan-level comparisons where the underlying data permit.</p>
+          </section>
+
+          <section className="about-objectives" aria-label="Project objectives">
+            <Card>
+              <CardHeader><p className="section-kicker">Students</p><CardTitle>Support instruction</CardTitle></CardHeader>
+              <CardContent className="method-copy"><p>The Lab helps students connect real estate and urban-economic concepts with observed market conditions. Users can examine prices, rents, inventory, market activity, inflation-adjusted trends, and differences across local markets.</p></CardContent>
+            </Card>
+            <Card>
+              <CardHeader><p className="section-kicker">Researchers</p><CardTitle>Facilitate research</CardTitle></CardHeader>
+              <CardContent className="method-copy"><p>The project harmonizes selected measures from multiple data providers and documents their definitions, geographic coverage, release timing, and limitations. It is intended to make exploratory analysis and the development of research questions more efficient and transparent.</p></CardContent>
+            </Card>
+            <Card>
+              <CardHeader><p className="section-kicker">Public users</p><CardTitle>Inform public discussion</CardTitle></CardHeader>
+              <CardContent className="method-copy"><p>The Lab provides policymakers, practitioners, and community members with accessible, ready-to-use descriptive indicators for comparing markets, identifying emerging patterns, and evaluating questions that may warrant further investigation.</p></CardContent>
+            </Card>
+          </section>
+
+          <Card className="about-principles">
+            <CardHeader><CardTitle>Guiding principles</CardTitle></CardHeader>
+            <CardContent className="method-copy"><p>The project emphasizes transparent definitions, clear source attribution, reproducible data processing, and responsible interpretation. Rather than presenting every available series, it prioritizes measures that provide distinct economic insight while keeping the published data lightweight and maintainable.</p></CardContent>
+          </Card>
+
+          <Card className="disclaimer-card">
+            <CardHeader><CardTitle>Appropriate interpretation</CardTitle></CardHeader>
+            <CardContent className="method-copy">
+              <p>The Housing Market Lab is an independent academic project, not an official statistical product. Its visualizations are descriptive and do not, by themselves, establish causal relationships or constitute forecasts, valuations, policy recommendations, or financial advice. Data may be revised by their providers, and coverage can vary across locations and periods. Users should consult the original sources and project documentation before relying on a measure for formal research or decision-making.</p>
+              <p>Any views, interpretations, and errors are those of the project author and do not necessarily reflect the positions of California State University, Fullerton, the College of Business and Economics, or the Department of Finance. Use of third-party data does not imply endorsement by the university or the respective data providers.</p>
             </CardContent>
           </Card>
         </TabsContent>
