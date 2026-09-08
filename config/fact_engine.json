@@ -2,6 +2,10 @@
   "schema_version": 1,
   "prototype": true,
   "minimum_coverage": 0.7,
+  "brief_archive": {
+    "minimum_advanced_questions": 2,
+    "allow_single_material_question": true
+  },
   "metrics": {
     "zhvi": {"domain": "Prices", "label": "Typical home value", "unit": "usd", "change_mode": "percent", "materiality": 0.01, "preferred_comparison": "yoy"},
     "zori": {"domain": "Rents", "label": "Typical asking rent", "unit": "usd", "change_mode": "percent", "materiality": 0.015, "preferred_comparison": "yoy"},

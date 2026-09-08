@@ -109,6 +109,17 @@ test("market brief prioritizes questions, quality controls, and direct evidence"
   assert.match(source, /correction is labeled rather than silently replacing the original record/);
 });
 
+test("market brief automation remains review gated", async () => {
+  const workflow = await readProjectFile(".github/workflows/prepare-market-brief.yml");
+  const generator = await readProjectFile("pipeline/prepare_market_brief.py");
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /workflow_run:/);
+  assert.match(workflow, /gh pr create --draft/);
+  assert.doesNotMatch(workflow, /gh pr merge/);
+  assert.match(generator, /minimum_advanced_questions/);
+  assert.match(generator, /No causal claim or forecast has been introduced/);
+});
+
 test("repository front page includes citation and academic-use limits", async () => {
   const readme = await readProjectFile("README.md");
   assert.match(readme, /## Citation/);

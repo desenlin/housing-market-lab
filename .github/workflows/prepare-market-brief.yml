@@ -1,0 +1,86 @@
+name: Prepare market brief for review
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_month:
+        description: "Optional issue month in YYYY-MM format"
+        required: false
+        type: string
+      force:
+        description: "Bypass the normal question-advancement threshold"
+        required: false
+        default: false
+        type: boolean
+  workflow_run:
+    workflows: ["Validate data and deploy Pages"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: market-brief-review
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the current main branch
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Rebuild the deterministic fact packet
+        run: python pipeline/build_fact_engine.py
+
+      - name: Evaluate readiness and prepare candidate
+        id: brief
+        env:
+          REQUESTED_ISSUE_MONTH: ${{ inputs.issue_month }}
+          FORCE_DRAFT: ${{ inputs.force }}
+        run: |
+          args=(--github-output "$GITHUB_OUTPUT" --review-note "$RUNNER_TEMP/market-brief-review.md")
+          if [ -n "$REQUESTED_ISSUE_MONTH" ]; then
+            args+=(--issue-month "$REQUESTED_ISSUE_MONTH")
+          fi
+          if [ "$FORCE_DRAFT" = "true" ]; then
+            args+=(--force)
+          fi
+          python pipeline/prepare_market_brief.py "${args[@]}"
+          cat "$RUNNER_TEMP/market-brief-review.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or update a draft pull request
+        if: steps.brief.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_MONTH: ${{ steps.brief.outputs.issue_month }}
+        run: |
+          branch="automation/market-brief-${ISSUE_MONTH}"
+          git config user.name "housing-market-lab[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C "$branch"
+          git add public/data/briefs
+          git commit -m "brief: prepare ${ISSUE_MONTH} market report"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            remote_sha="$(git ls-remote --heads origin "$branch" | cut -f1)"
+            git push --force-with-lease="refs/heads/${branch}:${remote_sha}" origin "HEAD:refs/heads/${branch}"
+          else
+            git push origin "HEAD:refs/heads/${branch}"
+          fi
+          pr_number="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$pr_number" ]; then
+            gh pr edit "$pr_number" --title "Market brief: ${ISSUE_MONTH}" --body-file "$RUNNER_TEMP/market-brief-review.md"
+          else
+            gh pr create --draft --base main --head "$branch" --title "Market brief: ${ISSUE_MONTH}" --body-file "$RUNNER_TEMP/market-brief-review.md"
+          fi

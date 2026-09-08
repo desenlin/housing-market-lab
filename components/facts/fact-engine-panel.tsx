@@ -65,6 +65,8 @@ type ArchivedBrief = Omit<ArchiveEntry, "path"> & {
   sections: Array<{
     question: string;
     answer: string;
+    fact_ids: string[];
+    period_end: string;
     observation_period: string;
     status: "validated" | "preliminary";
     evidence: string[];
