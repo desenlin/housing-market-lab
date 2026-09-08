@@ -263,16 +263,48 @@ button, select { font: inherit; }
 .brief-method-note summary svg { width: 16px; }
 .brief-method-note p { margin: 11px 0 7px; max-width: 900px; font-size: 12px; line-height: 1.55; }
 .brief-method-note code { overflow-wrap: anywhere; font-size: 10px; }
+.brief-archive { display: grid; gap: 13px; margin-top: 7px; border-top: 1px solid #c9d5db; padding-top: 24px; }
+.brief-archive-heading { display: grid; grid-template-columns: minmax(260px, .75fr) minmax(360px, 1.25fr); align-items: end; gap: 36px; }
+.brief-archive-heading .section-kicker { color: #d85d08; }
+.brief-archive-heading h2 { margin: 2px 0 0; color: #12355b; font-family: Georgia, serif; font-size: 27px; }
+.brief-archive-heading > p { margin: 0; color: #607482; font-size: 12px; line-height: 1.6; }
+.brief-archive-list { display: grid; gap: 10px; }
+.brief-archive-item { border: 1px solid #cbd7dd; border-radius: 9px; background: #fff; overflow: hidden; }
+.brief-archive-item > summary { display: grid; grid-template-columns: 130px minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 16px 18px; cursor: pointer; list-style-position: inside; }
+.brief-archive-item > summary::marker { color: #d85d08; }
+.brief-archive-date { color: #173752; font-family: Georgia, serif; font-size: 17px; font-weight: 700; }
+.brief-archive-title { display: grid; gap: 4px; }
+.brief-archive-title strong { color: #173752; font-size: 14px; }
+.brief-archive-title small { color: #607482; font-size: 11px; font-weight: 400; line-height: 1.45; }
+.brief-archive-badge { border: 1px solid #9eb8c6; border-radius: 999px; background: #f1f6f8; padding: 5px 9px; color: #315d72; font-size: 10px; font-weight: 800; white-space: nowrap; }
+.brief-archive-badge.corrected { border-color: #efc17c; background: #fff7e8; color: #875300; text-transform: capitalize; }
+.brief-archive-body { display: grid; gap: 16px; border-top: 1px solid #e1e8eb; background: #fbfcfd; padding: 18px; }
+.brief-reconstruction-note { display: flex; align-items: flex-start; gap: 7px; margin: 0; border-left: 3px solid #d85d08; background: #fff7ee; padding: 10px 12px; color: #704b2e; font-size: 11px; line-height: 1.5; }
+.brief-reconstruction-note svg { width: 15px; min-width: 15px; margin-top: 1px; }
+.brief-archive-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.brief-archive-sections article { display: grid; align-content: start; gap: 9px; border: 1px solid #d8e1e5; border-radius: 7px; background: #fff; padding: 14px; }
+.brief-archive-question { display: flex; align-items: flex-start; justify-content: space-between; gap: 9px; }
+.brief-archive-question h3 { margin: 0; color: #173752; font-family: Georgia, serif; font-size: 17px; line-height: 1.3; }
+.brief-archive-question .brief-status { flex: 0 0 auto; }
+.brief-archive-sections .brief-answer { min-height: 0; font-size: 14px; }
+.brief-archive-source, .brief-archive-caveat { margin: 0; color: #607482; font-size: 10px; line-height: 1.5; }
+.brief-archive-source { font-weight: 750; }
+.brief-archive-audit { justify-self: start; }
+.brief-archive-audit > code { display: block; margin-top: 10px; overflow-wrap: anywhere; }
 .fact-status, .fact-empty { min-height: 220px; display: flex; align-items: center; justify-content: center; gap: 9px; color: #526a79; }
 .fact-status svg { width: 20px; }
 
 @media (max-width: 900px) {
   .market-brief-header { grid-template-columns: 1fr; gap: 14px; }
   .brief-standards { grid-template-columns: 1fr; }
+  .brief-archive-heading { grid-template-columns: 1fr; gap: 9px; }
 }
 @media (max-width: 640px) {
   .brief-question-grid { grid-template-columns: 1fr; }
   .brief-answer { min-height: 0; }
+  .brief-archive-item > summary { grid-template-columns: 1fr; gap: 8px; }
+  .brief-archive-badge { justify-self: start; }
+  .brief-archive-sections { grid-template-columns: 1fr; }
 }
 .acs-stack { display: grid; gap: 20px; }
 .acs-intro { border-bottom-color: #8fb8cc; }

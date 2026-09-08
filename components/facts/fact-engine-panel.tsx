@@ -47,8 +47,38 @@ type BriefQuestion = {
   linkLabel: string;
 };
 
+type ArchiveEntry = {
+  issue_month: string;
+  title: string;
+  status: "historical_reconstruction" | "published" | "corrected";
+  prepared_at: string;
+  path: string;
+};
+
+type ArchivedBrief = Omit<ArchiveEntry, "path"> & {
+  observation_cutoff: string;
+  headline: string;
+  summary: string;
+  reconstruction_note: string;
+  source_packet_sha256: string;
+  source_releases: Array<{ provider: string; release: string; sha256: string }>;
+  sections: Array<{
+    question: string;
+    answer: string;
+    observation_period: string;
+    status: "validated" | "preliminary";
+    evidence: string[];
+    sources: string;
+    caveat: string;
+  }>;
+};
+
 function generatedDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value));
+}
+
+function issueMonth(value: string) {
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}-01T00:00:00Z`));
 }
 
 function findFact(packet: FactPacket, metric: string) {
@@ -71,6 +101,7 @@ function Standard({ icon, title, children }: { icon: ReactNode; title: string; c
 
 export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; onNavigate: (tab: string) => void }) {
   const [packet, setPacket] = useState<FactPacket | null>(null);
+  const [archive, setArchive] = useState<ArchivedBrief[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -81,6 +112,19 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
       })
       .then(setPacket)
       .catch((caught) => setError(caught instanceof Error ? caught.message : "The market brief could not be loaded."));
+
+    fetch(`${basePath}/data/briefs/index.json`)
+      .then((response) => {
+        if (!response.ok) throw new Error("The market brief archive is unavailable.");
+        return response.json() as Promise<{ briefs: ArchiveEntry[] }>;
+      })
+      .then((index) => Promise.all(index.briefs.slice(0, 3).map(async (entry) => {
+        const response = await fetch(`${basePath}/data/briefs/${entry.path}`);
+        if (!response.ok) throw new Error(`Archived brief ${entry.issue_month} is unavailable.`);
+        return response.json() as Promise<ArchivedBrief>;
+      })))
+      .then(setArchive)
+      .catch(() => setArchive([]));
   }, [basePath]);
 
   const questions = useMemo<BriefQuestion[]>(() => {
@@ -172,6 +216,45 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
         <p>A deterministic engine evaluated {packet.summary.candidates} valid comparisons and identified {packet.summary.material} that exceeded metric-specific materiality thresholds. Priority scores and candidate diagnostics remain behind this public brief; they do not determine causality or produce forecasts.</p>
         <code>Fact packet {packet.packet_sha256}</code>
       </details>
+
+      {archive.length > 0 && (
+        <section className="brief-archive" aria-labelledby="brief-archive-title">
+          <div className="brief-archive-heading">
+            <div><p className="section-kicker">Archive</p><h2 id="brief-archive-title">Previous market briefs</h2></div>
+            <p>Approved editions retain the evidence, source vintages, and limitations used at preparation. A later correction is labeled rather than silently replacing the original record.</p>
+          </div>
+          <div className="brief-archive-list">
+            {archive.map((brief) => (
+              <details className="brief-archive-item" key={brief.issue_month}>
+                <summary>
+                  <span className="brief-archive-date">{issueMonth(brief.issue_month)}</span>
+                  <span className="brief-archive-title"><strong>{brief.headline}</strong><small>{brief.summary}</small></span>
+                  <span className={`brief-archive-badge ${brief.status}`}>{brief.status === "historical_reconstruction" ? "Historical reconstruction" : brief.status}</span>
+                </summary>
+                <div className="brief-archive-body">
+                  <p className="brief-reconstruction-note"><AlertCircle /> {brief.reconstruction_note}</p>
+                  <div className="brief-archive-sections">
+                    {brief.sections.map((section) => (
+                      <article key={section.question}>
+                        <div className="brief-archive-question"><h3>{section.question}</h3><span className={`brief-status ${section.status === "preliminary" ? "review" : "checked"}`}>{section.status === "preliminary" ? "Preliminary" : "Validated"}</span></div>
+                        <p className="brief-answer">{section.answer}</p>
+                        <div className="brief-evidence">{section.evidence.map((item) => <p key={item}>{item}</p>)}</div>
+                        <p className="brief-archive-source">{section.observation_period} · {section.sources}</p>
+                        <p className="brief-archive-caveat">{section.caveat}</p>
+                      </article>
+                    ))}
+                  </div>
+                  <details className="brief-audit brief-archive-audit">
+                    <summary>Source releases and fingerprint</summary>
+                    {brief.source_releases.map((source) => <div key={`${source.provider}-${source.release}`}><p><strong>{source.provider}</strong></p><span>{source.release}</span><code>{source.sha256}</code></div>)}
+                    <code>Source fact packet {brief.source_packet_sha256}</code>
+                  </details>
+                </div>
+              </details>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

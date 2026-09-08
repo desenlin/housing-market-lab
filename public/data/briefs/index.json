@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "briefs": [
+    {
+      "issue_month": "2026-08",
+      "title": "August 2026 Housing Market Brief",
+      "status": "historical_reconstruction",
+      "prepared_at": "2026-09-08",
+      "path": "2026-08.json"
+    }
+  ]
+}

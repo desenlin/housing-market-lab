@@ -104,6 +104,9 @@ test("market brief prioritizes questions, quality controls, and direct evidence"
   assert.match(source, /Questions before variables/);
   assert.match(source, /Direct evidentiary support/);
   assert.match(source, /unconstrained AI summary cannot provide this assurance/i);
+  assert.match(source, /Previous market briefs/);
+  assert.match(source, /Historical reconstruction/);
+  assert.match(source, /correction is labeled rather than silently replacing the original record/);
 });
 
 test("repository front page includes citation and academic-use limits", async () => {

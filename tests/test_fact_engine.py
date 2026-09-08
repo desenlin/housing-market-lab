@@ -37,6 +37,25 @@ class FactEngineTests(unittest.TestCase):
         self.assertNotIn("percentage points", inflation["change_display"])
         self.assertTrue(inflation["change_display"].endswith("%"))
 
+    def test_historical_brief_archive_is_auditable(self):
+        archive_dir = ROOT / "public" / "data" / "briefs"
+        index = json.loads((archive_dir / "index.json").read_text())
+        self.assertEqual(len(index["briefs"]), 1)
+        entry = index["briefs"][0]
+        brief = json.loads((archive_dir / entry["path"]).read_text())
+        packet = json.loads((ROOT / "public" / "data" / "facts" / "latest.json").read_text())
+
+        self.assertEqual(entry["status"], "historical_reconstruction")
+        self.assertEqual(brief["status"], "historical_reconstruction")
+        self.assertEqual(brief["issue_month"], "2026-08")
+        self.assertLessEqual(brief["observation_cutoff"], "2026-07-31")
+        self.assertEqual(brief["source_packet_sha256"], packet["packet_sha256"])
+        self.assertTrue(all(len(source["sha256"]) == 64 for source in brief["source_releases"]))
+        self.assertTrue(all(section["observation_period"] for section in brief["sections"]))
+        permit_section = next(section for section in brief["sections"] if "permitting" in section["question"])
+        self.assertEqual(permit_section["status"], "preliminary")
+        self.assertIn("may be revised or imputed", permit_section["caveat"])
+
 
 if __name__ == "__main__":
     unittest.main()

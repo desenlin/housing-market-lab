@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "status": "historical_reconstruction",
+  "issue_month": "2026-08",
+  "observation_cutoff": "2026-07-31",
+  "prepared_at": "2026-09-08",
+  "title": "August 2026 Housing Market Brief",
+  "headline": "Inflation outpaced home-value growth as permitting increased",
+  "summary": "July data show Los Angeles metro home values rising more slowly than local consumer prices. Preliminary permit authorizations increased in both Los Angeles and Orange Counties, while metropolitan for-sale inventory and asking-rent growth remained below the Lab's materiality thresholds.",
+  "reconstruction_note": "Prepared retrospectively from the Lab's current validated extracts using only observations dated through July 2026. This is not a contemporaneous August release snapshot, and values may incorporate provider revisions accepted after August 31.",
+  "source_packet_sha256": "fe3ae596835f2ba36320899e236ae7ecf9d3da269a98077536e9a9f576da4c72",
+  "source_releases": [
+    {
+      "provider": "Zillow Research",
+      "release": "2026-09-08-r003529",
+      "sha256": "b7c27afa4f680f98db717706bdecaf09e5050e763a28d44890828b78c6993b1b"
+    },
+    {
+      "provider": "U.S. Bureau of Labor Statistics",
+      "release": "2026-09-07-r233751",
+      "sha256": "8d5a9fc6c65d8d4ec88f9254882e25af2a865710a69f6bfdf7dab80df53109bf"
+    },
+    {
+      "provider": "U.S. Census Bureau Building Permits Survey",
+      "release": "2026-09-07-r170136",
+      "sha256": "345bd05738fa513a52792d018e87c38b957ee7012ea187be0be13153ae2a3244"
+    }
+  ],
+  "sections": [
+    {
+      "question": "Are home values keeping pace with local inflation?",
+      "answer": "No. Los Angeles metro home values increased 0.9% from one year earlier, while LA-area CPI-U increased 3.4%. The implied inflation-adjusted change was -2.4%.",
+      "observation_period": "July 2026",
+      "status": "validated",
+      "evidence": [
+        "Zillow's typical Los Angeles metro home value was $964,934, compared with $956,028 one year earlier.",
+        "LA-area CPI-U was 355.311, up 3.4% from one year earlier."
+      ],
+      "sources": "Zillow Research + U.S. Bureau of Labor Statistics",
+      "caveat": "The real change is a purchasing-power comparison, not an affordability measure. LA-area CPI-U covers Los Angeles and Orange Counties and is not seasonally adjusted."
+    },
+    {
+      "question": "Is residential permitting increasing?",
+      "answer": "Yes in the year-to-date preliminary series. Authorizations increased 49.7% in Los Angeles County and 19.3% in Orange County from the same months of 2025.",
+      "observation_period": "January through July 2026",
+      "status": "preliminary",
+      "evidence": [
+        "Los Angeles County jurisdictions authorized 17,045 units, compared with 11,384 in January through July 2025.",
+        "Orange County jurisdictions authorized 4,047 units, compared with 3,391 in January through July 2025."
+      ],
+      "sources": "U.S. Census Bureau Building Permits Survey",
+      "caveat": "Current-year observations are preliminary and may be revised or imputed. Permits are authorizations, not housing starts or completions."
+    },
+    {
+      "question": "Has metropolitan inventory shifted materially?",
+      "answer": "Not under the Lab's 5% reporting threshold. Los Angeles metro for-sale inventory decreased 1.6% from one year earlier.",
+      "observation_period": "July 2026",
+      "status": "validated",
+      "evidence": [
+        "Zillow reported 25,970 for-sale listings, compared with 26,379 one year earlier."
+      ],
+      "sources": "Zillow Research",
+      "caveat": "This is a descriptive metropolitan estimate and does not identify the cause of the change."
+    },
+    {
+      "question": "Are asking rents accelerating?",
+      "answer": "No material acceleration was detected. Los Angeles metro typical asking rent increased 1.5% from one year earlier, just below the Lab's exact 1.5% reporting threshold before rounding.",
+      "observation_period": "July 2026",
+      "status": "validated",
+      "evidence": [
+        "Zillow's typical asking rent was $2,944, compared with $2,901 one year earlier; the unrounded increase was 1.482%."
+      ],
+      "sources": "Zillow Research",
+      "caveat": "This is a descriptive metropolitan estimate and does not identify the cause of the change."
+    }
+  ]
+}
