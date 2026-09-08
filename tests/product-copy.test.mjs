@@ -42,6 +42,12 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /current validated release and one rollback/);
   assert.match(source, /County-level shards keep generated JSON files below 1 MB/);
   assert.match(source, /carries those dates forward from its prior compact extract/);
+  assert.match(source, /Coverage identifies the newest observation in each source/);
+  assert.match(source, /Final permit history/);
+  assert.match(source, /Preliminary permits/);
+  assert.match(source, /Technical release identifiers and fingerprints/);
+  assert.doesNotMatch(source, /Load Building Permits tab/);
+  assert.doesNotMatch(source, /bundle_sha256\.slice/);
   assert.match(source, /Gray boundaries have no data/);
   assert.match(source, /Outside city\/CDP geography/);
   assert.match(source, /Reading the maps/);

@@ -259,6 +259,16 @@ button, select { font: inherit; }
 .provenance-grid div { border-left: 3px solid #dbe4e8; padding-left: 12px; }
 .provenance-grid dt { color: #778995; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .provenance-grid dd { margin: 5px 0 0; color: #193c5c; font-size: 13px; font-weight: 600; }
+.provenance-grid dd small { display: block; margin-top: 3px; color: #6b7b86; font-size: 11px; font-weight: 500; }
+.provenance-intro { margin: 0 0 18px; color: #506675; font-size: 14px; line-height: 1.55; }
+.provenance-technical { margin-top: 22px; border: 1px solid #dbe4e8; border-radius: 8px; background: #f7fafb; }
+.provenance-technical summary { cursor: pointer; padding: 12px 14px; color: #193c5c; font-size: 13px; font-weight: 750; }
+.provenance-technical > p { margin: 0; border-top: 1px solid #e2e9ed; padding: 12px 14px 0; color: #6b7b86; font-size: 12px; }
+.fingerprint-list { display: grid; gap: 12px; margin: 0; padding: 12px 14px 14px; }
+.fingerprint-list > div { display: grid; grid-template-columns: minmax(115px, .35fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.fingerprint-list dt { color: #5f7280; font-size: 12px; font-weight: 750; }
+.fingerprint-list dd { display: grid; min-width: 0; gap: 4px; margin: 0; color: #506675; font-size: 12px; }
+.fingerprint-list code { display: block; max-width: 100%; color: #7e3909; font-size: 11px; overflow-wrap: anywhere; word-break: break-word; }
 .attribution { margin: 24px 0 10px; color: #6b7b86; font-size: 12px; }
 .disclaimer-card { border-color: #e5b995; border-left: 5px solid #ff7a1a; background: #fffaf6; box-shadow: none; }
 .source-links { display: flex; flex-wrap: wrap; gap: 10px 22px; }
@@ -311,5 +321,6 @@ footer p { margin: 0; }
   .hotness-chart { height: 330px; }
   .regional-intro, .method-grid { grid-template-columns: 1fr; gap: 18px; }
   .provenance-grid { grid-template-columns: 1fr; }
+  .fingerprint-list > div { grid-template-columns: 1fr; gap: 4px; }
   footer { padding: 20px 17px; }
 }

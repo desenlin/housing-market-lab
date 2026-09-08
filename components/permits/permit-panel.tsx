@@ -75,6 +75,7 @@ export type PermitManifest = {
   documentation_page: string;
   bundle_sha256: string;
   latest_final_year: number;
+  latest_final_month?: string;
   latest_observation?: string;
   acs_vintage: number;
   counts: { jurisdictions: number; cities: number; county_unincorporated: number };

@@ -599,6 +599,20 @@ function shortDate(date: string) {
   );
 }
 
+function validationDate(date: string | undefined) {
+  if (!date) return "Unavailable";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(date));
+}
+
+function latestObservation(values: Iterable<string>) {
+  return [...values].sort().at(-1);
+}
+
 export function timeAxisTicks(dates: string[], maxTicks = 6) {
   if (!dates.length) return [];
   if (dates.length <= 18) {
@@ -1800,6 +1814,19 @@ export default function MarketLab() {
         } catch (caught) {
           setRealtorError(caught instanceof Error ? caught.message : "The Realtor.com release could not be loaded.");
         }
+        try {
+          const [historyPointer, provisionalPointer] = await Promise.all([
+            fetchJson<{ release: string }>(`${base}/data/permits/history/latest.json`),
+            fetchJson<{ release: string }>(`${base}/data/permits/provisional/latest.json`),
+          ]);
+          const [history, provisional] = await Promise.all([
+            fetchJson<PermitManifest>(`${base}/data/permits/history/releases/${historyPointer.release}/manifest.json`),
+            fetchJson<PermitManifest>(`${base}/data/permits/provisional/releases/${provisionalPointer.release}/manifest.json`),
+          ]);
+          setPermitManifests({ history, provisional });
+        } catch {
+          setPermitManifests(null);
+        }
         const orangeCities = (city as Dataset).regions.filter((region) => region.county === "Orange County");
         const defaults = ["Fullerton", "Irvine", "Anaheim"]
           .map((name) => orangeCities.find((region) => region.name === name)?.id)
@@ -2737,7 +2764,30 @@ export default function MarketLab() {
           <Card className="provenance-card">
             <CardHeader><CardTitle>Current release provenance</CardTitle></CardHeader>
             <CardContent>
-              <dl className="provenance-grid"><div><dt>Zillow release</dt><dd>{manifest.release}</dd></div><div><dt>Redfin release</dt><dd>{redfinManifest?.release ?? "Unavailable"}</dd></div><div><dt>Realtor inventory</dt><dd>{realtorManifests.inventory?.release ?? "Unavailable"}</dd></div><div><dt>Realtor Hotness</dt><dd>{realtorManifests.hotness?.release ?? "Unavailable"}</dd></div><div><dt>BLS CPI release</dt><dd>{cpiManifest?.release ?? "Unavailable"}</dd></div><div><dt>Permit history</dt><dd>{permitManifests?.history.release ?? "Load Building Permits tab"}</dd></div><div><dt>Open permit year</dt><dd>{permitManifests?.provisional.release ?? "Load Building Permits tab"}</dd></div><div><dt>Coverage</dt><dd>{manifest.counts.city} city/community · {manifest.counts.zip} ZIP · {manifest.counts.metro} metro · {permitManifests?.history.counts.jurisdictions ?? 124} permit jurisdictions</dd></div><div><dt>Bundle fingerprints</dt><dd><code>{manifest.bundle_sha256.slice(0, 10)}…{redfinManifest ? ` · ${redfinManifest.bundle_sha256.slice(0, 10)}…` : ""}{realtorManifests.inventory ? ` · ${realtorManifests.inventory.bundle_sha256.slice(0, 10)}…` : ""}{realtorManifests.hotness ? ` · ${realtorManifests.hotness.bundle_sha256.slice(0, 10)}…` : ""}{cpiManifest ? ` · ${cpiManifest.bundle_sha256.slice(0, 10)}…` : ""}{permitManifests ? ` · ${permitManifests.history.bundle_sha256.slice(0, 10)}… · ${permitManifests.provisional.bundle_sha256.slice(0, 10)}…` : ""}</code></dd></div></dl>
+              <p className="provenance-intro">Coverage identifies the newest observation in each source. Validation identifies when this site accepted the current snapshot.</p>
+              <dl className="provenance-grid">
+                <div><dt>Zillow prices &amp; rents</dt><dd>Through {shortDate(latestObservation(Object.values(manifest.latest_observations)) ?? manifest.release)}<small>Validated {validationDate(manifest.created_at)}</small></dd></div>
+                <div><dt>Redfin market activity</dt><dd>{redfinManifest ? `Through ${shortDate(latestObservation(Object.values(redfinManifest.latest_observations)) ?? redfinManifest.release)}` : "Unavailable"}<small>{redfinManifest ? `Validated ${validationDate(redfinManifest.created_at)}` : ""}</small></dd></div>
+                <div><dt>Realtor inventory</dt><dd>{realtorManifests.inventory ? `Through ${shortDate(latestObservation(Object.values(realtorManifests.inventory.latest_observations)) ?? realtorManifests.inventory.release)}` : "Unavailable"}<small>{realtorManifests.inventory ? `Validated ${validationDate(realtorManifests.inventory.created_at)}` : ""}</small></dd></div>
+                <div><dt>Realtor Hotness</dt><dd>{realtorManifests.hotness ? `Through ${shortDate(latestObservation(Object.values(realtorManifests.hotness.latest_observations)) ?? realtorManifests.hotness.release)}` : "Unavailable"}<small>{realtorManifests.hotness ? `Validated ${validationDate(realtorManifests.hotness.created_at)}` : ""}</small></dd></div>
+                <div><dt>BLS CPI</dt><dd>{cpiManifest ? `Through ${shortDate(latestObservation(Object.values(cpiManifest.series).map((item) => item.latest_observation)) ?? cpiManifest.release)}` : "Unavailable"}<small>{cpiManifest ? `Validated ${validationDate(cpiManifest.created_at)}` : ""}</small></dd></div>
+                <div><dt>Final permit history</dt><dd>{permitManifests ? `Annual and monthly through ${shortDate(permitManifests.history.latest_final_month ?? `${permitManifests.history.latest_final_year}-12`)}` : "Loading…"}<small>{permitManifests ? `Validated ${validationDate(permitManifests.history.created_at)}` : ""}</small></dd></div>
+                <div><dt>Preliminary permits</dt><dd>{permitManifests?.provisional.latest_observation ? `Through ${shortDate(permitManifests.provisional.latest_observation)}` : "Loading…"}<small>{permitManifests ? `Validated ${validationDate(permitManifests.provisional.created_at)}` : ""}</small></dd></div>
+                <div><dt>Geographic coverage</dt><dd>{manifest.counts.city} city/community · {manifest.counts.zip} ZIP · {manifest.counts.metro} metro · {permitManifests?.history.counts.jurisdictions ?? 124} permit jurisdictions</dd></div>
+              </dl>
+              <details className="provenance-technical">
+                <summary>Technical release identifiers and fingerprints</summary>
+                <p>Each fingerprint is the complete SHA-256 identifier for its validated data bundle.</p>
+                <dl className="fingerprint-list">
+                  <div><dt>Zillow</dt><dd><span>Release {manifest.release}</span><code>{manifest.bundle_sha256}</code></dd></div>
+                  {redfinManifest && <div><dt>Redfin</dt><dd><span>Release {redfinManifest.release}</span><code>{redfinManifest.bundle_sha256}</code></dd></div>}
+                  {realtorManifests.inventory && <div><dt>Realtor inventory</dt><dd><span>Release {realtorManifests.inventory.release}</span><code>{realtorManifests.inventory.bundle_sha256}</code></dd></div>}
+                  {realtorManifests.hotness && <div><dt>Realtor Hotness</dt><dd><span>Release {realtorManifests.hotness.release}</span><code>{realtorManifests.hotness.bundle_sha256}</code></dd></div>}
+                  {cpiManifest && <div><dt>BLS CPI</dt><dd><span>Release {cpiManifest.release}</span><code>{cpiManifest.bundle_sha256}</code></dd></div>}
+                  {permitManifests && <div><dt>Final permits</dt><dd><span>Release {permitManifests.history.release}</span><code>{permitManifests.history.bundle_sha256}</code></dd></div>}
+                  {permitManifests && <div><dt>Preliminary permits</dt><dd><span>Release {permitManifests.provisional.release}</span><code>{permitManifests.provisional.bundle_sha256}</code></dd></div>}
+                </dl>
+              </details>
               <p className="attribution">{manifest.attribution}. {redfinManifest?.attribution} {realtorManifests.inventory?.attribution ?? realtorManifests.hotness?.attribution} {cpiManifest?.attribution} {permitManifests?.history.attribution} Map data © OpenStreetMap contributors. This independent academic visualization is not endorsed by Zillow Group, Redfin, Realtor.com, BLS, Census, HUD, or OpenStreetMap.</p>
               <div className="source-links">
                 <a className="source-link" href={manifest.data_page} target="_blank" rel="noreferrer">View Zillow Research source data <ExternalLink /></a>
