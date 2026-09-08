@@ -225,7 +225,7 @@ button, select { font: inherit; }
 .acs-control-note { margin: 13px 0 0; border-top: 1px solid #e0e7ea; padding-top: 12px; color: #647784; font-size: 12px; line-height: 1.5; }
 .acs-kpis .kpi-card:nth-child(2) { background: #f7fafb; }
 .acs-kpis .kpi-card:nth-child(3) { border-color: #9fc3d8; background: #f3f9fc; }
-.acs-analysis-grid { grid-template-columns: minmax(0, 1.7fr) minmax(340px, .8fr); }
+.acs-analysis-grid { grid-template-columns: minmax(0, 1.4fr) minmax(460px, 1fr); }
 .acs-map-panel { min-width: 0; }
 .acs-map-panel .leaflet-map { height: 470px; margin-top: 13px; }
 .acs-ranking .ranking-list { max-height: 515px; }
@@ -329,6 +329,9 @@ footer p { margin: 0; }
 .status-screen h1 { margin: 0; font-family: Georgia, serif; } .status-screen p { margin: 0; color: #687b89; }
 .loader { width: 28px; height: 28px; border: 3px solid #ccd9df; border-top-color: #ff7a1a; border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 980px) {
+  .acs-analysis-grid { grid-template-columns: 1fr; }
+}
 @media (max-width: 900px) {
   .header-inner { align-items: start; } .control-grid, .activity-controls { grid-template-columns: 1fr 1fr; }
   .price-controls { grid-template-columns: 1fr 1fr; }

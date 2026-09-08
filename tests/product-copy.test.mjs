@@ -50,10 +50,13 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Final permit history/);
   assert.match(source, /Preliminary permits/);
   assert.match(source, /Technical release identifiers and fingerprints/);
+  assert.match(source, /data\/acs\/latest\.json/);
+  assert.match(source, /<dt>ACS context<\/dt><dd><span>Release \{acsManifest\.release\}<\/span><code>\{acsManifest\.bundle_sha256\}<\/code>/);
   assert.match(source, /href="#current-release-provenance" onClick=\{openReleaseProvenance\}/);
   assert.match(source, /<Tabs value=\{mainTab\} onValueChange=\{setMainTab\}/);
   assert.match(source, /id="current-release-provenance" className="provenance-card"/);
   assert.doesNotMatch(source, /Load Building Permits tab/);
+  assert.doesNotMatch(source, /Load Housing Context tab/);
   assert.doesNotMatch(source, /bundle_sha256\.slice/);
   assert.match(source, /Gray boundaries have no data/);
   assert.match(source, /Outside city\/CDP geography/);

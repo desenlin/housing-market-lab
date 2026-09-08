@@ -16,6 +16,7 @@ import { ExternalLink, RotateCcw } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DEFAULT_MAP_FIT_OPTIONS, focusedMapBounds } from "@/lib/map-view";
 
 type Value = number | null;
@@ -115,6 +116,15 @@ function LabelledSelect({ label, value, onChange, children }: { label: string; v
   );
 }
 
+function DefinitionHelp({ label, definition }: { label: string; definition: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger aria-label={`Definition of ${label}`} className="definition-help" type="button">?</TooltipTrigger>
+      <TooltipContent className="definition-tooltip" sideOffset={6}>{definition}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function formatEstimate(value: Value, metric: AcsMetric, change = false) {
   if (value == null || !Number.isFinite(value)) return "—";
   if (change && metric.change_mode === "percent") return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
@@ -146,6 +156,16 @@ function changeSignificant(region: AcsRegion, key: string) {
 
 function relativeUncertainty(value: Value, moe: Value) {
   return value != null && moe != null && value !== 0 ? Math.abs(moe / value) : null;
+}
+
+function paddedDomain(values: number[], lowerBound = -Infinity, upperBound = Infinity): [number, number] {
+  const finite = values.filter(Number.isFinite);
+  if (!finite.length) return [0, 1];
+  const low = Math.min(...finite);
+  const high = Math.max(...finite);
+  const span = high - low;
+  const padding = span > 0 ? span * 0.08 : Math.max(Math.abs(high) * 0.08, 1);
+  return [Math.max(lowerBound, low - padding), Math.min(upperBound, high + padding)];
 }
 
 function expandSeries(series: Value[] | { o: number; v: Value[] } | undefined, length: number) {
@@ -282,7 +302,10 @@ function AcsMap({ county, mapData, dataset, metricKey, view, selectedId, onSelec
       <div className="map-heading">
         <div>
           <p className="section-kicker">Geographic pattern</p>
-          <h3>{metric.label}</h3>
+          <h3 className="metric-heading">
+            {metric.label}
+            <DefinitionHelp label={metric.label} definition={`${metric.definition} ACS table ${metric.source_table}; universe: ${metric.universe}.`} />
+          </h3>
           <p>{view === "level" ? dataset.periods[1] : `${dataset.periods[0]} to ${dataset.periods[1]}`}</p>
         </div>
         <div className="map-tools">
@@ -389,6 +412,11 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
       return [{ id: region.id, name: region.name, county: region.county, x, y, xLabel: formatEstimate(x, xMetric), yLabel: relationship === "income_value" ? `$${Math.round(y).toLocaleString()}` : `$${Math.round(y).toLocaleString()}/month` }];
     });
   }, [dataset, eligible, geography, marketDatasets, relationship]);
+
+  const relationshipDomains = useMemo(() => ({
+    x: paddedDomain(relationshipPoints.map((point) => point.x), 0, relationship === "burden_rent" ? 100 : Infinity),
+    y: paddedDomain(relationshipPoints.map((point) => point.y), 0),
+  }), [relationship, relationshipPoints]);
 
   if (error) return <Card className="disclaimer-card"><CardHeader><CardTitle>ACS context is temporarily unavailable</CardTitle></CardHeader><CardContent className="method-copy"><p>{error}</p></CardContent></Card>;
   if (!dataset || !metric || !manifest) return <div className="permit-status"><span className="loader" aria-hidden="true" /><span>Loading housing context…</span></div>;
@@ -499,8 +527,8 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart margin={{ top: 18, right: 24, bottom: 26, left: 18 }}>
                 <CartesianGrid stroke="#dfe6ea" strokeDasharray="3 3" />
-                <XAxis type="number" dataKey="x" name="ACS measure" tick={{ fontSize: 11 }} tickFormatter={(value) => relationship === "income_value" ? `$${Math.round(value / 1000)}k` : `${value}%`} label={{ value: relationship === "income_value" ? "Median household income" : "Rent-burdened households", position: "insideBottom", offset: -16, fontSize: 11 }} />
-                <YAxis type="number" dataKey="y" name="Market measure" tick={{ fontSize: 11 }} tickFormatter={(value) => relationship === "income_value" ? `$${Math.round(value / 1000)}k` : `$${Math.round(value)}`} width={64} label={{ value: relationship === "income_value" ? "Typical home value" : "Typical asking rent", angle: -90, position: "insideLeft", fontSize: 11 }} />
+                <XAxis type="number" dataKey="x" name="ACS measure" domain={relationshipDomains.x} allowDataOverflow tick={{ fontSize: 11 }} tickFormatter={(value) => relationship === "income_value" ? `$${Math.round(value / 1000)}k` : `${value}%`} label={{ value: relationship === "income_value" ? "Median household income" : "Rent-burdened households", position: "insideBottom", offset: -16, fontSize: 11 }} />
+                <YAxis type="number" dataKey="y" name="Market measure" domain={relationshipDomains.y} allowDataOverflow tick={{ fontSize: 11 }} tickFormatter={(value) => relationship === "income_value" ? `$${Math.round(value / 1000)}k` : `$${Math.round(value)}`} width={64} label={{ value: relationship === "income_value" ? "Typical home value" : "Typical asking rent", angle: -90, position: "insideLeft", fontSize: 11 }} />
                 <ZAxis range={[42, 42]} />
                 <ChartTooltip content={<RelationshipTooltip relationship={relationship} />} />
                 <Scatter data={relationshipPoints} fill="#12355b" fillOpacity={0.55}>

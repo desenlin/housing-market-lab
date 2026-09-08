@@ -1702,6 +1702,15 @@ export default function MarketLab() {
 
   useEffect(() => {
     const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+    async function loadAcsProvenance() {
+      try {
+        const pointer = await fetchJson<{ release: string }>(`${base}/data/acs/latest.json`);
+        const releaseManifest = await fetchJson<AcsManifestSummary>(`${base}/data/acs/releases/${pointer.release}/manifest.json`);
+        setAcsManifest(releaseManifest);
+      } catch {
+        setAcsManifest(null);
+      }
+    }
     async function load() {
       try {
         const pointer = await fetch(`${base}/data/latest.json`).then((response) => {
@@ -1882,6 +1891,7 @@ export default function MarketLab() {
         setError(caught instanceof Error ? caught.message : "The data release could not be loaded.");
       }
     }
+    void loadAcsProvenance();
     load();
   }, []);
 
@@ -2797,7 +2807,7 @@ export default function MarketLab() {
                 <div><dt>Realtor inventory</dt><dd>{realtorManifests.inventory ? `Through ${shortDate(latestObservation(Object.values(realtorManifests.inventory.latest_observations)) ?? realtorManifests.inventory.release)}` : "Unavailable"}<small>{realtorManifests.inventory ? `Validated ${validationDate(realtorManifests.inventory.created_at)}` : ""}</small></dd></div>
                 <div><dt>Realtor Hotness</dt><dd>{realtorManifests.hotness ? `Through ${shortDate(latestObservation(Object.values(realtorManifests.hotness.latest_observations)) ?? realtorManifests.hotness.release)}` : "Unavailable"}<small>{realtorManifests.hotness ? `Validated ${validationDate(realtorManifests.hotness.created_at)}` : ""}</small></dd></div>
                 <div><dt>BLS CPI</dt><dd>{cpiManifest ? `Through ${shortDate(latestObservation(Object.values(cpiManifest.series).map((item) => item.latest_observation)) ?? cpiManifest.release)}` : "Unavailable"}<small>{cpiManifest ? `Validated ${validationDate(cpiManifest.created_at)}` : ""}</small></dd></div>
-                <div><dt>ACS housing context</dt><dd>{acsManifest ? `${acsManifest.periods[1]} five-year estimates` : "Load Housing Context tab"}<small>{acsManifest ? `Validated ${validationDate(acsManifest.created_at)}` : ""}</small></dd></div>
+                <div><dt>ACS housing context</dt><dd>{acsManifest ? `${acsManifest.periods[1]} five-year estimates` : "Unavailable"}<small>{acsManifest ? `Validated ${validationDate(acsManifest.created_at)}` : ""}</small></dd></div>
                 <div><dt>Final permit history</dt><dd>{permitManifests ? `Annual and monthly through ${shortDate(permitManifests.history.latest_final_month ?? `${permitManifests.history.latest_final_year}-12`)}` : "Loading…"}<small>{permitManifests ? `Validated ${validationDate(permitManifests.history.created_at)}` : ""}</small></dd></div>
                 <div><dt>Preliminary permits</dt><dd>{permitManifests?.provisional.latest_observation ? `Through ${shortDate(permitManifests.provisional.latest_observation)}` : "Loading…"}<small>{permitManifests ? `Validated ${validationDate(permitManifests.provisional.created_at)}` : ""}</small></dd></div>
                 <div><dt>Geographic coverage</dt><dd>{manifest.counts.city} city/community · {manifest.counts.zip} ZIP · {manifest.counts.metro} metro · {permitManifests?.history.counts.jurisdictions ?? 124} permit jurisdictions</dd></div>
