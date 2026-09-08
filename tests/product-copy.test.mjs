@@ -121,3 +121,16 @@ test("building permits chart offers frequency-appropriate history windows", asyn
   assert.match(source, /Last 12 months/);
   assert.match(source, /Full series · since 2022/);
 });
+
+test("housing context stays curated and communicates ACS uncertainty", async () => {
+  const source = await readProjectFile("components/acs/acs-panel.tsx");
+  const page = await readProjectFile("app/market-lab.tsx");
+  assert.match(page, /<TabsTrigger value="context">Housing Context<\/TabsTrigger>/);
+  assert.match(source, /Six selected ACS measures/);
+  assert.match(source, /not a general demographic catalog/i);
+  assert.match(source, /90% margins of error retained/);
+  assert.match(source, /Non-overlapping change/);
+  assert.match(source, /consecutive overlapping ACS releases are intentionally omitted/i);
+  assert.match(source, /Historical change is limited to cities and communities/);
+  assert.match(source, /The relationship is descriptive, not causal/);
+});

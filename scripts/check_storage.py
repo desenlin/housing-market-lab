@@ -17,6 +17,7 @@ RELEASE_ROOTS = {
     "realtor_inventory": PUBLIC_DATA / "realtor" / "inventory",
     "realtor_hotness": PUBLIC_DATA / "realtor" / "hotness",
     "cpi": PUBLIC_DATA / "cpi",
+    "acs": PUBLIC_DATA / "acs",
     "permits_history": PUBLIC_DATA / "permits" / "history",
     "permits_provisional": PUBLIC_DATA / "permits" / "provisional",
 }

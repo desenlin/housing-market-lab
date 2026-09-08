@@ -1,0 +1,50 @@
+name: Check annual ACS release
+
+on:
+  workflow_dispatch:
+  schedule:
+    # ACS five-year estimates update once per year. Three lightweight checks
+    # cover the normal release window and recent delays without monthly work.
+    - cron: "41 14 15 12,1,2 *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: acs-release
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Check for a new five-year vintage
+        env:
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+        run: python pipeline/update_acs.py
+
+      - name: Validate compact storage and ACS tests
+        run: |
+          python -m unittest tests.test_acs_pipeline
+          python scripts/check_storage.py
+
+      - name: Commit a new validated ACS release
+        run: |
+          if git status --porcelain -- public/data/acs config/acs_sources.json | grep -q .; then
+            git config user.name "housing-market-lab[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add public/data/acs config/acs_sources.json
+            git commit -m "data: publish validated ACS five-year release"
+            git push
+          else
+            echo "The published ACS vintage is still current; nothing was rebuilt."
+          fi

@@ -18,6 +18,8 @@ Created by **[Desen Lin](https://desenlin.com/)**, California State University, 
 - Redfin months of supply, median days on market, sales above original list, price-drop share, and median sale price per square foot
 - Realtor.com monthly ZIP-level active and new listings, pending ratio, listing viewers relative to the U.S., and Market Hotness
 - Census Building Permits Survey annual history from 1980 and monthly place-level observations from 2022, with explicit preliminary and imputation status
+- A focused ACS five-year housing-context layer covering household income, tenure, rent burden, household size, median age, and multifamily housing, with 90% margins of error
+- City/community structural comparisons between non-overlapping ACS five-year periods; overlapping annual vintages are intentionally omitted
 - Explicit source and reporting-window labels, with hover/focus definitions for market concepts
 - Current levels and explicitly labeled changes from one year earlier
 - User-selected one-, three-, and five-year or maximum chart windows
@@ -38,6 +40,7 @@ The application is a static Next.js/Vinext export. It uses no database, paid API
 - [Realtor.com® Economic Research](https://www.realtor.com/research/data/) supplies monthly ZIP-level inventory and buyer-interest measures.
 - [U.S. Bureau of Labor Statistics CPI](https://www.bls.gov/cpi/data.htm) supplies monthly LA-area and U.S. all-items CPI-U observations.
 - [U.S. Census Bureau Building Permits Survey](https://www.census.gov/construction/bps/) supplies permit-jurisdiction housing-unit authorizations; [HUD SOCDS](https://www.huduser.gov/socds/permits/) provides a public lookup interface for verification.
+- [U.S. Census Bureau American Community Survey](https://www.census.gov/programs-surveys/acs/data.html) supplies selected five-year household and housing-stock estimates and margins of error.
 - [US Census Bureau cartographic boundary files](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html) supply place and ZCTA boundaries.
 - [OpenStreetMap](https://www.openstreetmap.org/copyright) supplies contextual basemap tiles. Map data © OpenStreetMap contributors.
 
@@ -52,12 +55,14 @@ flowchart TD
   L[Realtor.com Research] --> M[Inventory pipeline]
   L --> N[Hotness pipeline]
   I[BLS CPI-U] --> J[CPI pipeline]
+  U[Census ACS] --> V[Annual context pipeline]
   Q[Census BPS] --> R[Permit pipeline]
   C --> E[Zillow release pointer]
   D --> F[Redfin release pointer]
   M --> O[Inventory release pointer]
   N --> P[Hotness release pointer]
   J --> K[CPI release pointer]
+  V --> W[ACS release pointer]
   R --> S[Final history pointer]
   R --> T[Open-year pointer]
   E --> G[Static interactive site]
@@ -65,12 +70,15 @@ flowchart TD
   O --> G
   P --> G
   K --> G
+  W --> G
   S --> G
   T --> G
   G --> H[GitHub Pages and Sites]
 ```
 
 Raw source files are temporary. Zillow releases live in `public/data/releases/<release-id>/`; Redfin and BLS CPI releases live independently in `public/data/redfin/releases/<release-id>/` and `public/data/cpi/releases/<release-id>/`. Realtor.com Inventory and Hotness use separate directories and pointers under `public/data/realtor/` because they can be published at different times. Census boundary geometry has its own pointer under `public/data/maps/`, so unchanged maps are not copied into every Zillow release. Building permits use `history` and `provisional` pointers under `public/data/permits/`, allowing final annual history and open monthly years to advance independently. Each pointer changes only after that source's schema, date, coverage, quality, and size checks succeed. The CPI pipeline reads BLS's official bulk time-series file first and uses the Public Data API only as a fallback, avoiding routine dependence on the API's unregistered daily quota.
+
+ACS has a separate release-window check in December, January, and February rather than joining the four monthly market-data runs. The check stops before querying or processing data when the published vintage remains current. When a new five-year vintage appears, the keyed Census API retrieves only 42 required estimate/MOE fields for California places and ZCTAs; the pipeline then retains only mapped Los Angeles and Orange County records. It publishes roughly 270 KB, reuses existing map geometry, keeps one rollback, and advances the non-overlapping comparison endpoint by five years. A free Census API key is stored only as the repository secret `CENSUS_API_KEY` and is never published.
 
 Routine permit refreshes download only the latest cumulative West-region monthly file, publish roughly 80 KB of local observations when it changes, and leave the final-history bundle untouched. The 1980–present annual archive and fixed ACS housing-stock denominator are rebuilt only after a new final annual BPS file appears. This keeps the four monthly workflow checks lightweight while preserving a complete auditable history.
 
@@ -94,10 +102,11 @@ python pipeline/update_redfin.py
 python pipeline/update_realtor.py
 python pipeline/update_cpi.py
 python pipeline/update_permits.py
+python pipeline/update_acs.py
 npm run dev
 ```
 
-For repeated Zillow pipeline development, `--cache-dir .cache/zillow` reuses local downloads. The Redfin and Realtor.com pipelines stream national CSVs and retain only configured dates and two-county geographies; they never store full raw downloads.
+For repeated Zillow pipeline development, `--cache-dir .cache/zillow` reuses local downloads. The Redfin and Realtor.com pipelines stream national CSVs and retain only configured dates and two-county geographies; they never store full raw downloads. Routine ACS updates require `CENSUS_API_KEY`. The maintainer-only `--bootstrap-bulk` option can seed a release by streaming selected Census table files without retaining them, but the scheduled workflow uses the much smaller API requests.
 
 Build and test:
 

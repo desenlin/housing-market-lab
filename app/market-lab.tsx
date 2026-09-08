@@ -35,6 +35,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PermitPanel, type PermitManifest } from "@/components/permits/permit-panel";
+import { AcsPanel, type AcsManifestSummary } from "@/components/acs/acs-panel";
 import { DEFAULT_MAP_FIT_OPTIONS, focusedMapBounds } from "@/lib/map-view";
 
 type Value = number | null;
@@ -1654,6 +1655,7 @@ export default function MarketLab() {
   const [cpi, setCpi] = useState<CpiDataset | null>(null);
   const [cpiManifest, setCpiManifest] = useState<CpiManifest | null>(null);
   const [permitManifests, setPermitManifests] = useState<{ history: PermitManifest; provisional: PermitManifest } | null>(null);
+  const [acsManifest, setAcsManifest] = useState<AcsManifestSummary | null>(null);
   const [mainTab, setMainTab] = useState("local");
   const [cpiError, setCpiError] = useState("");
   const [activityError, setActivityError] = useState("");
@@ -2279,6 +2281,7 @@ export default function MarketLab() {
           <TabsTrigger value="local">Prices &amp; Rents</TabsTrigger>
           <TabsTrigger value="activity">Market Conditions</TabsTrigger>
           <TabsTrigger value="permits">Building Permits</TabsTrigger>
+          <TabsTrigger value="context">Housing Context</TabsTrigger>
           <TabsTrigger value="regional">Metro Comparisons</TabsTrigger>
           <TabsTrigger value="methods">Data &amp; methods</TabsTrigger>
           <TabsTrigger value="about">About</TabsTrigger>
@@ -2630,6 +2633,15 @@ export default function MarketLab() {
           />
         </TabsContent>
 
+        <TabsContent value="context" className="space-y-5">
+          <AcsPanel
+            basePath={process.env.NEXT_PUBLIC_BASE_PATH ?? ""}
+            maps={maps}
+            marketDatasets={datasets}
+            onManifest={setAcsManifest}
+          />
+        </TabsContent>
+
         <TabsContent value="regional" className="space-y-5">
           <section className="regional-intro">
             <div><p className="section-kicker">Context</p><h2>How does Los Angeles fit into the housing cycle?</h2></div>
@@ -2762,10 +2774,11 @@ export default function MarketLab() {
             <Card><CardHeader><CardTitle>Redfin activity measures</CardTitle></CardHeader><CardContent className="method-copy"><p>Redfin supplies months of supply, median days on market, the share sold above original list, the share of active listings with price reductions, and median sale price per square foot.</p><p>City and ZIP observations are rolling three-month windows. Share changes are shown in percentage points; days and months use absolute differences; price per square foot uses percent change.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Realtor.com inventory and demand</CardTitle></CardHeader><CardContent className="method-copy"><p>Realtor.com® Economic Research supplies monthly ZIP-level active and new listings, the pending-to-active ratio, listing viewers relative to the U.S., and its Market Hotness score.</p><p>Hotness equally weights relative demand and supply scores based on listing attention and market speed. It is a comparative index, not a probability of sale. Provider-flagged ZIP-months remain visible and are explicitly marked for review.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Building permits</CardTitle></CardHeader><CardContent className="method-copy"><p>The U.S. Census Bureau Building Permits Survey reports new privately owned housing units authorized by permit-issuing jurisdictions. The lab groups units into single-unit, 2–4-unit, and 5+-unit structures and shows annual history from 1980 and comparable local monthly history from 2022.</p><p>Current-year monthly observations are preliminary and may be revised or imputed. Annual data become final after the Census Bureau’s revision cycle. Permit authorization is an early production indicator, not a housing start or completion.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>ACS housing context</CardTitle></CardHeader><CardContent className="method-copy"><p>The housing-context layer retains six selected ACS five-year measures and their 90% margins of error. The latest cross-section covers every mapped city, Census-designated place, and ZCTA in the two counties; it does not expose a general ACS variable catalog.</p><p>Structural change compares non-overlapping five-year periods for cities and communities. Consecutive overlapping vintages are not treated as annual observations. Prior-period household income is converted to the latest vintage’s dollars using annual-average U.S. CPI-U.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Geographies</CardTitle></CardHeader><CardContent className="method-copy"><p>City/community maps retain every Census incorporated place and Census-designated place (CDP) assigned to Orange or Los Angeles County, whether or not a provider reports data. Zillow and Redfin observations are matched independently, and an unincorporated CDP is never reassigned to a neighboring city.</p><p>ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs. Census places and ZCTAs do not necessarily cover or classify land in the same way.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Reading the maps</CardTitle></CardHeader><CardContent className="method-copy"><p>The legend distinguishes three states: <strong>colored</strong> means the selected provider reports a current observation; <strong>gray</strong> means an official city/CDP or mapped ZCTA boundary exists but the selected observation is unavailable; <strong>unshaded</strong> means the land falls outside the displayed place geography. Maps open on a focused mainland view; offshore boundaries remain in the map geometry and can be reached by panning.</p><p>Unshaded county remainder, wilderness, and open space should not be interpreted as a missing housing market. For example, unshaded portions of Laguna Coast Wilderness Park are not a separate Census place. OpenStreetMap supplies the underlying geographic context.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Zillow, Redfin, Realtor.com, BLS CPI, Census building permits, and Census map geometry use independent versioned releases. Each family keeps the current validated release and one rollback.</p><p>When a new provider file omits older dates, the lab carries those dates forward from its prior compact extract. Overlapping dates use the newest provider release, including revisions and explicit missing values. A failed update leaves the prior validated release available and does not block another source.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Cost &amp; portability</CardTitle></CardHeader><CardContent className="method-copy"><p>The site is a static export with no database, application server, paid API, or paid map service. GitHub Actions performs periodic updates and GitHub Pages serves the files.</p><p>Large national source files are streamed without being stored. County-level shards keep generated JSON files below 1 MB, shared map geometry is stored once, and an automated storage budget prevents unbounded growth.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Zillow, Redfin, Realtor.com, BLS CPI, ACS, Census building permits, and Census map geometry use independent versioned releases. Each family keeps the current validated release and one rollback.</p><p>When a new provider file omits older dates, the lab carries those dates forward from its prior compact extract. Overlapping dates use the newest provider release, including revisions and explicit missing values. A failed update leaves the prior validated release available and does not block another source.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Cost &amp; portability</CardTitle></CardHeader><CardContent className="method-copy"><p>The site is a static export with no database, application server, paid API, or paid map service. GitHub Actions performs periodic updates and GitHub Pages serves the files.</p><p>ACS checks run separately from monthly market updates and stop after a lightweight vintage check when no new release exists. New ACS vintages request only selected variables, publish only local estimates and margins of error, and reuse the shared map geometry. County-level shards keep generated JSON files below 1 MB, and an automated storage budget prevents unbounded growth.</p></CardContent></Card>
           </section>
           <Card className="disclaimer-card">
             <CardHeader><CardTitle>Academic-use disclaimer</CardTitle></CardHeader>
@@ -2784,6 +2797,7 @@ export default function MarketLab() {
                 <div><dt>Realtor inventory</dt><dd>{realtorManifests.inventory ? `Through ${shortDate(latestObservation(Object.values(realtorManifests.inventory.latest_observations)) ?? realtorManifests.inventory.release)}` : "Unavailable"}<small>{realtorManifests.inventory ? `Validated ${validationDate(realtorManifests.inventory.created_at)}` : ""}</small></dd></div>
                 <div><dt>Realtor Hotness</dt><dd>{realtorManifests.hotness ? `Through ${shortDate(latestObservation(Object.values(realtorManifests.hotness.latest_observations)) ?? realtorManifests.hotness.release)}` : "Unavailable"}<small>{realtorManifests.hotness ? `Validated ${validationDate(realtorManifests.hotness.created_at)}` : ""}</small></dd></div>
                 <div><dt>BLS CPI</dt><dd>{cpiManifest ? `Through ${shortDate(latestObservation(Object.values(cpiManifest.series).map((item) => item.latest_observation)) ?? cpiManifest.release)}` : "Unavailable"}<small>{cpiManifest ? `Validated ${validationDate(cpiManifest.created_at)}` : ""}</small></dd></div>
+                <div><dt>ACS housing context</dt><dd>{acsManifest ? `${acsManifest.periods[1]} five-year estimates` : "Load Housing Context tab"}<small>{acsManifest ? `Validated ${validationDate(acsManifest.created_at)}` : ""}</small></dd></div>
                 <div><dt>Final permit history</dt><dd>{permitManifests ? `Annual and monthly through ${shortDate(permitManifests.history.latest_final_month ?? `${permitManifests.history.latest_final_year}-12`)}` : "Loading…"}<small>{permitManifests ? `Validated ${validationDate(permitManifests.history.created_at)}` : ""}</small></dd></div>
                 <div><dt>Preliminary permits</dt><dd>{permitManifests?.provisional.latest_observation ? `Through ${shortDate(permitManifests.provisional.latest_observation)}` : "Loading…"}<small>{permitManifests ? `Validated ${validationDate(permitManifests.provisional.created_at)}` : ""}</small></dd></div>
                 <div><dt>Geographic coverage</dt><dd>{manifest.counts.city} city/community · {manifest.counts.zip} ZIP · {manifest.counts.metro} metro · {permitManifests?.history.counts.jurisdictions ?? 124} permit jurisdictions</dd></div>
@@ -2797,11 +2811,12 @@ export default function MarketLab() {
                   {realtorManifests.inventory && <div><dt>Realtor inventory</dt><dd><span>Release {realtorManifests.inventory.release}</span><code>{realtorManifests.inventory.bundle_sha256}</code></dd></div>}
                   {realtorManifests.hotness && <div><dt>Realtor Hotness</dt><dd><span>Release {realtorManifests.hotness.release}</span><code>{realtorManifests.hotness.bundle_sha256}</code></dd></div>}
                   {cpiManifest && <div><dt>BLS CPI</dt><dd><span>Release {cpiManifest.release}</span><code>{cpiManifest.bundle_sha256}</code></dd></div>}
+                  {acsManifest && <div><dt>ACS context</dt><dd><span>Release {acsManifest.release}</span><code>{acsManifest.bundle_sha256}</code></dd></div>}
                   {permitManifests && <div><dt>Final permits</dt><dd><span>Release {permitManifests.history.release}</span><code>{permitManifests.history.bundle_sha256}</code></dd></div>}
                   {permitManifests && <div><dt>Preliminary permits</dt><dd><span>Release {permitManifests.provisional.release}</span><code>{permitManifests.provisional.bundle_sha256}</code></dd></div>}
                 </dl>
               </details>
-              <p className="attribution">{manifest.attribution}. {redfinManifest?.attribution} {realtorManifests.inventory?.attribution ?? realtorManifests.hotness?.attribution} {cpiManifest?.attribution} {permitManifests?.history.attribution} Map data © OpenStreetMap contributors. This independent academic visualization is not endorsed by Zillow Group, Redfin, Realtor.com, BLS, Census, HUD, or OpenStreetMap.</p>
+              <p className="attribution">{manifest.attribution}. {redfinManifest?.attribution} {realtorManifests.inventory?.attribution ?? realtorManifests.hotness?.attribution} {cpiManifest?.attribution} {acsManifest?.attribution} {permitManifests?.history.attribution} Map data © OpenStreetMap contributors. This independent academic visualization is not endorsed by Zillow Group, Redfin, Realtor.com, BLS, Census, HUD, or OpenStreetMap.</p>
               <div className="source-links">
                 <a className="source-link" href={manifest.data_page} target="_blank" rel="noreferrer">View Zillow Research source data <ExternalLink /></a>
                 <a className="source-link" href={redfinManifest?.data_page ?? "https://www.redfin.com/news/data-center/downloads/"} target="_blank" rel="noreferrer">View Redfin Data Center <ExternalLink /></a>
@@ -2809,6 +2824,7 @@ export default function MarketLab() {
                 <a className="source-link" href={realtorManifests.inventory?.data_page ?? "https://www.realtor.com/research/data/"} target="_blank" rel="noreferrer">View Realtor.com Data Library <ExternalLink /></a>
                 <a className="source-link" href={realtorManifests.hotness?.methodology_page ?? "https://www.realtor.com/research/reports/hottest-markets/"} target="_blank" rel="noreferrer">View Market Hotness methodology <ExternalLink /></a>
                 <a className="source-link" href={cpiManifest?.data_page ?? "https://www.bls.gov/cpi/data.htm"} target="_blank" rel="noreferrer">View BLS CPI source data <ExternalLink /></a>
+                <a className="source-link" href={acsManifest?.data_page ?? "https://www.census.gov/programs-surveys/acs/data.html"} target="_blank" rel="noreferrer">View Census ACS source data <ExternalLink /></a>
                 <a className="source-link" href={permitManifests?.history.data_page ?? "https://www.census.gov/construction/bps/"} target="_blank" rel="noreferrer">View Census Building Permits Survey <ExternalLink /></a>
                 <a className="source-link" href={permitManifests?.history.socds_page ?? "https://www.huduser.gov/socds/permits/"} target="_blank" rel="noreferrer">Verify permits in HUD SOCDS <ExternalLink /></a>
                 <a className="source-link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">View OpenStreetMap attribution <ExternalLink /></a>

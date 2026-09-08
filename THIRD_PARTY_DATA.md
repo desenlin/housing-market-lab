@@ -44,8 +44,9 @@ BLS-published material is public domain except for identified third-party photog
 
 ## U.S. Census Bureau
 
-- **Material used:** Building Permits Survey place-level housing-unit authorizations, ACS five-year total housing units, Census cartographic boundary files, and geographic reference information.
+- **Material used:** Building Permits Survey place-level housing-unit authorizations; selected ACS five-year household, tenure, affordability, and housing-stock estimates and margins of error; Census cartographic boundary files; and geographic reference information.
 - **Permit source:** [Census Building Permits Survey](https://www.census.gov/construction/bps/) and [HUD SOCDS verification interface](https://www.huduser.gov/socds/permits/)
+- **ACS source:** [American Community Survey data](https://www.census.gov/programs-surveys/acs/data.html) and [comparison guidance](https://www.census.gov/programs-surveys/acs/guidance/comparing-acs-data.html)
 - **Source:** [Census cartographic boundary files](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html)
 - **Citation guidance:** [Citing Census data and geographic products](https://www.census.gov/about/policies/citation.html)
 - **Attribution:** U.S. Census Bureau, with the boundary vintage recorded in [DATA_SOURCES.md](DATA_SOURCES.md).

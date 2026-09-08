@@ -1,0 +1,14 @@
+{
+  "provider": "U.S. Census Bureau American Community Survey",
+  "dataset": "acs/acs5",
+  "api_base": "https://api.census.gov/data",
+  "summary_file_base": "https://www2.census.gov/programs-surveys/acs/summary_file",
+  "data_page": "https://www.census.gov/programs-surveys/acs/data.html",
+  "comparison_guidance": "https://www.census.gov/programs-surveys/acs/guidance/comparing-acs-data.html",
+  "geography_guidance": "https://www.census.gov/programs-surveys/acs/geography-acs/geography-boundaries-by-year.html",
+  "latest_year": 2024,
+  "comparison_year": 2019,
+  "state_fips": "06",
+  "max_release_bytes": 1000000,
+  "keep_releases": 2
+}

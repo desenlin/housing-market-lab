@@ -102,6 +102,25 @@ Modern records are joined by five-digit Census place FIPS. Older BPS identifiers
 
 Final history and open years have independent atomic pointers. A routine check discovers the newest cumulative revised monthly file and rebuilds only the provisional bundle. Annual history, final 2022–present monthly data, and the ACS denominator are rebuilt only when the latest final annual year changes. Coverage must remain at 89 Los Angeles County jurisdictions and 35 Orange County jurisdictions, duplicate jurisdiction-dates are rejected, and compact history/provisional releases are capped separately before publication.
 
+## American Community Survey housing context
+
+The ACS layer is deliberately limited to six measures that help interpret housing demand, affordability, and stock. It is not a general demographic-variable browser.
+
+| Display measure | ACS detailed table | Construction |
+|---|---|---|
+| Median household income | `B19013` | Published median and MOE |
+| Renter-occupied share | `B25003` | Renter-occupied ÷ occupied units |
+| Rent-burdened households | `B25070` | Gross rent at least 30% of income ÷ cash-rent units with burden computed |
+| Average household size | `B25010` | Published average and MOE |
+| Median age | `B01002` | Published median and MOE |
+| Housing in 5+-unit structures | `B25024` | Units in structures with at least five units ÷ all housing units |
+
+The current cross-section uses the latest ACS five-year estimates for every mapped city, Census-designated place, and ZCTA in Los Angeles and Orange Counties. Estimates and Census-published 90% margins of error are retained together. Derived sums combine component variances; derived shares use the Census approximation for a numerator contained within its denominator. Values with large relative margins of error remain visible and are identified in the interface rather than silently suppressed.
+
+City/community structural change compares adjacent **non-overlapping** periods—for the initial release, 2015–2019 and 2020–2024. A difference is identified as statistically distinguishable when its absolute value exceeds the combined 90% margin of error. Consecutive five-year releases are not plotted as annual observations because they share four collection years. Prior-period household income and its MOE are converted to latest-vintage dollars using the ratio of annual-average U.S. CPI-U. ZCTA change is not shown because the comparison spans different ZCTA boundary vintages; ZIP-level use is limited to the latest cross-section.
+
+ACS updates are isolated from the monthly provider workflow. A small job checks for the next table-based five-year vintage during the December–February release window. If it is absent, the updater exits without an API data request, transformation, or file rewrite. If present, three keyed Census API calls retrieve only the selected raw fields: prior-period California places, current California places, and current California ZCTAs. Filtering against the existing map reference reduces the public release to local estimates and MOEs, currently about 270 KB. Map geometry is never duplicated. Validation requires broad local coverage, a non-overlapping five-year comparison, a sub-1 MB release, and an atomic pointer update; one rollback is retained.
+
 ## Census cartographic boundaries
 
 - 2025 California Places, 1:500,000 cartographic boundary file
@@ -134,7 +153,7 @@ Changing the constant-dollar base month rescales the displayed real dollar level
 
 ## Release checks
 
-A provider release is rejected unless all required files stream or download, date columns are ordered and sufficiently long, local coverage remains above conservative floors, and processed public data stays under its size guardrail. Zillow, Redfin, Realtor.com Inventory, Realtor.com Hotness, BLS CPI, final permit history, provisional permit years, and Census map geometry use independent versioned directories and `latest.json` pointers, so a failure retains the prior release for that provider or product. County-level sharding keeps generated JSON objects below 1 MB, and every release family keeps only the current version plus one rollback.
+A provider release is rejected unless all required files stream or download, date columns are ordered and sufficiently long, local coverage remains above conservative floors, and processed public data stays under its size guardrail. Zillow, Redfin, Realtor.com Inventory, Realtor.com Hotness, BLS CPI, ACS context, final permit history, provisional permit years, and Census map geometry use independent versioned directories and `latest.json` pointers, so a failure retains the prior release for that provider or product. County-level sharding keeps generated JSON objects below 1 MB, and every release family keeps only the current version plus one rollback.
 
 Before publication, each updater merges the new local extract with the current validated history. A prior value is retained when its date is absent from the new provider file, protecting the lab if an upstream full-history file becomes a rolling window. For dates that remain in the new file, the new value—including revisions or an explicit missing observation—is authoritative. Final building-permit history follows the same principle and can append a newly final year without re-downloading the complete 1980-present archive. The detailed rules and recovery hierarchy are documented in [Storage and historical continuity](STORAGE_DESIGN.md).
 

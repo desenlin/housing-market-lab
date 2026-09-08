@@ -20,3 +20,16 @@ test("routine refresh checks CPI and building permits throughout the monthly rel
   assert.match(workflow, /BLS CPI refresh failed; retaining its prior validated release/);
   assert.match(workflow, /Census building permits refresh failed; retaining its prior validated releases/);
 });
+
+test("ACS uses a separate low-frequency change-detecting workflow", async () => {
+  const workflow = await readFile(
+    new URL("../.github/workflows/update-acs.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(workflow, /cron: "41 14 15 12,1,2 \*"/);
+  assert.match(workflow, /python pipeline\/update_acs\.py/);
+  assert.match(workflow, /CENSUS_API_KEY/);
+  assert.match(workflow, /public\/data\/acs config\/acs_sources\.json/);
+  assert.doesNotMatch(workflow, /update_data\.py/);
+  assert.doesNotMatch(workflow, /update_redfin\.py/);
+});

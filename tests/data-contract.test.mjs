@@ -212,3 +212,35 @@ test("building permit pointers separate final history from the open preliminary 
   assert.ok(annual.regions.some((region) => region.name === "Orange County Unincorporated Area"));
   assert.ok(!annual.regions.some((region) => region.name === "Rossmoor"));
 });
+
+test("ACS pointer resolves to compact current and non-overlapping context data", async () => {
+  const pointer = await readJson("acs/latest.json");
+  const prefix = `acs/releases/${pointer.release}/`;
+  const [manifest, city, zip] = await Promise.all([
+    readJson(`${prefix}manifest.json`),
+    readJson(`${prefix}city.json`),
+    readJson(`${prefix}zip.json`),
+  ]);
+  assert.equal(manifest.provider, "U.S. Census Bureau American Community Survey");
+  assert.deepEqual(manifest.periods, ["2015–2019", "2020–2024"]);
+  assert.equal(city.regions.length, 189);
+  assert.equal(zip.regions.length, 360);
+  assert.equal(city.comparison_available, true);
+  assert.equal(zip.comparison_available, false);
+  assert.deepEqual(Object.keys(city.metrics).sort(), [
+    "average_household_size",
+    "median_age",
+    "median_household_income",
+    "multifamily_share",
+    "rent_burden_share",
+    "renter_share",
+  ]);
+  const fullerton = city.regions.find((region) => region.name === "Fullerton");
+  assert.ok(fullerton);
+  assert.ok(fullerton.series.median_household_income.every(Number.isFinite));
+  assert.ok(fullerton.moe.renter_share.every(Number.isFinite));
+  const zip92831 = zip.regions.find((region) => region.name === "92831");
+  assert.ok(zip92831);
+  assert.equal(zip92831.series.median_household_income[0], null);
+  assert.ok(Number.isFinite(zip92831.series.median_household_income[1]));
+});
