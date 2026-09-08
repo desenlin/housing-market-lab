@@ -218,6 +218,62 @@ button, select { font: inherit; }
 .permit-status { min-height: 330px; display: flex; align-items: center; justify-content: center; gap: 10px; color: #526a7a; }
 .permit-status .loader { width: 22px; height: 22px; }
 .permit-error { flex-direction: column; border: 1px solid #e5b995; border-radius: 8px; background: #fffaf6; color: #875300; }
+
+.market-brief-stack { display: grid; gap: 20px; }
+.market-brief-header { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(360px, .85fr); align-items: end; gap: 42px; border-bottom: 1px solid #c9d5db; padding: 10px 2px 20px; }
+.market-brief-header h2 { max-width: 690px; margin: 0; color: #12355b; font-family: Georgia, serif; font-size: clamp(28px, 4vw, 43px); line-height: 1.08; }
+.market-brief-header > p { margin: 0; color: #526979; font-size: 16px; line-height: 1.65; }
+.market-brief-header .section-kicker, .brief-standard-card .section-kicker { color: #d85d08; }
+.brief-date { margin: 10px 0 0; color: #71818c; font-size: 12px; font-weight: 700; }
+.brief-question-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.brief-question-card { border-color: #cbd7dd; border-radius: 9px; box-shadow: 0 3px 14px rgb(16 47 80 / .045); overflow: hidden; }
+.brief-question-card [data-slot="card-header"] { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 13px; align-items: start; border-bottom: 1px solid #e1e8eb; padding-bottom: 14px; }
+.brief-question-number { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #12355b; color: #fff; font-family: var(--font-mono); font-size: 11px; }
+.brief-question-card .section-kicker { margin-bottom: 4px; color: #d85d08; }
+.brief-question-card h3 { color: #12355b; font-family: Georgia, serif; font-size: 21px; line-height: 1.25; }
+.brief-question-card [data-slot="card-content"] { display: grid; gap: 13px; padding-top: 15px; }
+.brief-answer { min-height: 52px; margin: 0; color: #173752; font-size: 17px; font-weight: 750; line-height: 1.5; }
+.brief-source-row { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 10px; color: #71818c; font-size: 11px; }
+.brief-status { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 4px 8px; font-size: 10px; font-weight: 800; }
+.brief-status svg { width: 12px; height: 12px; }
+.brief-status.checked { border: 1px solid #a7c8b8; background: #eef8f2; color: #22624d; }
+.brief-status.review { border: 1px solid #efc17c; background: #fff7e8; color: #875300; }
+.brief-evidence { border-left: 3px solid #9eb8c6; background: #f4f8fa; padding: 9px 11px; }
+.brief-evidence p { margin: 0; color: #526a79; font-size: 12px; line-height: 1.5; }
+.brief-evidence p + p { margin-top: 5px; }
+.brief-evidence strong { color: #264a64; }
+.brief-card-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 9px 16px; }
+.brief-card-footer button { color: #173752; font-weight: 750; }
+.brief-card-footer button svg { width: 14px; }
+.brief-audit { color: #647885; font-size: 11px; }
+.brief-audit summary { cursor: pointer; font-weight: 750; }
+.brief-audit div { max-width: 420px; margin-top: 8px; border-top: 1px solid #e1e8eb; padding-top: 7px; }
+.brief-audit p { margin: 0 0 4px; line-height: 1.45; }
+.brief-audit span, .brief-audit code { display: block; margin-top: 3px; overflow-wrap: anywhere; font-size: 10px; }
+.brief-standard-card { border-color: #b8cbd5; border-top: 3px solid #ff7a1a; box-shadow: none; }
+.brief-standard-card h3 { color: #12355b; font-family: Georgia, serif; font-size: 24px; }
+.brief-standards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.brief-standard { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; }
+.brief-standard > span { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 6px; background: #edf4f7; color: #15516f; }
+.brief-standard svg { width: 17px; height: 17px; }
+.brief-standard strong { color: #173752; font-size: 13px; }
+.brief-standard p { margin: 5px 0 0; color: #607482; font-size: 12px; line-height: 1.55; }
+.brief-method-note { border: 1px solid #ccd8de; border-radius: 8px; background: #fff; padding: 13px 15px; color: #536b7b; }
+.brief-method-note summary { display: flex; align-items: center; gap: 7px; color: #173752; font-size: 13px; font-weight: 800; cursor: pointer; }
+.brief-method-note summary svg { width: 16px; }
+.brief-method-note p { margin: 11px 0 7px; max-width: 900px; font-size: 12px; line-height: 1.55; }
+.brief-method-note code { overflow-wrap: anywhere; font-size: 10px; }
+.fact-status, .fact-empty { min-height: 220px; display: flex; align-items: center; justify-content: center; gap: 9px; color: #526a79; }
+.fact-status svg { width: 20px; }
+
+@media (max-width: 900px) {
+  .market-brief-header { grid-template-columns: 1fr; gap: 14px; }
+  .brief-standards { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .brief-question-grid { grid-template-columns: 1fr; }
+  .brief-answer { min-height: 0; }
+}
 .acs-stack { display: grid; gap: 20px; }
 .acs-intro { border-bottom-color: #8fb8cc; }
 .acs-intro .section-kicker, .acs-ranking .section-kicker, .acs-section-heading .section-kicker { color: #155f82; }

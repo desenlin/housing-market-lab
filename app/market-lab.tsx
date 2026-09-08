@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/tooltip";
 import { PermitPanel, type PermitManifest } from "@/components/permits/permit-panel";
 import { AcsPanel, type AcsManifestSummary } from "@/components/acs/acs-panel";
+import { FactEnginePanel } from "@/components/facts/fact-engine-panel";
 import { DEFAULT_MAP_FIT_OPTIONS, focusedMapBounds } from "@/lib/map-view";
 
 type Value = number | null;
@@ -2293,6 +2294,7 @@ export default function MarketLab() {
           <TabsTrigger value="permits">Building Permits</TabsTrigger>
           <TabsTrigger value="context">Housing Context</TabsTrigger>
           <TabsTrigger value="regional">Metro Comparisons</TabsTrigger>
+          <TabsTrigger value="facts">Market Brief</TabsTrigger>
           <TabsTrigger value="methods">Data &amp; methods</TabsTrigger>
           <TabsTrigger value="about">About</TabsTrigger>
         </TabsList>
@@ -2770,6 +2772,10 @@ export default function MarketLab() {
               </CardContent>
             </Card>
           </section>
+        </TabsContent>
+
+        <TabsContent value="facts" className="space-y-5">
+          <FactEnginePanel basePath={process.env.NEXT_PUBLIC_BASE_PATH ?? ""} onNavigate={setMainTab} />
         </TabsContent>
 
         <TabsContent value="methods" className="space-y-5">

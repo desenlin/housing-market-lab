@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "prototype": true,
+  "minimum_coverage": 0.7,
+  "metrics": {
+    "zhvi": {"domain": "Prices", "label": "Typical home value", "unit": "usd", "change_mode": "percent", "materiality": 0.01, "preferred_comparison": "yoy"},
+    "zori": {"domain": "Rents", "label": "Typical asking rent", "unit": "usd", "change_mode": "percent", "materiality": 0.015, "preferred_comparison": "yoy"},
+    "inventory": {"domain": "Availability", "label": "For-sale inventory", "unit": "number", "change_mode": "percent", "materiality": 0.05, "preferred_comparison": "yoy"},
+    "days_pending": {"domain": "Liquidity", "label": "Median days pending", "unit": "days", "change_mode": "difference", "materiality": 5, "preferred_comparison": "yoy_absolute"},
+    "price_cut_share": {"domain": "Seller adjustment", "label": "Listings with a price cut", "unit": "share", "change_mode": "percentage_point", "materiality": 0.02, "preferred_comparison": "yoy_absolute"},
+    "sale_to_list": {"domain": "Competitiveness", "label": "Sale-to-list ratio", "unit": "share", "change_mode": "percentage_point", "materiality": 0.005, "preferred_comparison": "yoy_absolute"},
+    "months_supply": {"domain": "Availability", "label": "Months of supply", "unit": "months", "change_mode": "difference", "materiality": 0.5, "preferred_comparison": "yoy_absolute"},
+    "median_dom": {"domain": "Liquidity", "label": "Median days on market", "unit": "days", "change_mode": "difference", "materiality": 5, "preferred_comparison": "yoy_absolute"},
+    "sold_above_original_share": {"domain": "Competitiveness", "label": "Homes sold above original list", "unit": "share", "change_mode": "percentage_point", "materiality": 0.03, "preferred_comparison": "yoy_absolute"},
+    "price_drop_share": {"domain": "Seller adjustment", "label": "Active listings with price drops", "unit": "share", "change_mode": "percentage_point", "materiality": 0.03, "preferred_comparison": "yoy_absolute"},
+    "median_sale_ppsf": {"domain": "Prices", "label": "Median sale price per square foot", "unit": "usd_sqft", "change_mode": "percent", "materiality": 0.02, "preferred_comparison": "yoy"},
+    "active_listing_count": {"domain": "Availability", "label": "Active listings", "unit": "number", "change_mode": "percent", "materiality": 0.08, "preferred_comparison": "yoy"},
+    "new_listing_count": {"domain": "Availability", "label": "New listings", "unit": "number", "change_mode": "percent", "materiality": 0.08, "preferred_comparison": "yoy"},
+    "pending_ratio": {"domain": "Liquidity", "label": "Pending-to-active ratio", "unit": "share", "change_mode": "percentage_point", "materiality": 0.08, "preferred_comparison": "yoy_absolute"},
+    "cpi_la": {"domain": "Inflation", "label": "Los Angeles-area inflation", "unit": "index", "change_mode": "percent", "materiality": 0.02, "preferred_comparison": "yoy"},
+    "real_zhvi": {"domain": "Prices", "label": "Inflation-adjusted home value", "unit": "usd", "change_mode": "percent", "materiality": 0.01, "preferred_comparison": "yoy"},
+    "permits_ytd": {"domain": "Construction", "label": "Housing units authorized", "unit": "units", "change_mode": "percent", "materiality": 0.1, "preferred_comparison": "ytd_yoy"}
+  }
+}

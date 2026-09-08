@@ -26,6 +26,7 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Inventory growth vs\./);
   assert.match(source, /<TabsTrigger value="activity">Market Conditions<\/TabsTrigger>\s*<TabsTrigger value="permits">Building Permits<\/TabsTrigger>/);
   assert.match(source, /<TabsTrigger value="methods">Data &amp; methods<\/TabsTrigger>\s*<TabsTrigger value="about">About<\/TabsTrigger>/);
+  assert.match(source, /<TabsTrigger value="facts">Market Brief<\/TabsTrigger>\s*<TabsTrigger value="methods">Data &amp; methods<\/TabsTrigger>/);
   assert.match(source, /Housing evidence for learning, research, and public discussion/);
   assert.match(source, /Support instruction/);
   assert.match(source, /Facilitate research/);
@@ -91,6 +92,18 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /aria-pressed=\{activeActivitySelectedIds\.includes\(item\.region\.id\)\}/);
   assert.match(source, /Select a place from the ranking or add a comparison to display the chart/);
   assert.match(source, /Citation:<\/strong> Lin, D\. \(2026\)\. <cite>Housing Market Lab<\/cite> \[Computer software\]/);
+});
+
+test("market brief prioritizes questions, quality controls, and direct evidence", async () => {
+  const source = await readProjectFile("components/facts/fact-engine-panel.tsx");
+  assert.match(source, /Are home values keeping pace with local inflation\?/);
+  assert.match(source, /Is residential permitting increasing\?/);
+  assert.match(source, /Has metropolitan inventory shifted materially\?/);
+  assert.match(source, /Are asking rents accelerating\?/);
+  assert.match(source, /Release-aware quality control/);
+  assert.match(source, /Questions before variables/);
+  assert.match(source, /Direct evidentiary support/);
+  assert.match(source, /unconstrained AI summary cannot provide this assurance/i);
 });
 
 test("repository front page includes citation and academic-use limits", async () => {

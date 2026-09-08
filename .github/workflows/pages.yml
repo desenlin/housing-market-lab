@@ -107,7 +107,9 @@ jobs:
           fi
 
       - name: Enforce bounded storage policy
-        run: python scripts/check_storage.py
+        run: |
+          python pipeline/build_fact_engine.py
+          python scripts/check_storage.py
 
       - name: Commit a successful data release
         if: steps.refresh.outcome == 'success'
