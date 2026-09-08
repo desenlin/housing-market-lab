@@ -15,6 +15,7 @@ test("routine refresh checks CPI and building permits throughout the monthly rel
   assert.match(workflow, /python pipeline\/update_realtor\.py/);
   assert.match(workflow, /python pipeline\/update_cpi\.py/);
   assert.match(workflow, /python pipeline\/update_permits\.py/);
+  assert.match(workflow, /python scripts\/check_storage\.py/);
   assert.match(workflow, /Realtor\.com refresh failed; retaining its prior validated releases/);
   assert.match(workflow, /BLS CPI refresh failed; retaining its prior validated release/);
   assert.match(workflow, /Census building permits refresh failed; retaining its prior validated releases/);

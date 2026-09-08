@@ -23,6 +23,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+try:
+    from pipeline.storage import prune_releases
+except ModuleNotFoundError:  # direct script execution
+    from storage import prune_releases  # type: ignore[no-redef]
+
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "config" / "cpi_sources.json"
@@ -191,8 +196,8 @@ def build_series(
 ) -> dict[str, Any]:
     dates, values = complete_months(observations, int(config["start_year"]), end_year)
     observed = [value for value in values if value is not None]
-    if len(dates) < 240 or len(observed) < 235:
-        raise ValueError(f"{source['id']} has insufficient monthly history")
+    if len(dates) < 12 or len(observed) < 10:
+        raise ValueError(f"{source['id']} has insufficient current-source history")
     if dates != sorted(set(dates)):
         raise ValueError(f"{source['id']} dates are not ordered and unique")
     latest_index = max(index for index, value in enumerate(values) if value is not None)
@@ -250,20 +255,80 @@ def existing_bundle_sha() -> str | None:
         return None
 
 
+def load_current_dataset() -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    pointer = PUBLIC_DATA / "latest.json"
+    if not pointer.exists():
+        return None, None
+    try:
+        release = json.loads(pointer.read_text())["release"]
+        root = PUBLIC_DATA / "releases" / release
+        return (
+            json.loads((root / "cpi.json").read_text()),
+            json.loads((root / "manifest.json").read_text()),
+        )
+    except (OSError, KeyError, json.JSONDecodeError):
+        return None, None
+
+
+def merge_cpi_history(
+    previous: dict[str, Any] | None, incoming: dict[str, Any]
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    if not previous:
+        return incoming, {"truncated_series": {}}
+    merged = {**previous, **incoming, "series": {}}
+    truncated = {}
+    for key, current in incoming["series"].items():
+        prior = previous.get("series", {}).get(key)
+        if not prior:
+            merged["series"][key] = current
+            continue
+        dates = sorted(set(prior["dates"]) | set(current["dates"]))
+        prior_by_date = dict(zip(prior["dates"], prior["values"]))
+        current_by_date = dict(zip(current["dates"], current["values"]))
+        current_dates = set(current["dates"])
+        values = [
+            current_by_date.get(date) if date in current_dates else prior_by_date.get(date)
+            for date in dates
+        ]
+        observed = [index for index, value in enumerate(values) if value is not None]
+        if prior["dates"] and current["dates"] and prior["dates"][0] < current["dates"][0]:
+            truncated[key] = {
+                "incoming_start": current["dates"][0],
+                "preserved_start": prior["dates"][0],
+            }
+        merged["series"][key] = {
+            **prior,
+            **current,
+            "dates": dates,
+            "values": values,
+            "yoy": yoy_values(values),
+            "latest_observation": dates[observed[-1]],
+            "missing_observations": [
+                date for date, value in zip(dates, values) if value is None
+            ],
+        }
+    return merged, {"truncated_series": truncated}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, default=CONFIG_PATH)
     parser.add_argument("--end-year", type=int, default=datetime.now(timezone.utc).year)
     args = parser.parse_args()
     config = json.loads(args.config.read_text())
-    series = fetch_all_series(config, args.end_year)
-    dataset = {
+    incoming = {
         "provider": config["provider"],
         "frequency": "Monthly",
         "data_page": config["data_page"],
         "real_value_interpolation": config.get("real_value_interpolation", []),
-        "series": series,
+        "series": fetch_all_series(config, args.end_year),
     }
+    previous, previous_manifest = load_current_dataset()
+    dataset, history_report = merge_cpi_history(previous, incoming)
+    series = dataset["series"]
+    for item in series.values():
+        if len(item["dates"]) < 240 or sum(value is not None for value in item["values"]) < 235:
+            raise ValueError(f"{item['id']} has insufficient retained monthly history")
     dataset_bytes = compact_json(dataset)
     bundle_sha = hashlib.sha256(dataset_bytes).hexdigest()
     if existing_bundle_sha() == bundle_sha:
@@ -279,8 +344,14 @@ def main() -> None:
         "attribution": "Consumer Price Index data provided by the U.S. Bureau of Labor Statistics.",
         "data_page": config["data_page"],
         "frequency": "Monthly",
+        "storage_schema_version": 2,
         "real_value_interpolation": config.get("real_value_interpolation", []),
         "bundle_sha256": bundle_sha,
+        "history_policy": {
+            "strategy": "merge_forward",
+            "previous_release": previous_manifest.get("release") if previous_manifest else None,
+            "report": history_report,
+        },
         "series": {
             key: {
                 "id": item["id"],
@@ -308,8 +379,10 @@ def main() -> None:
         handle.write(pointer)
         temporary_pointer = Path(handle.name)
     temporary_pointer.replace(PUBLIC_DATA / "latest.json")
+    removed = prune_releases(PUBLIC_DATA, int(config["keep_releases"]))
     latest = ", ".join(f"{key}: {item['latest_observation']}" for key, item in series.items())
-    print(f"Published BLS CPI release {release}: {latest}")
+    suffix = f"; pruned {', '.join(removed)}" if removed else ""
+    print(f"Published BLS CPI release {release}: {latest}{suffix}")
 
 
 if __name__ == "__main__":

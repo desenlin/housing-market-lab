@@ -106,6 +106,9 @@ jobs:
             exit 1
           fi
 
+      - name: Enforce bounded storage policy
+        run: python scripts/check_storage.py
+
       - name: Commit a successful data release
         if: steps.refresh.outcome == 'success'
         run: |

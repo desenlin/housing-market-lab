@@ -3,7 +3,7 @@
   "data_page": "https://www.realtor.com/research/data/",
   "methodology_page": "https://www.realtor.com/research/reports/hottest-markets/",
   "start_date": "2018-01",
-  "keep_releases": 3,
+  "keep_releases": 2,
   "max_published_bytes_per_product": 5000000,
   "products": [
     {

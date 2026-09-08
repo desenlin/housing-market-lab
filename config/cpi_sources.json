@@ -4,6 +4,7 @@
   "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.1.AllItems",
   "data_page": "https://www.bls.gov/cpi/data.htm",
   "start_year": 2000,
+  "keep_releases": 2,
   "real_value_interpolation": [
     {
       "month": "2025-10",

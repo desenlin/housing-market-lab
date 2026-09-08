@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import hashlib
 import io
 import json
 import math
@@ -24,12 +23,22 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+try:
+    from pipeline.storage import (
+        bundle_sha, dataset_shards, load_dataset_release, load_map_release,
+        merge_dataset_history, prune_releases,
+    )
+except ModuleNotFoundError:  # direct script execution
+    from storage import (  # type: ignore[no-redef]
+        bundle_sha, dataset_shards, load_dataset_release, load_map_release,
+        merge_dataset_history, prune_releases,
+    )
+
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "config" / "redfin_sources.json"
 PUBLIC_DATA = ROOT / "public" / "data" / "redfin"
 ZILLOW_PUBLIC_DATA = ROOT / "public" / "data"
-MAX_PUBLISHED_BYTES = 12 * 1024 * 1024
 USER_AGENT = "housing-market-lab/0.3 academic research"
 MISSING = {"", "NA", "N/A", "NULL", "null", "-"}
 
@@ -57,9 +66,11 @@ def compact_series(values: list[int | float | None]) -> list[Any] | dict[str, An
 
 
 def load_local_reference() -> dict[str, dict[str, dict[str, str | None]]]:
-    pointer = json.loads((ZILLOW_PUBLIC_DATA / "latest.json").read_text())
-    release_dir = ZILLOW_PUBLIC_DATA / "releases" / pointer["release"]
-    city_map = json.loads((release_dir / "map-city.json").read_text())
+    city_map = load_map_release(ZILLOW_PUBLIC_DATA / "maps", "city")
+    if city_map is None:
+        pointer = json.loads((ZILLOW_PUBLIC_DATA / "latest.json").read_text())
+        release_dir = ZILLOW_PUBLIC_DATA / "releases" / pointer["release"]
+        city_map = json.loads((release_dir / "map-city.json").read_text())
     reference: dict[str, dict[str, dict[str, str | None]]] = {"city": {}}
     for county, county_map in city_map["counties"].items():
         for region in county_map["regions"]:
@@ -72,7 +83,9 @@ def load_local_reference() -> dict[str, dict[str, dict[str, str | None]]]:
 
     # Zillow's county-labelled ZIP table remains the curated assignment source
     # because ZCTAs can cross county lines and do not nest within counties.
-    zip_payload = json.loads((release_dir / "zip.json").read_text())
+    zip_payload, _ = load_dataset_release(ZILLOW_PUBLIC_DATA, "zip")
+    if zip_payload is None:
+        raise RuntimeError("No validated Zillow ZIP reference is available")
     reference["zip"] = {
         region["name"]: {
             "id": f"zcta:{region['name']}",
@@ -271,20 +284,31 @@ def main() -> None:
             f"{source['key']}: {result[1]['regions']} retained regions, "
             f"latest {result[1]['latest_observation']}"
         )
-    payloads = {
+    incoming_payloads = {
         geography: combine_geography(
             geography, results, reference[geography], config["metrics"]
         )
         for geography, results in grouped.items()
     }
+    payloads = {}
+    history_reports = {}
+    prior_release = None
+    for geography, incoming in incoming_payloads.items():
+        previous, previous_manifest = load_dataset_release(PUBLIC_DATA, geography)
+        if previous_manifest:
+            prior_release = previous_manifest.get("release")
+        payloads[geography], history_reports[geography] = merge_dataset_history(
+            previous, incoming
+        )
     validate_payloads(payloads, config)
-    files = {f"{geography}.json": compact_json(payload) for geography, payload in payloads.items()}
-    digest = hashlib.sha256()
-    for name in sorted(files):
-        digest.update(name.encode())
-        digest.update(files[name])
-    bundle_sha = digest.hexdigest()
-    if existing_bundle_sha() == bundle_sha:
+    files: dict[str, bytes] = {}
+    file_index: dict[str, list[str]] = {}
+    for geography, payload in payloads.items():
+        shards, names = dataset_shards(payload)
+        files.update(shards)
+        file_index[geography] = names
+    digest = bundle_sha(files)
+    if existing_bundle_sha() == digest:
         print("Redfin observations are unchanged; retaining the current release.")
         return
     release = datetime.now(timezone.utc).strftime("%Y-%m-%d-r%H%M%S")
@@ -297,7 +321,14 @@ def main() -> None:
         "methodology_page": config["methodology_page"],
         "frequency": "Rolling 3 Months",
         "start_date": config["start_date"],
-        "bundle_sha256": bundle_sha,
+        "storage_schema_version": 2,
+        "bundle_sha256": digest,
+        "files": file_index,
+        "history_policy": {
+            "strategy": "merge_forward",
+            "previous_release": prior_release,
+            "reports": history_reports,
+        },
         "counts": {key: len(value["regions"]) for key, value in payloads.items()},
         "latest_observations": {
             f"{geography}_{metric}": metadata["dates"][-1]
@@ -308,7 +339,7 @@ def main() -> None:
     }
     files["manifest.json"] = compact_json(manifest)
     total = sum(len(value) for value in files.values())
-    if total > MAX_PUBLISHED_BYTES:
+    if total > int(config["max_published_bytes_per_release"]):
         raise ValueError(f"Processed Redfin release is too large: {total:,} bytes")
     release_dir = PUBLIC_DATA / "releases" / release
     release_dir.mkdir(parents=True, exist_ok=False)
@@ -320,7 +351,9 @@ def main() -> None:
         handle.write(pointer)
         temporary_pointer = Path(handle.name)
     temporary_pointer.replace(PUBLIC_DATA / "latest.json")
-    print(f"Published Redfin release {release}: {total:,} bytes")
+    removed = prune_releases(PUBLIC_DATA, int(config["keep_releases"]))
+    suffix = f"; pruned {', '.join(removed)}" if removed else ""
+    print(f"Published Redfin release {release}: {total:,} bytes{suffix}")
 
 
 if __name__ == "__main__":

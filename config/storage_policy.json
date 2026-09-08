@@ -1,0 +1,16 @@
+{
+  "storage_schema_version": 2,
+  "max_generated_json_bytes": 1000000,
+  "max_public_data_bytes": 25000000,
+  "keep_releases": {
+    "zillow": 2,
+    "maps": 2,
+    "redfin": 2,
+    "realtor_inventory": 2,
+    "realtor_hotness": 2,
+    "cpi": 2,
+    "permits_history": 2,
+    "permits_provisional": 2
+  },
+  "forbidden_public_suffixes": [".csv", ".tsv", ".zip", ".gz", ".parquet", ".sqlite", ".db"]
+}

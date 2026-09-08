@@ -1,6 +1,9 @@
 {
   "data_page": "https://www.zillow.com/research/data/",
   "counties": ["Orange County", "Los Angeles County"],
+  "keep_releases": 2,
+  "keep_map_releases": 2,
+  "max_published_bytes_per_release": 6000000,
   "metro_selection": {
     "rule": "20 largest U.S. metropolitan statistical areas by population plus selected California comparators",
     "population_estimate_date": "2025-07-01",

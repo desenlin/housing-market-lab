@@ -23,6 +23,11 @@ from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
 
+try:
+    from pipeline.storage import merge_uniform_history
+except ModuleNotFoundError:  # direct script execution
+    from storage import merge_uniform_history  # type: ignore[no-redef]
+
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "config" / "permit_sources.json"
@@ -436,6 +441,28 @@ def load_manifest(kind: str) -> dict[str, Any] | None:
 
 
 def publish(kind: str, files: dict[str, bytes], manifest: dict[str, Any], keep: int, max_bytes: int) -> bool:
+    history_reports = {}
+    if kind == "history":
+        current_manifest = load_manifest(kind)
+        if current_manifest:
+            current_root = PUBLIC_ROOT / kind / "releases" / current_manifest["release"]
+            merged_files = {}
+            for name, content in files.items():
+                previous_path = current_root / name
+                previous = json.loads(previous_path.read_text(encoding="utf-8")) if previous_path.exists() else None
+                incoming = json.loads(content)
+                merged, report = merge_uniform_history(previous, incoming)
+                merged_files[name] = compact_json(merged)
+                history_reports[name] = report
+            files = merged_files
+            manifest = {
+                **manifest,
+                "history_policy": {
+                    "strategy": "merge_forward",
+                    "previous_release": current_manifest["release"],
+                    "reports": history_reports,
+                },
+            }
     digest = bundle_sha(files)
     current = load_manifest(kind)
     if current and current.get("bundle_sha256") == digest:
@@ -494,11 +521,16 @@ def main() -> None:
         final_raw, _ = fetch_bytes(annual_files[final_year][1], args.cache_dir)
         reference = current_reference(final_raw, final_year, config)
         housing_stock, acs_sources = acs_housing_stock(config, reference, args.cache_dir)
-        annual_years = list(range(int(config["annual_start_year"]), final_year + 1))
+        incremental_start = (
+            int(history_manifest["latest_final_year"]) + 1
+            if history_manifest and not args.force_history
+            else int(config["annual_start_year"])
+        )
+        annual_years = list(range(incremental_start, final_year + 1))
         missing_annual = [year for year in annual_years if year not in annual_files]
         if missing_annual:
             raise ValueError(f"Missing BPS annual files: {missing_annual}")
-        monthly_years = list(range(int(config["monthly_start_year"]), final_year + 1))
+        monthly_years = list(range(max(int(config["monthly_start_year"]), incremental_start), final_year + 1))
         missing_monthly = [year for year in monthly_years if year not in monthly_files or monthly_files[year][0] < 12]
         if missing_monthly:
             raise ValueError(f"Missing complete BPS monthly files: {missing_monthly}")
@@ -507,7 +539,7 @@ def main() -> None:
         downloaded = download_many(sorted(set(annual_urls + monthly_urls)), args.cache_dir)
         annual_rows = []
         monthly_rows = []
-        sources = []
+        sources = list(history_manifest.get("sources", [])) if history_manifest and not args.force_history else []
         for year in annual_years:
             raw, info = downloaded[annual_files[year][1]]
             annual_rows.extend(parse_bps(raw, year, set(config["counties"])))

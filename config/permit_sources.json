@@ -23,5 +23,5 @@
   "max_history_bytes": 5000000,
   "max_provisional_bytes": 1000000,
   "keep_history_releases": 2,
-  "keep_provisional_releases": 3
+  "keep_provisional_releases": 2
 }

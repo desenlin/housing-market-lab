@@ -104,17 +104,17 @@ class RealtorPipelineTest(unittest.TestCase):
         self.assertFalse(source_is_unchanged(existing, {**current, "etag": '"def"'}))
         self.assertFalse(source_is_unchanged({"source": existing["source"]}, current))
 
-    def test_retains_three_release_directories(self):
+    def test_retains_current_and_one_rollback_release(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             releases = root / "releases"
             for release in ["2026-01", "2026-02", "2026-03", "2026-04"]:
                 (releases / release).mkdir(parents=True)
-            removed = prune_releases(root, 3)
-            self.assertEqual(removed, ["2026-01"])
+            removed = prune_releases(root, 2)
+            self.assertEqual(removed, ["2026-01", "2026-02"])
             self.assertEqual(
                 sorted(path.name for path in releases.iterdir()),
-                ["2026-02", "2026-03", "2026-04"],
+                ["2026-03", "2026-04"],
             )
 
 

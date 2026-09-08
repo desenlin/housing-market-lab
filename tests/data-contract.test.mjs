@@ -4,19 +4,37 @@ import test from "node:test";
 
 const root = new URL("../public/data/", import.meta.url);
 const readJson = async (relative) => JSON.parse(await readFile(new URL(relative, root), "utf8"));
+const readDataset = async (prefix, manifest, geography) => {
+  const names = manifest.files?.[geography] ?? [`${geography}.json`];
+  const shards = await Promise.all(names.map((name) => readJson(`${prefix}${name}`)));
+  return { ...shards[0], regions: shards.flatMap((shard) => shard.regions) };
+};
+const readMap = async (prefix, manifest, geography) => {
+  const shards = await Promise.all(manifest.files[geography].map((name) => readJson(`${prefix}${name}`)));
+  return {
+    geography,
+    counties: Object.assign({}, ...shards.map((shard) => shard.counties)),
+  };
+};
 
 test("latest pointer resolves to a complete release", async () => {
   const latest = await readJson("latest.json");
   const prefix = `releases/${latest.release}/`;
-  const [manifest, city, zip, metro, cityMap, zipMap] = await Promise.all([
-    readJson(`${prefix}manifest.json`),
-    readJson(`${prefix}city.json`),
-    readJson(`${prefix}zip.json`),
-    readJson(`${prefix}metro.json`),
-    readJson(`${prefix}map-city.json`),
-    readJson(`${prefix}map-zip.json`),
+  const manifest = await readJson(`${prefix}manifest.json`);
+  const [city, zip, metro] = await Promise.all([
+    readDataset(prefix, manifest, "city"),
+    readDataset(prefix, manifest, "zip"),
+    readDataset(prefix, manifest, "metro"),
+  ]);
+  const mapPointer = await readJson("maps/latest.json");
+  const mapPrefix = `maps/releases/${mapPointer.release}/`;
+  const mapManifest = await readJson(`${mapPrefix}manifest.json`);
+  const [cityMap, zipMap] = await Promise.all([
+    readMap(mapPrefix, mapManifest, "city"),
+    readMap(mapPrefix, mapManifest, "zip"),
   ]);
   assert.equal(manifest.release, latest.release);
+  assert.equal(manifest.storage_schema_version, 2);
   assert.equal(city.regions.length, manifest.counts.city);
   assert.equal(zip.regions.length, manifest.counts.zip);
   assert.equal(metro.regions.length, manifest.counts.metro);
@@ -37,7 +55,9 @@ test("latest pointer resolves to a complete release", async () => {
 
 test("metro comparison contains the intended unique markets", async () => {
   const latest = await readJson("latest.json");
-  const metro = await readJson(`releases/${latest.release}/metro.json`);
+  const prefix = `releases/${latest.release}/`;
+  const manifest = await readJson(`${prefix}manifest.json`);
+  const metro = await readDataset(prefix, manifest, "metro");
   const names = metro.regions.map((region) => region.name);
   assert.deepEqual([...new Set(names)].sort(), [
     "Atlanta, GA",
@@ -83,10 +103,10 @@ test("metro comparison contains the intended unique markets", async () => {
 test("Redfin pointer resolves to an independent local activity release", async () => {
   const latest = await readJson("redfin/latest.json");
   const prefix = `redfin/releases/${latest.release}/`;
-  const [manifest, city, zip] = await Promise.all([
-    readJson(`${prefix}manifest.json`),
-    readJson(`${prefix}city.json`),
-    readJson(`${prefix}zip.json`),
+  const manifest = await readJson(`${prefix}manifest.json`);
+  const [city, zip] = await Promise.all([
+    readDataset(prefix, manifest, "city"),
+    readDataset(prefix, manifest, "zip"),
   ]);
   assert.equal(manifest.provider, "Redfin");
   assert.equal(manifest.frequency, "Rolling 3 Months");
@@ -118,14 +138,12 @@ test("Realtor.com pointers resolve independently to compact ZIP releases", async
   for (const [product, expectedMetrics] of Object.entries(products)) {
     const latest = await readJson(`realtor/${product}/latest.json`);
     const prefix = `realtor/${product}/releases/${latest.release}/`;
-    const [manifest, zip] = await Promise.all([
-      readJson(`${prefix}manifest.json`),
-      readJson(`${prefix}zip.json`),
-    ]);
+    const manifest = await readJson(`${prefix}manifest.json`);
+    const zip = await readDataset(prefix, manifest, "zip");
     assert.equal(manifest.provider, "Realtor.com® Economic Research");
     assert.equal(manifest.schema_version, 3);
     assert.equal(manifest.product, product);
-    assert.equal(manifest.retained_releases, 3);
+    assert.equal(manifest.retained_releases, 2);
     assert.equal(zip.regions.length, manifest.counts.zip);
     assert.ok(zip.regions.length >= 150);
     assert.deepEqual(Object.keys(zip.metrics).sort(), expectedMetrics);

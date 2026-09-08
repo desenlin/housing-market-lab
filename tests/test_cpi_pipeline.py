@@ -5,6 +5,7 @@ from pipeline.update_cpi import (
     month_end,
     parse_bulk_data,
     parse_response,
+    merge_cpi_history,
     year_chunks,
     yoy_values,
 )
@@ -60,6 +61,29 @@ class CpiPipelineTest(unittest.TestCase):
         result = yoy_values(values)
         self.assertEqual(result[12], 0.1)
         self.assertIsNone(result[13])
+
+    def test_merge_preserves_truncated_history_but_keeps_current_null(self):
+        previous = {
+            "series": {
+                "us": {
+                    "id": "US",
+                    "dates": ["2024-01-31", "2025-01-31", "2025-02-28"],
+                    "values": [100.0, 110.0, 111.0],
+                }
+            }
+        }
+        incoming = {
+            "series": {
+                "us": {
+                    "id": "US",
+                    "dates": ["2025-01-31", "2025-02-28", "2025-03-31"],
+                    "values": [112.0, None, 113.0],
+                }
+            }
+        }
+        merged, report = merge_cpi_history(previous, incoming)
+        self.assertEqual(merged["series"]["us"]["values"], [100.0, 112.0, None, 113.0])
+        self.assertEqual(report["truncated_series"]["us"]["preserved_start"], "2024-01-31")
 
 
 if __name__ == "__main__":

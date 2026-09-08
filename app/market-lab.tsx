@@ -130,6 +130,8 @@ type Manifest = {
   attribution: string;
   data_page: string;
   bundle_sha256: string;
+  storage_schema_version?: number;
+  files?: Partial<Record<"city" | "zip" | "metro", string[]>>;
   latest_observations: Record<string, string>;
   counts: Record<string, number>;
   map_coverage: Record<
@@ -160,6 +162,8 @@ type RealtorManifest = {
   frequency: string;
   start_date: string;
   bundle_sha256: string;
+  storage_schema_version?: number;
+  files?: { zip?: string[] };
   counts: { zip: number };
   latest_observations: Record<string, string>;
   retained_releases: number;
@@ -323,6 +327,38 @@ function mergeDatasets(datasets: Dataset[]): Dataset | null {
     regions: [...regions.values()].sort((a, b) =>
       `${a.county}-${a.name}`.localeCompare(`${b.county}-${b.name}`)),
   };
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Data request failed: ${response.status}`);
+  return response.json() as Promise<T>;
+}
+
+async function loadDatasetFiles(
+  releaseBase: string,
+  names: string[] | undefined,
+  legacyName: string,
+) {
+  const shards = await Promise.all(
+    (names?.length ? names : [legacyName]).map((name) =>
+      fetchJson<Dataset>(`${releaseBase}/${name}`),
+    ),
+  );
+  const merged = mergeDatasets(shards);
+  if (!merged) throw new Error(`Dataset release has no ${legacyName} files.`);
+  return merged;
+}
+
+async function loadMapFiles(releaseBase: string, names: string[]) {
+  const shards = await Promise.all(
+    names.map((name) => fetchJson<MapData>(`${releaseBase}/${name}`)),
+  );
+  if (!shards.length) throw new Error("Map release contains no files.");
+  return {
+    geography: shards[0].geography,
+    counties: Object.assign({}, ...shards.map((shard) => shard.counties)),
+  } as MapData;
 }
 
 export function cpiValuesForRealAdjustment(
@@ -1656,14 +1692,28 @@ export default function MarketLab() {
           return response.json() as Promise<{ release: string }>;
         });
         const releaseBase = `${base}/data/releases/${pointer.release}`;
-        const [city, zip, metro, mapCity, mapZip, releaseManifest] = await Promise.all([
-          fetch(`${releaseBase}/city.json`).then((response) => response.json()),
-          fetch(`${releaseBase}/zip.json`).then((response) => response.json()),
-          fetch(`${releaseBase}/metro.json`).then((response) => response.json()),
-          fetch(`${releaseBase}/map-city.json`).then((response) => response.json()),
-          fetch(`${releaseBase}/map-zip.json`).then((response) => response.json()),
-          fetch(`${releaseBase}/manifest.json`).then((response) => response.json()),
+        const releaseManifest = await fetchJson<Manifest>(`${releaseBase}/manifest.json`);
+        const [city, zip, metro] = await Promise.all([
+          loadDatasetFiles(releaseBase, releaseManifest.files?.city, "city.json"),
+          loadDatasetFiles(releaseBase, releaseManifest.files?.zip, "zip.json"),
+          loadDatasetFiles(releaseBase, releaseManifest.files?.metro, "metro.json"),
         ]);
+        let mapCity: MapData;
+        let mapZip: MapData;
+        try {
+          const mapPointer = await fetchJson<{ release: string }>(`${base}/data/maps/latest.json`);
+          const mapBase = `${base}/data/maps/releases/${mapPointer.release}`;
+          const mapManifest = await fetchJson<{ files: Record<"city" | "zip", string[]> }>(`${mapBase}/manifest.json`);
+          [mapCity, mapZip] = await Promise.all([
+            loadMapFiles(mapBase, mapManifest.files.city),
+            loadMapFiles(mapBase, mapManifest.files.zip),
+          ]);
+        } catch {
+          [mapCity, mapZip] = await Promise.all([
+            fetchJson<MapData>(`${releaseBase}/map-city.json`),
+            fetchJson<MapData>(`${releaseBase}/map-zip.json`),
+          ]);
+        }
         setDatasets({ city, zip, metro });
         setMaps({ city: mapCity, zip: mapZip });
         setManifest(releaseManifest);
@@ -1688,10 +1738,10 @@ export default function MarketLab() {
             return response.json() as Promise<{ release: string }>;
           });
           const redfinBase = `${base}/data/redfin/releases/${redfinPointer.release}`;
-          const [redfinCity, redfinZip, redfinReleaseManifest] = await Promise.all([
-            fetch(`${redfinBase}/city.json`).then((response) => response.json()),
-            fetch(`${redfinBase}/zip.json`).then((response) => response.json()),
-            fetch(`${redfinBase}/manifest.json`).then((response) => response.json()),
+          const redfinReleaseManifest = await fetchJson<RedfinManifest>(`${redfinBase}/manifest.json`);
+          const [redfinCity, redfinZip] = await Promise.all([
+            loadDatasetFiles(redfinBase, redfinReleaseManifest.files?.city, "city.json"),
+            loadDatasetFiles(redfinBase, redfinReleaseManifest.files?.zip, "zip.json"),
           ]);
           setActivityDatasets({ city: redfinCity, zip: redfinZip });
           setRedfinManifest(redfinReleaseManifest);
@@ -1717,10 +1767,12 @@ export default function MarketLab() {
               return response.json() as Promise<{ release: string }>;
             });
             const productBase = `${base}/data/realtor/${product}/releases/${pointer.release}`;
-            const [productDataset, productManifest] = await Promise.all([
-              fetch(`${productBase}/zip.json`).then((response) => response.json() as Promise<Dataset>),
-              fetch(`${productBase}/manifest.json`).then((response) => response.json() as Promise<RealtorManifest>),
-            ]);
+            const productManifest = await fetchJson<RealtorManifest>(`${productBase}/manifest.json`);
+            const productDataset = await loadDatasetFiles(
+              productBase,
+              productManifest.files?.zip,
+              "zip.json",
+            );
             return { product, dataset: productDataset, manifest: productManifest };
           }));
           const loaded = results
@@ -2672,8 +2724,8 @@ export default function MarketLab() {
             <Card><CardHeader><CardTitle>Building permits</CardTitle></CardHeader><CardContent className="method-copy"><p>The U.S. Census Bureau Building Permits Survey reports new privately owned housing units authorized by permit-issuing jurisdictions. The lab groups units into single-unit, 2–4-unit, and 5+-unit structures and shows annual history from 1980 and comparable local monthly history from 2022.</p><p>Current-year monthly observations are preliminary and may be revised or imputed. Annual data become final after the Census Bureau’s revision cycle. Permit authorization is an early production indicator, not a housing start or completion.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Geographies</CardTitle></CardHeader><CardContent className="method-copy"><p>City/community maps retain every Census incorporated place and Census-designated place (CDP) assigned to Orange or Los Angeles County, whether or not a provider reports data. Zillow and Redfin observations are matched independently, and an unincorporated CDP is never reassigned to a neighboring city.</p><p>ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs. Census places and ZCTAs do not necessarily cover or classify land in the same way.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Reading the maps</CardTitle></CardHeader><CardContent className="method-copy"><p>The legend distinguishes three states: <strong>colored</strong> means the selected provider reports a current observation; <strong>gray</strong> means an official city/CDP or mapped ZCTA boundary exists but the selected observation is unavailable; <strong>unshaded</strong> means the land falls outside the displayed place geography. Maps open on a focused mainland view; offshore boundaries remain in the map geometry and can be reached by panning.</p><p>Unshaded county remainder, wilderness, and open space should not be interpreted as a missing housing market. For example, unshaded portions of Laguna Coast Wilderness Park are not a separate Census place. OpenStreetMap supplies the underlying geographic context.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Zillow, Redfin, Realtor.com, BLS CPI, and Census building permits are refreshed into independent versioned releases. Realtor.com products advance independently, as do final permit history and open preliminary permit years.</p><p>Each pipeline checks schemas, dates, coverage, quality flags, and size before advancing its pointer. The permit updater rebuilds the 1980–present archive only when a new final annual file appears; routine checks touch only the small open-year layer. A failed update leaves the prior validated release available and does not block another source.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Cost &amp; portability</CardTitle></CardHeader><CardContent className="method-copy"><p>The site is a static export with no database, application server, paid API, or paid map service. GitHub Actions performs periodic updates and GitHub Pages serves the files.</p><p>Large national source files are streamed without being stored. Only compact local visual data are published, with provider-specific size limits and three Realtor.com releases retained per product for rollback.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Zillow, Redfin, Realtor.com, BLS CPI, Census building permits, and Census map geometry use independent versioned releases. Each family keeps the current validated release and one rollback.</p><p>When a new provider file omits older dates, the lab carries those dates forward from its prior compact extract. Overlapping dates use the newest provider release, including revisions and explicit missing values. A failed update leaves the prior validated release available and does not block another source.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Cost &amp; portability</CardTitle></CardHeader><CardContent className="method-copy"><p>The site is a static export with no database, application server, paid API, or paid map service. GitHub Actions performs periodic updates and GitHub Pages serves the files.</p><p>Large national source files are streamed without being stored. County-level shards keep generated JSON files below 1 MB, shared map geometry is stored once, and an automated storage budget prevents unbounded growth.</p></CardContent></Card>
           </section>
           <Card className="disclaimer-card">
             <CardHeader><CardTitle>Academic-use disclaimer</CardTitle></CardHeader>

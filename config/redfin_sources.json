@@ -5,6 +5,8 @@
   "source_root": "https://redfin-public-data.s3.us-west-2.amazonaws.com/redfin_data_center",
   "start_date": "2018-01-01",
   "counties": ["Orange County", "Los Angeles County"],
+  "keep_releases": 2,
+  "max_published_bytes_per_release": 5000000,
   "max_source_bytes": 1300000000,
   "sources": [
     {

@@ -39,7 +39,9 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Dashed with points: reported monthly observations/);
   assert.match(source, /Simple moving average; no polynomial fit/);
   assert.match(source, /Market Hotness quadrant/);
-  assert.match(source, /three Realtor\.com releases retained per product for rollback/);
+  assert.match(source, /current validated release and one rollback/);
+  assert.match(source, /County-level shards keep generated JSON files below 1 MB/);
+  assert.match(source, /carries those dates forward from its prior compact extract/);
   assert.match(source, /Gray boundaries have no data/);
   assert.match(source, /Outside city\/CDP geography/);
   assert.match(source, /Reading the maps/);

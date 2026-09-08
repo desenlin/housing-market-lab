@@ -11,18 +11,27 @@ from __future__ import annotations
 
 import argparse
 import csv
-import hashlib
 import io
 import json
 import math
 import os
-import shutil
 import tempfile
 import urllib.request
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
+
+try:
+    from pipeline.storage import (
+        bundle_sha, dataset_shards, load_dataset_release, load_map_release,
+        merge_dataset_history, prune_releases,
+    )
+except ModuleNotFoundError:  # direct script execution
+    from storage import (  # type: ignore[no-redef]
+        bundle_sha, dataset_shards, load_dataset_release, load_map_release,
+        merge_dataset_history, prune_releases,
+    )
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -64,10 +73,14 @@ def month_date(raw: str) -> str:
 
 
 def load_zip_reference() -> dict[str, dict[str, str | None]]:
-    pointer = json.loads((ZILLOW_PUBLIC_DATA / "latest.json").read_text())
-    release_dir = ZILLOW_PUBLIC_DATA / "releases" / pointer["release"]
-    zip_map = json.loads((release_dir / "map-zip.json").read_text())
-    zip_data = json.loads((release_dir / "zip.json").read_text())
+    zip_map = load_map_release(ZILLOW_PUBLIC_DATA / "maps", "zip")
+    if zip_map is None:
+        pointer = json.loads((ZILLOW_PUBLIC_DATA / "latest.json").read_text())
+        release_dir = ZILLOW_PUBLIC_DATA / "releases" / pointer["release"]
+        zip_map = json.loads((release_dir / "map-zip.json").read_text())
+    zip_data, _ = load_dataset_release(ZILLOW_PUBLIC_DATA, "zip")
+    if zip_data is None:
+        raise RuntimeError("No validated Zillow ZIP reference is available")
     context_by_zip = {
         str(region["name"]).zfill(5): region.get("context")
         for region in zip_data["regions"]
@@ -285,25 +298,6 @@ def validate_payload(payload: dict[str, Any], product: dict[str, Any]) -> None:
             raise ValueError(f"{product['key']}/{region['id']} has invalid quality indices")
 
 
-def bundle_sha(files: dict[str, bytes]) -> str:
-    digest = hashlib.sha256()
-    for name in sorted(files):
-        digest.update(name.encode())
-        digest.update(files[name])
-    return digest.hexdigest()
-
-
-def prune_releases(product_root: Path, keep: int) -> list[str]:
-    releases_root = product_root / "releases"
-    if not releases_root.exists():
-        return []
-    releases = sorted(path for path in releases_root.iterdir() if path.is_dir())
-    removed = releases[:-keep] if len(releases) > keep else []
-    for path in removed:
-        shutil.rmtree(path)
-    return [path.name for path in removed]
-
-
 def publish_product(
     config: dict[str, Any],
     product: dict[str, Any],
@@ -315,13 +309,20 @@ def publish_product(
         print(f"{product['key']}: upstream file unchanged; retaining validated release")
         return "unchanged"
 
-    payload, source = fetch_product(config, product, reference, source)
+    incoming, source = fetch_product(config, product, reference, source)
+    product_root = PUBLIC_DATA / product["key"]
+    previous, previous_manifest = load_dataset_release(product_root, "zip")
+    payload, history_report = merge_dataset_history(previous, incoming)
     validate_payload(payload, product)
-    files = {"zip.json": compact_json(payload)}
+    files, file_names = dataset_shards(payload)
     digest = bundle_sha(files)
+    if existing and existing.get("bundle_sha256") == digest:
+        print(f"{product['key']}: processed observations unchanged; retaining validated release")
+        return "unchanged"
     release = datetime.now(timezone.utc).strftime("%Y-%m-%d-r%H%M%S")
     manifest = {
         "schema_version": SCHEMA_VERSION,
+        "storage_schema_version": 2,
         "release": release,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "provider": config["provider"],
@@ -332,6 +333,12 @@ def publish_product(
         "frequency": "Monthly",
         "start_date": config["start_date"],
         "bundle_sha256": digest,
+        "files": {"zip": file_names},
+        "history_policy": {
+            "strategy": "merge_forward",
+            "previous_release": previous_manifest.get("release") if previous_manifest else None,
+            "report": history_report,
+        },
         "counts": {"zip": len(payload["regions"])},
         "latest_observations": {
             metric: metadata["dates"][-1]
@@ -347,7 +354,6 @@ def publish_product(
             f"Processed {product['key']} release is too large: {total:,} bytes"
         )
 
-    product_root = PUBLIC_DATA / product["key"]
     release_dir = product_root / "releases" / release
     release_dir.mkdir(parents=True, exist_ok=False)
     for name, contents in files.items():

@@ -28,12 +28,22 @@ from typing import Any
 
 import shapefile
 
+try:
+    from pipeline.storage import (
+        atomic_write, bundle_sha, compact_json, dataset_shards, load_dataset_release,
+        map_shards, merge_dataset_history, prune_releases,
+    )
+except ModuleNotFoundError:  # direct script execution
+    from storage import (  # type: ignore[no-redef]
+        atomic_write, bundle_sha, compact_json, dataset_shards, load_dataset_release,
+        map_shards, merge_dataset_history, prune_releases,
+    )
+
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "config" / "sources.json"
 PUBLIC_DATA = ROOT / "public" / "data"
 MAX_SOURCE_BYTES = 300 * 1024 * 1024
-MAX_PUBLISHED_BYTES = 50 * 1024 * 1024
 USER_AGENT = "HousingMarketLab/1.0 (academic visualization; desenlin.com)"
 
 PLACE_URL = (
@@ -535,10 +545,6 @@ def build_maps(
     return results
 
 
-def compact_json(data: Any) -> bytes:
-    return json.dumps(data, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
-
-
 def write_bytes(path: Path, content: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content)
@@ -555,8 +561,48 @@ def existing_bundle_sha() -> str | None:
     return json.loads(manifest_path.read_text(encoding="utf-8")).get("bundle_sha256")
 
 
-def published_size() -> int:
-    return sum(path.stat().st_size for path in PUBLIC_DATA.rglob("*") if path.is_file())
+def release_id(root: Path, fetched_at: datetime) -> str:
+    stem = fetched_at.strftime("%Y-%m-%d-r%H%M%S")
+    candidate = stem
+    suffix = 2
+    while (root / "releases" / candidate).exists():
+        candidate = f"{stem}-{suffix}"
+        suffix += 1
+    return candidate
+
+
+def publish_maps(
+    maps: dict[str, dict[str, Any]], fetched_at: datetime, keep: int
+) -> str:
+    root = PUBLIC_DATA / "maps"
+    files, file_index = map_shards(maps)
+    digest = bundle_sha(files)
+    pointer = root / "latest.json"
+    if pointer.exists():
+        current_release = json.loads(pointer.read_text(encoding="utf-8"))["release"]
+        current_manifest = root / "releases" / current_release / "manifest.json"
+        if current_manifest.exists():
+            current = json.loads(current_manifest.read_text(encoding="utf-8"))
+            if current.get("bundle_sha256") == digest:
+                return current_release
+    release = release_id(root, fetched_at)
+    release_dir = root / "releases" / release
+    for name, content in files.items():
+        write_bytes(release_dir / name, content)
+    write_bytes(
+        release_dir / "manifest.json",
+        compact_json({
+            "storage_schema_version": 2,
+            "release": release,
+            "created_at": fetched_at.isoformat().replace("+00:00", "Z"),
+            "provider": "U.S. Census Bureau",
+            "bundle_sha256": digest,
+            "files": file_index,
+        }),
+    )
+    atomic_write(root / "latest.json", compact_json({"release": release, "bundle_sha256": digest}))
+    prune_releases(root, keep)
+    return release
 
 
 def main() -> None:
@@ -600,54 +646,62 @@ def main() -> None:
                 "regions": len(result["regions"]),
             }
 
-        payloads = {
+        incoming_payloads = {
             geography: combine_geography(geography, extracted)
             for geography in ("city", "zip", "metro")
         }
+        payloads = {}
+        history_reports = {}
+        prior_release = None
+        allowed_metros = {item["label"] for item in config["metros"]}
+        for geography, incoming in incoming_payloads.items():
+            previous, previous_manifest = load_dataset_release(PUBLIC_DATA, geography)
+            if previous_manifest:
+                prior_release = previous_manifest.get("release")
+            payloads[geography], history_reports[geography] = merge_dataset_history(
+                previous,
+                incoming,
+                allowed_region_names=allowed_metros if geography == "metro" else None,
+            )
         validate_payloads(payloads, config)
         maps = {} if args.skip_maps else build_maps(payloads, config, temp_dir)
 
-        bundle_files: dict[str, bytes] = {
-            "city.json": compact_json(payloads["city"]),
-            "zip.json": compact_json(payloads["zip"]),
-            "metro.json": compact_json(payloads["metro"]),
-        }
-        if maps:
-            bundle_files["map-city.json"] = compact_json(maps["city"])
-            bundle_files["map-zip.json"] = compact_json(maps["zip"])
-        bundle_sha = hashlib.sha256(
-            b"".join(bundle_files[name] for name in sorted(bundle_files))
-        ).hexdigest()
-        if existing_bundle_sha() == bundle_sha:
+        map_release = publish_maps(
+            maps, fetched_at, int(config["keep_map_releases"])
+        ) if maps else None
+        bundle_files: dict[str, bytes] = {}
+        file_index: dict[str, list[str]] = {}
+        for geography, payload in payloads.items():
+            files, names = dataset_shards(payload)
+            bundle_files.update(files)
+            file_index[geography] = names
+        digest = bundle_sha(bundle_files)
+        if existing_bundle_sha() == digest:
             print("No provider revisions or new observations; current release retained.")
             return
 
-        release_date = fetched_at.date().isoformat()
-        existing_ids = {
-            path.name for path in (PUBLIC_DATA / "releases").glob(f"{release_date}*")
-        }
-        if release_date not in existing_ids:
-            release_id = release_date
-        else:
-            suffixes = [
-                int(match.group(1))
-                for item in existing_ids
-                if (match := re.fullmatch(rf"{re.escape(release_date)}-r(\d+)", item))
-            ]
-            release_id = f"{release_date}-r{max(suffixes, default=1) + 1}"
-        release_dir = PUBLIC_DATA / "releases" / release_id
+        published_release = release_id(PUBLIC_DATA, fetched_at)
+        release_dir = PUBLIC_DATA / "releases" / published_release
 
         latest_by_metric = {
             item["id"]: source_manifest[item["id"]]["latest_observation"]
             for item in config["sources"]
         }
         manifest = {
-            "release": release_id,
+            "storage_schema_version": 2,
+            "release": published_release,
             "created_at": fetched_at.isoformat().replace("+00:00", "Z"),
             "data_page": config["data_page"],
             "provider": "Zillow Research",
             "attribution": "Data provided by Zillow Group",
-            "bundle_sha256": bundle_sha,
+            "bundle_sha256": digest,
+            "files": file_index,
+            "map_release": map_release,
+            "history_policy": {
+                "strategy": "merge_forward",
+                "previous_release": prior_release,
+                "reports": history_reports,
+            },
             "latest_observations": latest_by_metric,
             "counts": {
                 geography: len(payloads[geography]["regions"])
@@ -666,25 +720,27 @@ def main() -> None:
             },
             "sources": source_manifest,
         }
+        total = sum(len(content) for content in bundle_files.values())
+        if total > int(config["max_published_bytes_per_release"]):
+            raise RuntimeError("Zillow release exceeded its storage budget")
         for filename, content in bundle_files.items():
             write_bytes(release_dir / filename, content)
         write_bytes(release_dir / "manifest.json", compact_json(manifest))
-        write_bytes(
+        atomic_write(
             PUBLIC_DATA / "latest.json",
             compact_json(
                 {
-                    "release": release_id,
-                    "manifest": f"releases/{release_id}/manifest.json",
+                    "release": published_release,
+                    "manifest": f"releases/{published_release}/manifest.json",
                 }
             ),
         )
-        if published_size() > MAX_PUBLISHED_BYTES:
-            shutil.rmtree(release_dir, ignore_errors=True)
-            raise RuntimeError("published data exceeded the 50 MB cost guardrail")
+        removed = prune_releases(PUBLIC_DATA, int(config["keep_releases"]))
+        suffix = f"; pruned {', '.join(removed)}" if removed else ""
         print(
-            f"Published release {release_id}: "
+            f"Published release {published_release}: "
             f"{len(payloads['city']['regions'])} city/community regions, "
-            f"{len(payloads['zip']['regions'])} ZIP regions."
+            f"{len(payloads['zip']['regions'])} ZIP regions{suffix}."
         )
 
 

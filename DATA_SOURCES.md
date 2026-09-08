@@ -58,7 +58,7 @@ Selected primary series:
 
 Demand score, supply score, and Realtor.com median days on market are retained only to explain the Hotness measure. Provider-created ranks, listing-price measures, raw pending counts, and price-reduction measures are omitted from the first release to avoid redundancy or misleading comparison with Zillow and Redfin.
 
-Inventory and Hotness have separate `latest.json` pointers under `public/data/realtor/` because the two files may be released in different weeks. The interface labels the latest month for the selected metric rather than implying a common Realtor.com vintage. Each product retains its three newest validated releases for rollback.
+Inventory and Hotness have separate `latest.json` pointers under `public/data/realtor/` because the two files may be released in different weeks. The interface labels the latest month for the selected metric rather than implying a common Realtor.com vintage. Each product retains its current validated release and one rollback.
 
 The national historical files are large, so the updater performs an HTTP metadata check before retrieval. When a file changes, it is streamed once and never written to disk; only selected ZIP rows from January 2018 onward are held in memory. The full source must be reread after a change because Realtor.com reissues and may restate historical observations rather than publishing an append-only series.
 
@@ -134,7 +134,9 @@ Changing the constant-dollar base month rescales the displayed real dollar level
 
 ## Release checks
 
-A provider release is rejected unless all required files stream or download, date columns are ordered and sufficiently long, local coverage remains above conservative floors, and processed public data stays under its size guardrail. Zillow, Redfin, Realtor.com Inventory, Realtor.com Hotness, BLS CPI, final permit history, and provisional permit years use independent versioned directories and `latest.json` pointers, so a failure retains the prior release for that provider or product.
+A provider release is rejected unless all required files stream or download, date columns are ordered and sufficiently long, local coverage remains above conservative floors, and processed public data stays under its size guardrail. Zillow, Redfin, Realtor.com Inventory, Realtor.com Hotness, BLS CPI, final permit history, provisional permit years, and Census map geometry use independent versioned directories and `latest.json` pointers, so a failure retains the prior release for that provider or product. County-level sharding keeps generated JSON objects below 1 MB, and every release family keeps only the current version plus one rollback.
+
+Before publication, each updater merges the new local extract with the current validated history. A prior value is retained when its date is absent from the new provider file, protecting the lab if an upstream full-history file becomes a rolling window. For dates that remain in the new file, the new value—including revisions or an explicit missing observation—is authoritative. Final building-permit history follows the same principle and can append a newly final year without re-downloading the complete 1980-present archive. The detailed rules and recovery hierarchy are documented in [Storage and historical continuity](STORAGE_DESIGN.md).
 
 The scheduled workflow checks all providers on four staggered dates each month. Release timing is intentionally decoupled: a newer CPI release does not require a simultaneous Zillow release, and a newer Zillow release does not wait for CPI. Nominal housing observations remain available through Zillow's latest validated month. Constant-dollar levels and real changes use exact matched months except for the disclosed October 2025 log-linear deflator interpolation. Inflation overlays use only official CPI observations. Unmatched newer housing months remain unavailable in real terms until BLS publishes the corresponding CPI observation.
 
