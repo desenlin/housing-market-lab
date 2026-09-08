@@ -7,7 +7,11 @@ const readProjectFile = (path) =>
 
 test("publishes the requested authorship, controls, and map attribution", async () => {
   const source = await readProjectFile("app/market-lab.tsx");
-  assert.match(source, /Created by Desen Lin, California State University, Fullerton\./);
+  const styles = await readProjectFile("app/globals.css");
+  assert.match(source, /href="\.\/" aria-label="Housing Market Lab home">Housing Market Lab<\/a>/);
+  assert.match(source, /href="https:\/\/desenlin\.com\/">Desen Lin<\/a>/);
+  assert.match(source, /href="https:\/\/www\.fullerton\.edu\/">California State University, Fullerton<\/a>/);
+  assert.match(styles, /\.header-link[^}]+color: inherit; font: inherit; text-decoration: none;/);
   assert.match(source, /Index starting month/);
   assert.match(source, /12-month growth/);
   assert.match(source, /Change from one year earlier/);
@@ -46,6 +50,9 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Final permit history/);
   assert.match(source, /Preliminary permits/);
   assert.match(source, /Technical release identifiers and fingerprints/);
+  assert.match(source, /href="#current-release-provenance" onClick=\{openReleaseProvenance\}/);
+  assert.match(source, /<Tabs value=\{mainTab\} onValueChange=\{setMainTab\}/);
+  assert.match(source, /id="current-release-provenance" className="provenance-card"/);
   assert.doesNotMatch(source, /Load Building Permits tab/);
   assert.doesNotMatch(source, /bundle_sha256\.slice/);
   assert.match(source, /Gray boundaries have no data/);

@@ -1654,6 +1654,7 @@ export default function MarketLab() {
   const [cpi, setCpi] = useState<CpiDataset | null>(null);
   const [cpiManifest, setCpiManifest] = useState<CpiManifest | null>(null);
   const [permitManifests, setPermitManifests] = useState<{ history: PermitManifest; provisional: PermitManifest } | null>(null);
+  const [mainTab, setMainTab] = useState("local");
   const [cpiError, setCpiError] = useState("");
   const [activityError, setActivityError] = useState("");
   const [realtorError, setRealtorError] = useState("");
@@ -2188,6 +2189,18 @@ export default function MarketLab() {
     window.setTimeout(() => setCopied(false), 1800);
   }
 
+  function openReleaseProvenance(event: React.MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    setMainTab("methods");
+    window.setTimeout(() => {
+      document.getElementById("current-release-provenance")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+      window.history.replaceState(null, "", "#current-release-provenance");
+    }, 0);
+  }
+
   if (error) {
     return <main className="status-screen"><Info /><h1>Housing Market Lab</h1><p>{error}</p></main>;
   }
@@ -2249,19 +2262,19 @@ export default function MarketLab() {
         <div className="header-inner">
           <div>
             <p className="eyebrow">Real Estate Analytics</p>
-            <h1>Housing Market Lab</h1>
-            <p className="byline">Created by Desen Lin, California State University, Fullerton.</p>
+            <h1><a className="header-link" href="./" aria-label="Housing Market Lab home">Housing Market Lab</a></h1>
+            <p className="byline">Created by <a className="header-link" href="https://desenlin.com/">Desen Lin</a>, <a className="header-link" href="https://www.fullerton.edu/">California State University, Fullerton</a>.</p>
             <p className="deck">A focused view of Southern California’s housing market—and the cycles around it.</p>
           </div>
-          <div className="release-stamp">
+          <a className="release-stamp release-stamp-link" href="#current-release-provenance" onClick={openReleaseProvenance}>
             <span>Latest validated release</span>
             <strong>{manifest.release}</strong>
             <small>Data through {shortDate(Object.values(manifest.latest_observations).sort().at(-1) ?? manifest.release)}</small>
-          </div>
+          </a>
         </div>
       </header>
 
-      <Tabs defaultValue="local" className="page-shell">
+      <Tabs value={mainTab} onValueChange={setMainTab} className="page-shell">
         <TabsList variant="line" className="main-tabs" aria-label="Dashboard sections">
           <TabsTrigger value="local">Prices &amp; Rents</TabsTrigger>
           <TabsTrigger value="activity">Market Conditions</TabsTrigger>
@@ -2761,7 +2774,7 @@ export default function MarketLab() {
               <p>Third-party data remain subject to their providers’ licenses and terms. This project does not grant commercial-use rights to Zillow, Redfin, Realtor.com, Census, or OpenStreetMap data.</p>
             </CardContent>
           </Card>
-          <Card className="provenance-card">
+          <Card id="current-release-provenance" className="provenance-card">
             <CardHeader><CardTitle>Current release provenance</CardTitle></CardHeader>
             <CardContent>
               <p className="provenance-intro">Coverage identifies the newest observation in each source. Validation identifies when this site accepted the current snapshot.</p>
