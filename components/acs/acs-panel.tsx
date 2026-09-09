@@ -105,6 +105,10 @@ const METRIC_ORDER = [
 const LEVEL_COLORS = ["#fff3e9", "#ffd9bc", "#ffbb88", "#f58a3a", "#c9530a", "#793004"];
 const CHANGE_COLORS = ["#194f78", "#75a8c6", "#dce8ee", "#f8e2d0", "#ed9859", "#ad4308"];
 
+function metricDisplayLabel(key: string, metric: AcsMetric) {
+  return key === "median_household_income" ? metric.label : metric.short_label;
+}
+
 function LabelledSelect({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) {
   return (
     <label className="control-label">
@@ -275,7 +279,7 @@ function AcsMap({ county, mapData, dataset, metricKey, view, selectedId, onSelec
         const title = document.createElement("strong");
         title.textContent = item?.name ?? "";
         const value = document.createElement("span");
-        value.textContent = item?.value == null ? "ACS estimate unavailable" : `${metric.short_label}: ${formatEstimate(item.value, metric, view === "change")}`;
+        value.textContent = item?.value == null ? "ACS estimate unavailable" : `${metricDisplayLabel(metricKey, metric)}: ${formatEstimate(item.value, metric, view === "change")}`;
         const uncertainty = document.createElement("span");
         uncertainty.textContent = view === "level" && item?.moe != null ? `90% margin of error: ±${formatMargin(item.moe, metric)}` : "";
         tooltip.append(title, value);
@@ -329,7 +333,7 @@ function RelationshipTooltip({ active, payload, relationship }: { active?: boole
     <div className="acs-chart-tooltip">
       <strong>{point.name}</strong>
       <span>{point.county}</span>
-      <span>{relationship === "income_value" ? `Household income: ${point.xLabel}` : `Rent burden: ${point.xLabel}`}</span>
+      <span>{relationship === "income_value" ? `Median household income: ${point.xLabel}` : `Rent burden: ${point.xLabel}`}</span>
       <span>{relationship === "income_value" ? `Typical home value: ${point.yLabel}` : `Typical asking rent: ${point.yLabel}`}</span>
     </div>
   );
@@ -458,7 +462,7 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
             <NativeSelectOption value="zip">ZIP Code Tabulation Areas</NativeSelectOption>
           </LabelledSelect>
           <LabelledSelect label="Measure" value={metricKey} onChange={setMetricKey}>
-            {METRIC_ORDER.map((key) => <NativeSelectOption key={key} value={key}>{dataset.metrics[key].short_label}</NativeSelectOption>)}
+            {METRIC_ORDER.map((key) => <NativeSelectOption key={key} value={key}>{metricDisplayLabel(key, dataset.metrics[key])}</NativeSelectOption>)}
           </LabelledSelect>
           <LabelledSelect label="View" value={view} onChange={(next) => setView(next as AcsView)}>
             <NativeSelectOption value="level">Latest five-year estimate</NativeSelectOption>
@@ -509,16 +513,16 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
             const item = dataset.metrics[key];
             const value = selected?.series[key]?.[1] ?? null;
             const moe = selected?.moe[key]?.[1] ?? null;
-            return <Card key={key} className="acs-profile-card"><CardContent className="p-4"><p className="kpi-label">{item.short_label}</p><p className="acs-profile-value">{formatEstimate(value, item)}</p><p>90% MOE {moe == null ? "—" : `±${formatMargin(moe, item)}`}</p></CardContent></Card>;
+            return <Card key={key} className="acs-profile-card"><CardContent className="p-4"><p className="kpi-label">{metricDisplayLabel(key, item)}</p><p className="acs-profile-value">{formatEstimate(value, item)}</p><p>90% MOE {moe == null ? "—" : `±${formatMargin(moe, item)}`}</p></CardContent></Card>;
           })}
         </div>
       </section>
 
       <Card className="chart-card acs-relationship-card">
         <CardHeader className="chart-header">
-          <div><p className="section-kicker">Housing relationship</p><CardTitle>{relationship === "income_value" ? "Household income and home values" : "Rent burden and asking rents"}</CardTitle></div>
+          <div><p className="section-kicker">Housing relationship</p><CardTitle>{relationship === "income_value" ? "Median household income and home values" : "Rent burden and asking rents"}</CardTitle></div>
           <LabelledSelect label="Relationship" value={relationship} onChange={(next) => setRelationship(next as Relationship)}>
-            <NativeSelectOption value="income_value">Income vs. home value</NativeSelectOption>
+            <NativeSelectOption value="income_value">Median income vs. home value</NativeSelectOption>
             <NativeSelectOption value="burden_rent">Rent burden vs. asking rent</NativeSelectOption>
           </LabelledSelect>
         </CardHeader>

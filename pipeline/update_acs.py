@@ -56,7 +56,7 @@ RAW_VARIABLES = (
 METRICS: dict[str, dict[str, Any]] = {
     "median_household_income": {
         "label": "Median household income",
-        "short_label": "Household income",
+        "short_label": "Median household income",
         "unit": "currency",
         "decimals": 0,
         "change_mode": "percent",

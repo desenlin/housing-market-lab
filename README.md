@@ -18,7 +18,7 @@ Created by **[Desen Lin](https://desenlin.com/)**, California State University, 
 - Redfin months of supply, median days on market, sales above original list, price-drop share, and median sale price per square foot
 - Realtor.com monthly ZIP-level active and new listings, pending ratio, listing viewers relative to the U.S., and Market Hotness
 - Census Building Permits Survey annual history from 1980 and monthly place-level observations from 2022, with explicit preliminary and imputation status
-- A focused ACS five-year housing-context layer covering household income, tenure, rent burden, household size, median age, and multifamily housing, with 90% margins of error
+- A focused ACS five-year housing-context layer covering median household income, tenure, rent burden, household size, median age, and multifamily housing, with 90% margins of error
 - City/community structural comparisons between non-overlapping ACS five-year periods; overlapping annual vintages are intentionally omitted
 - Explicit source and reporting-window labels, with hover/focus definitions for market concepts
 - Current levels and explicitly labeled changes from one year earlier
