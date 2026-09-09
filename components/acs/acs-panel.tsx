@@ -340,6 +340,64 @@ function RelationshipTooltip({ active, payload, relationship }: { active?: boole
 }
 
 type RelationshipPoint = { id: string; name: string; county: string; x: number; y: number; xLabel: string; yLabel: string };
+type RelationshipDomains = { x: [number, number]; y: [number, number] };
+
+function RelationshipChart({ relationship, points, domains, selectedId }: {
+  relationship: Relationship;
+  points: RelationshipPoint[];
+  domains: RelationshipDomains;
+  selectedId: string;
+}) {
+  const incomeValue = relationship === "income_value";
+  return (
+    <div className="min-w-0">
+      <div className="px-1">
+        <p className="kpi-label">{incomeValue ? "Purchasing capacity" : "Rental affordability"}</p>
+        <h3 className="metric-heading">{incomeValue ? "Median income vs. home value" : "Rent burden vs. asking rent"}</h3>
+      </div>
+      <div className="acs-relationship-chart">
+        <ResponsiveContainer width="100%" height="100%">
+          <ScatterChart margin={{ top: 14, right: 12, bottom: 26, left: 6 }}>
+            <CartesianGrid stroke="#dfe6ea" strokeDasharray="3 3" />
+            <XAxis
+              type="number"
+              dataKey="x"
+              name="ACS measure"
+              domain={domains.x}
+              allowDataOverflow
+              allowDecimals={false}
+              tickCount={5}
+              tick={{ fontSize: 11 }}
+              tickFormatter={(value) => incomeValue ? `$${Math.round(Number(value) / 1000)}k` : `${Math.round(Number(value))}%`}
+              label={{ value: incomeValue ? "Median household income" : "Rent-burdened households", position: "insideBottom", offset: -16, fontSize: 11 }}
+            />
+            <YAxis
+              type="number"
+              dataKey="y"
+              name="Market measure"
+              domain={domains.y}
+              allowDataOverflow
+              allowDecimals={false}
+              tickCount={5}
+              tick={{ fontSize: 11 }}
+              tickFormatter={(value) => incomeValue ? `$${Math.round(Number(value) / 1000)}k` : `$${Math.round(Number(value))}`}
+              width={58}
+              label={{ value: incomeValue ? "Typical home value" : "Typical asking rent", angle: -90, position: "insideLeft", fontSize: 11 }}
+            />
+            <ZAxis range={[42, 42]} />
+            <ChartTooltip content={<RelationshipTooltip relationship={relationship} />} />
+            <Scatter data={points} fill="#12355b" fillOpacity={0.55}>
+              {points.map((point) => <Cell key={point.id} fill={point.id === selectedId ? "#ff7a1a" : "#12355b"} fillOpacity={point.id === selectedId ? 1 : 0.52} stroke={point.id === selectedId ? "#7e3100" : "none"} />)}
+            </Scatter>
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="data-note">{incomeValue
+        ? "Ask: When similarly valued communities have different household incomes, what roles might wealth, access, expectations, or housing supply play? The relationship is descriptive, not causal."
+        : "Ask: Why can communities with similar asking rents have different rent-burden rates? Consider household income, household composition, and the difference between asking rents and rents paid by existing tenants."}</p>
+    </div>
+  );
+}
 
 export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
   basePath: string;
@@ -355,7 +413,6 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
   const [metricKey, setMetricKey] = useState("median_household_income");
   const [view, setView] = useState<AcsView>("level");
   const [selectedId, setSelectedId] = useState("");
-  const [relationship, setRelationship] = useState<Relationship>("income_value");
 
   useEffect(() => {
     let cancelled = false;
@@ -399,28 +456,50 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
       .sort((a, b) => ((view === "level" ? b.level : b.change) ?? -Infinity) - ((view === "level" ? a.level : a.change) ?? -Infinity));
   }, [eligible, metric, metricKey, view]);
 
-  const relationshipPoints = useMemo(() => {
-    if (!dataset) return [];
+  const relationshipPoints = useMemo((): Record<Relationship, RelationshipPoint[]> => {
+    if (!dataset) return { income_value: [], burden_rent: [] };
     const market = marketDatasets[geography];
-    const marketMetric = relationship === "income_value" ? "zhvi" : "zori";
-    const dates = market.metrics[marketMetric]?.dates ?? [];
     const marketByName = new Map(market.regions.map((region) => [`${region.county ?? ""}:${normalizedName(region.name)}`, region]));
-    return eligible.flatMap((region): RelationshipPoint[] => {
-      const marketRegion = marketByName.get(`${region.county}:${normalizedName(region.name)}`);
-      const values = expandSeries(marketRegion?.series[marketMetric], dates.length);
-      const y = [...values].reverse().find((value): value is number => value != null) ?? null;
-      const xKey = relationship === "income_value" ? "median_household_income" : "rent_burden_share";
-      const x = region.series[xKey]?.[1] ?? null;
-      if (x == null || y == null) return [];
-      const xMetric = dataset.metrics[xKey];
-      return [{ id: region.id, name: region.name, county: region.county, x, y, xLabel: formatEstimate(x, xMetric), yLabel: relationship === "income_value" ? `$${Math.round(y).toLocaleString()}` : `$${Math.round(y).toLocaleString()}/month` }];
-    });
-  }, [dataset, eligible, geography, marketDatasets, relationship]);
 
-  const relationshipDomains = useMemo(() => ({
-    x: paddedDomain(relationshipPoints.map((point) => point.x), 0, relationship === "burden_rent" ? 100 : Infinity),
-    y: paddedDomain(relationshipPoints.map((point) => point.y), 0),
-  }), [relationship, relationshipPoints]);
+    function buildPoints(relationship: Relationship) {
+      const marketMetric = relationship === "income_value" ? "zhvi" : "zori";
+      const dates = market.metrics[marketMetric]?.dates ?? [];
+      const xKey = relationship === "income_value" ? "median_household_income" : "rent_burden_share";
+      return eligible.flatMap((region): RelationshipPoint[] => {
+        const marketRegion = marketByName.get(`${region.county}:${normalizedName(region.name)}`);
+        const values = expandSeries(marketRegion?.series[marketMetric], dates.length);
+        const y = [...values].reverse().find((value): value is number => value != null) ?? null;
+        const x = region.series[xKey]?.[1] ?? null;
+        if (x == null || y == null) return [];
+        const xMetric = dataset.metrics[xKey];
+        return [{
+          id: region.id,
+          name: region.name,
+          county: region.county,
+          x,
+          y,
+          xLabel: formatEstimate(x, xMetric),
+          yLabel: relationship === "income_value" ? `$${Math.round(y).toLocaleString()}` : `$${Math.round(y).toLocaleString()}/month`,
+        }];
+      });
+    }
+
+    return {
+      income_value: buildPoints("income_value"),
+      burden_rent: buildPoints("burden_rent"),
+    };
+  }, [dataset, eligible, geography, marketDatasets]);
+
+  const relationshipDomains = useMemo((): Record<Relationship, RelationshipDomains> => ({
+    income_value: {
+      x: paddedDomain(relationshipPoints.income_value.map((point) => point.x), 0),
+      y: paddedDomain(relationshipPoints.income_value.map((point) => point.y), 0),
+    },
+    burden_rent: {
+      x: paddedDomain(relationshipPoints.burden_rent.map((point) => point.x), 0, 100),
+      y: paddedDomain(relationshipPoints.burden_rent.map((point) => point.y), 0),
+    },
+  }), [relationshipPoints]);
 
   if (error) return <Card className="disclaimer-card"><CardHeader><CardTitle>ACS context is temporarily unavailable</CardTitle></CardHeader><CardContent className="method-copy"><p>{error}</p></CardContent></Card>;
   if (!dataset || !metric || !manifest) return <div className="permit-status"><span className="loader" aria-hidden="true" /><span>Loading housing context…</span></div>;
@@ -520,30 +599,23 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
 
       <Card className="chart-card acs-relationship-card">
         <CardHeader className="chart-header">
-          <div><p className="section-kicker">Housing relationship</p><CardTitle>{relationship === "income_value" ? "Median household income and home values" : "Rent burden and asking rents"}</CardTitle></div>
-          <LabelledSelect label="Relationship" value={relationship} onChange={(next) => setRelationship(next as Relationship)}>
-            <NativeSelectOption value="income_value">Median income vs. home value</NativeSelectOption>
-            <NativeSelectOption value="burden_rent">Rent burden vs. asking rent</NativeSelectOption>
-          </LabelledSelect>
+          <div><p className="section-kicker">Housing relationship</p><CardTitle>Household resources and housing-market outcomes</CardTitle></div>
         </CardHeader>
         <CardContent className="acs-relationship-wrap">
-          <div className="acs-relationship-chart">
-            <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart margin={{ top: 18, right: 24, bottom: 26, left: 18 }}>
-                <CartesianGrid stroke="#dfe6ea" strokeDasharray="3 3" />
-                <XAxis type="number" dataKey="x" name="ACS measure" domain={relationshipDomains.x} allowDataOverflow tick={{ fontSize: 11 }} tickFormatter={(value) => relationship === "income_value" ? `$${Math.round(value / 1000)}k` : `${value}%`} label={{ value: relationship === "income_value" ? "Median household income" : "Rent-burdened households", position: "insideBottom", offset: -16, fontSize: 11 }} />
-                <YAxis type="number" dataKey="y" name="Market measure" domain={relationshipDomains.y} allowDataOverflow tick={{ fontSize: 11 }} tickFormatter={(value) => relationship === "income_value" ? `$${Math.round(value / 1000)}k` : `$${Math.round(value)}`} width={64} label={{ value: relationship === "income_value" ? "Typical home value" : "Typical asking rent", angle: -90, position: "insideLeft", fontSize: 11 }} />
-                <ZAxis range={[42, 42]} />
-                <ChartTooltip content={<RelationshipTooltip relationship={relationship} />} />
-                <Scatter data={relationshipPoints} fill="#12355b" fillOpacity={0.55}>
-                  {relationshipPoints.map((point) => <Cell key={point.id} fill={point.id === selected?.id ? "#ff7a1a" : "#12355b"} fillOpacity={point.id === selected?.id ? 1 : 0.52} stroke={point.id === selected?.id ? "#7e3100" : "none"} />)}
-                </Scatter>
-              </ScatterChart>
-            </ResponsiveContainer>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <RelationshipChart
+              relationship="income_value"
+              points={relationshipPoints.income_value}
+              domains={relationshipDomains.income_value}
+              selectedId={selected?.id ?? ""}
+            />
+            <RelationshipChart
+              relationship="burden_rent"
+              points={relationshipPoints.burden_rent}
+              domains={relationshipDomains.burden_rent}
+              selectedId={selected?.id ?? ""}
+            />
           </div>
-          <p className="data-note">{relationship === "income_value"
-            ? "Ask: When similarly valued communities have different household incomes, what roles might wealth, access, expectations, or housing supply play? The relationship is descriptive, not causal."
-            : "Ask: Why can communities with similar asking rents have different rent-burden rates? Consider household income, household composition, and the difference between asking rents and rents paid by existing tenants."}</p>
         </CardContent>
       </Card>
 
