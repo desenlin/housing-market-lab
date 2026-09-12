@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Build an atomic, chart-ready housing-data release.
+"""Build an atomic, chart-ready housing-data release from local source files.
 
-Raw provider files live only in a temporary directory. A release is promoted by
-updating public/data/latest.json only after every required source and validation
-check passes. If the command fails, the previously deployed release is intact.
+Zillow source files must be obtained by the maintainer and supplied through
+``--source-dir``. This command does not retrieve Zillow files. A release is
+promoted by updating public/data/latest.json only after every required source
+and validation check passes. If the command fails, the previously deployed
+release is intact.
 """
 
 from __future__ import annotations
@@ -13,12 +15,9 @@ import csv
 import hashlib
 import io
 import json
-import os
 import re
-import shutil
 import tempfile
 import unicodedata
-import urllib.error
 import urllib.request
 import zipfile
 from collections import defaultdict
@@ -118,41 +117,6 @@ def request(url: str) -> urllib.request.Request:
     return urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
 
 
-def discover_links(data_page: str) -> list[str]:
-    with urllib.request.urlopen(request(data_page), timeout=45) as response:
-        html = response.read(8 * 1024 * 1024).decode("utf-8", errors="replace")
-    return sorted(
-        set(
-            re.findall(
-                r"https://files\.zillowstatic\.com/[^\"'<> ]+?\.csv",
-                html,
-            )
-        )
-    )
-
-
-def stream_download(url: str, destination: Path) -> tuple[int, str]:
-    digest = hashlib.sha256()
-    total = 0
-    with urllib.request.urlopen(request(url), timeout=90) as response:
-        status = getattr(response, "status", 200)
-        if status != 200:
-            raise RuntimeError(f"HTTP {status}")
-        with destination.open("wb") as handle:
-            while chunk := response.read(1024 * 1024):
-                total += len(chunk)
-                if total > MAX_SOURCE_BYTES:
-                    raise RuntimeError("source exceeded the 300 MB safety limit")
-                digest.update(chunk)
-                handle.write(chunk)
-    if total < 1_000:
-        raise RuntimeError("download was unexpectedly small")
-    with destination.open("rb") as handle:
-        if not handle.readline(512).startswith(b"RegionID,"):
-            raise RuntimeError("response was not a Zillow CSV")
-    return total, digest.hexdigest()
-
-
 def file_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -161,25 +125,45 @@ def file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def download_source(
-    source: dict[str, Any], temp_dir: Path, discovered: list[str]
-) -> tuple[Path, dict[str, Any]]:
-    pattern = re.compile(source["filename_regex"], re.IGNORECASE)
-    matching = [url for url in discovered if pattern.search(url.rsplit("/", 1)[-1])]
-    candidates = [source["last_url"], *matching]
-    unique_candidates = list(dict.fromkeys(candidates))
-    errors: list[str] = []
-    destination = temp_dir / f"{source['id']}.csv"
-    for url in unique_candidates:
+def manual_source_path(source_dir: Path, source: dict[str, Any]) -> Path:
+    """Resolve a manually supplied Zillow CSV without making a network request."""
+    provider_filename = source["last_url"].rsplit("/", 1)[-1]
+    candidates = (source_dir / f"{source['id']}.csv", source_dir / provider_filename)
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    expected = " or ".join(path.name for path in candidates)
+    raise RuntimeError(f"Missing Zillow source {source['id']}: expected {expected}")
+
+
+def validate_manual_source(path: Path, source_id: str) -> None:
+    size = path.stat().st_size
+    if size < 1_000:
+        raise RuntimeError(f"Zillow source {source_id} was unexpectedly small")
+    if size > MAX_SOURCE_BYTES:
+        raise RuntimeError(f"Zillow source {source_id} exceeded the 300 MB safety limit")
+    with path.open("rb") as handle:
+        if not handle.readline(512).startswith(b"RegionID,"):
+            raise RuntimeError(f"Zillow source {source_id} did not have a Zillow CSV header")
+
+
+def manual_source_files(
+    source_dir: Path, sources: list[dict[str, Any]]
+) -> dict[str, Path]:
+    if not source_dir.is_dir():
+        raise RuntimeError(f"Zillow source directory was not found: {source_dir}")
+    missing: list[str] = []
+    resolved: dict[str, Path] = {}
+    for source in sources:
         try:
-            size, sha = stream_download(url, destination)
-            return destination, {"url": url, "bytes": size, "sha256": sha}
-        except (OSError, RuntimeError, urllib.error.URLError) as exc:
-            errors.append(f"{url}: {exc}")
-            destination.unlink(missing_ok=True)
-    raise RuntimeError(
-        f"Unable to acquire required source {source['id']}: " + " | ".join(errors)
-    )
+            path = manual_source_path(source_dir, source)
+            validate_manual_source(path, source["id"])
+            resolved[source["id"]] = path
+        except RuntimeError as exc:
+            missing.append(str(exc))
+    if missing:
+        raise RuntimeError("Incomplete Zillow source directory:\n- " + "\n- ".join(missing))
+    return resolved
 
 
 def parse_value(raw: str, decimals: int) -> float | int | None:
@@ -609,33 +593,32 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--skip-maps", action="store_true")
     parser.add_argument(
-        "--cache-dir",
+        "--source-dir",
         type=Path,
-        help="Optional local download cache for development; CI always fetches fresh files.",
+        required=True,
+        help=(
+            "Directory containing maintainer-provided Zillow CSVs. Files may use "
+            "their provider filenames or the configured source IDs."
+        ),
     )
     args = parser.parse_args()
     config = load_config()
     fetched_at = datetime.now(timezone.utc).replace(microsecond=0)
+    source_paths = manual_source_files(args.source_dir, config["sources"])
 
     with tempfile.TemporaryDirectory(prefix="housing-market-lab-") as temp_name:
         temp_dir = Path(temp_name)
-        discovered = discover_links(config["data_page"])
         extracted = []
         source_manifest = {}
         for source in config["sources"]:
-            cached_path = args.cache_dir / f"{source['id']}.csv" if args.cache_dir else None
-            if cached_path and cached_path.exists():
-                path = cached_path
-                source_info = {
-                    "url": source["last_url"],
-                    "bytes": path.stat().st_size,
-                    "sha256": file_sha256(path),
-                }
-            else:
-                path, source_info = download_source(source, temp_dir, discovered)
-                if cached_path:
-                    cached_path.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(path, cached_path)
+            path = source_paths[source["id"]]
+            source_info = {
+                "url": source["last_url"],
+                "filename": path.name,
+                "acquisition": "maintainer-provided",
+                "bytes": path.stat().st_size,
+                "sha256": file_sha256(path),
+            }
             result = extract_source(path, source, config)
             extracted.append(result)
             source_manifest[source["id"]] = {

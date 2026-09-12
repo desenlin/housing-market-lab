@@ -1,9 +1,13 @@
 import unittest
+from pathlib import Path
+import tempfile
 from types import SimpleNamespace
 
 from pipeline.update_data import (
     combine_geography,
     compact_json,
+    manual_source_files,
+    manual_source_path,
     normalized_geography_name,
     parse_value,
     place_county,
@@ -12,6 +16,35 @@ from pipeline.update_data import (
 
 
 class PipelineHelpersTest(unittest.TestCase):
+    def test_manual_zillow_source_uses_provider_or_configured_filename(self):
+        source = {
+            "id": "city_zhvi",
+            "last_url": "https://files.example/City_zhvi.csv",
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            source_dir = Path(temporary)
+            provider_file = source_dir / "City_zhvi.csv"
+            provider_file.write_text("RegionID,RegionName\n", encoding="utf-8")
+            self.assertEqual(manual_source_path(source_dir, source), provider_file)
+
+            configured_file = source_dir / "city_zhvi.csv"
+            configured_file.write_text("RegionID,RegionName\n", encoding="utf-8")
+            self.assertEqual(manual_source_path(source_dir, source), configured_file)
+
+    def test_manual_zillow_source_requires_every_configured_file(self):
+        sources = [
+            {"id": "city_zhvi", "last_url": "https://files.example/City_zhvi.csv"},
+            {"id": "zip_zhvi", "last_url": "https://files.example/Zip_zhvi.csv"},
+        ]
+        with tempfile.TemporaryDirectory() as temporary:
+            source_dir = Path(temporary)
+            (source_dir / "city_zhvi.csv").write_text(
+                "RegionID,RegionName\n" + ("1,Example\n" * 100),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(RuntimeError, "Missing Zillow source zip_zhvi"):
+                manual_source_files(source_dir, sources)
+
     def test_parse_value_handles_missing_and_rounding(self):
         self.assertIsNone(parse_value("", 0))
         self.assertIsNone(parse_value("NA", 2))

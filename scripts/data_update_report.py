@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Build compact, provider-aware reports for validated data deployments."""
+"""Build compact provider summaries for GitHub Actions runs."""
 
 from __future__ import annotations
 
 import argparse
-import base64
 import calendar
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -136,7 +135,7 @@ def report_rows(
         elif statuses[source.provider_group] == 0:
             result = "Checked — no new release"
         else:
-            result = "Retained — refresh error"
+            result = "Retained — update error"
         rows.append({
             "source": source.label,
             "result": result,
@@ -148,15 +147,16 @@ def report_rows(
 
 def markdown_report(
     rows: list[dict[str, str]],
-    recipient: str,
     run_url: str,
     site_url: str,
 ) -> str:
     published_at = datetime.now(timezone.utc)
     lines = [
-        f"@{recipient} ✅ **Housing Market Lab data update deployed successfully.**",
+        "### Data update summary",
         "",
-        f"Published {published_at.strftime('%B')} {published_at.day}, {published_at.strftime('%Y at %H:%M UTC')}.",
+        "**Housing Market Lab completed successfully.**",
+        "",
+        f"Completed {published_at.strftime('%B')} {published_at.day}, {published_at.strftime('%Y at %H:%M UTC')}.",
         "",
         "| Data source | Result | Data through | Validated release |",
         "|---|---|---|---|",
@@ -169,16 +169,9 @@ def markdown_report(
         "",
         f"[Open the dashboard]({site_url}) · [View the workflow run]({run_url})",
         "",
-        "A source marked **Retained — refresh error** remains on its prior validated release.",
+        "A source marked **Retained — update error** remains on its prior validated release.",
     ])
     return "\n".join(lines) + "\n"
-
-
-def write_outputs(path: Path, notify: bool, report: str = "") -> None:
-    encoded = base64.b64encode(report.encode("utf-8")).decode("ascii") if report else ""
-    with path.open("a", encoding="utf-8") as output:
-        output.write(f"notify={'true' if notify else 'false'}\n")
-        output.write(f"report_b64={encoded}\n")
 
 
 def snapshot_command(args: argparse.Namespace) -> None:
@@ -196,19 +189,16 @@ def status_command(args: argparse.Namespace) -> None:
 
 def finish_report(args: argparse.Namespace, before: dict[str, dict[str, Any] | None], statuses: dict[str, int | None] | None) -> None:
     rows = report_rows(args.root, before, statuses)
-    notify = any(row["result"] == "Published" for row in rows)
-    if notify:
-        report = markdown_report(rows, args.recipient, args.run_url, args.site_url)
-        args.output.write_text(report, encoding="utf-8")
-        if args.summary:
-            with args.summary.open("a", encoding="utf-8") as summary:
-                summary.write(report)
+    if rows:
+        report = markdown_report(rows, args.run_url, args.site_url)
     else:
-        report = ""
-        if args.summary:
-            with args.summary.open("a", encoding="utf-8") as summary:
-                summary.write("### Data refresh\n\nNo validated provider release pointers changed; no success notification was posted.\n")
-    write_outputs(args.github_output, notify, report)
+        report = (
+            "### Data update summary\n\n"
+            "Housing Market Lab completed successfully. No validated provider "
+            "release pointers changed.\n"
+        )
+    with args.summary.open("a", encoding="utf-8") as summary:
+        summary.write(report)
 
 
 def report_command(args: argparse.Namespace) -> None:
@@ -227,10 +217,7 @@ def git_report_command(args: argparse.Namespace) -> None:
 
 def add_report_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--root", type=Path, default=REPOSITORY_ROOT)
-    parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--github-output", type=Path, required=True)
-    parser.add_argument("--summary", type=Path)
-    parser.add_argument("--recipient", required=True)
+    parser.add_argument("--summary", type=Path, required=True)
     parser.add_argument("--run-url", required=True)
     parser.add_argument("--site-url", required=True)
 

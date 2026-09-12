@@ -36,7 +36,7 @@ Selected series:
 | Active listings with price drops | `PERCENT ACTIVE WITH PRICE DROPS (%)` | Seller repricing among active listings | Percentage points |
 | Median sale price per square foot | `MEDIAN SALE PRICE PER SQ.FT. ($)` | Transaction price normalized by floor area | Percent |
 
-City and ZIP observations use Redfin's **rolling three-month** frequency. The period end date is used as the chart date. The pipeline starts in January 2018, which provides a pre-pandemic baseline while keeping scheduled national-file scans bounded.
+City and ZIP observations use Redfin's **rolling three-month** frequency. The period end date is used as the chart date. The pipeline starts in January 2018, which provides a pre-pandemic baseline while keeping national-file processing bounded.
 
 Redfin city names are matched directly to Census place names; they do not need a corresponding Zillow observation. If Redfin exposes duplicate rows for the same place label and period, the pipeline selects the row with the larger activity count instead of summing medians or shares. A source schema change, date-order change, or material loss of coverage rejects only the prospective Redfin release.
 
@@ -157,7 +157,7 @@ A provider release is rejected unless all required files stream or download, dat
 
 Before publication, each updater merges the new local extract with the current validated history. A prior value is retained when its date is absent from the new provider file, protecting the lab if an upstream full-history file becomes a rolling window. For dates that remain in the new file, the new value—including revisions or an explicit missing observation—is authoritative. Final building-permit history follows the same principle and can append a newly final year without re-downloading the complete 1980-present archive. The detailed rules and recovery hierarchy are documented in [Storage and historical continuity](STORAGE_DESIGN.md).
 
-The scheduled workflow checks all providers on four staggered dates each month. Release timing is intentionally decoupled: a newer CPI release does not require a simultaneous Zillow release, and a newer Zillow release does not wait for CPI. Nominal housing observations remain available through Zillow's latest validated month. Constant-dollar levels and real changes use exact matched months except for the disclosed October 2025 log-linear deflator interpolation. Inflation overlays use only official CPI observations. Unmatched newer housing months remain unavailable in real terms until BLS publishes the corresponding CPI observation.
+Provider release timing is intentionally decoupled. Zillow files enter the pipeline only through a maintainer-initiated local import; other source families follow independent release-window checks. A newer CPI release does not require a simultaneous Zillow release, and a newer Zillow release does not wait for CPI. Nominal housing observations remain available through Zillow's latest validated month. Constant-dollar levels and real changes use exact matched months except for the disclosed October 2025 log-linear deflator interpolation. Inflation overlays use only official CPI observations. Unmatched newer housing months remain unavailable in real terms until BLS publishes the corresponding CPI observation.
 
 Data provided by Zillow Group, Redfin, and Realtor.com® Economic Research. Complete provider source files are not retained or published. See [THIRD_PARTY_DATA.md](THIRD_PARTY_DATA.md) for source-specific attribution and reuse limits.
 

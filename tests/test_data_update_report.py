@@ -53,9 +53,9 @@ class DataUpdateReportTests(unittest.TestCase):
                 "release": "new-redfin",
             })
             self.assertEqual(rows[1]["source"], "BLS CPI")
-            self.assertEqual(rows[1]["result"], "Retained — refresh error")
+            self.assertEqual(rows[1]["result"], "Retained — update error")
 
-    def test_markdown_mentions_only_the_github_recipient(self) -> None:
+    def test_markdown_is_suitable_for_the_actions_run_summary(self) -> None:
         report = markdown_report(
             [{
                 "source": "Redfin market activity",
@@ -63,13 +63,13 @@ class DataUpdateReportTests(unittest.TestCase):
                 "coverage": "August 2026",
                 "release": "release-1",
             }],
-            "desenlin",
             "https://github.com/desenlin/housing-market-lab/actions/runs/1",
             "https://desenlin.github.io/housing-market-lab/",
         )
-        self.assertIn("@desenlin", report)
+        self.assertIn("Data update summary", report)
+        self.assertIn("completed successfully", report)
         self.assertIn("Redfin market activity", report)
-        self.assertNotIn("@fullerton.edu", report)
+        self.assertNotIn("@desenlin", report)
 
 
 if __name__ == "__main__":

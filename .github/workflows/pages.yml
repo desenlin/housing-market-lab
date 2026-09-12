@@ -5,9 +5,8 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    # Providers publish independently and their monthly release order can
-    # change. Staggered checks let any provider advance as soon as it is
-    # available while each provider's last validated release stays live.
+    # Non-Zillow sources publish independently. Zillow releases enter the
+    # repository only through a maintainer-provided local-file import.
     - cron: "23 13 12 * *"
     - cron: "23 13 18 * *"
     - cron: "23 13 24 * *"
@@ -15,12 +14,8 @@ on:
 
 permissions:
   contents: write
-  issues: write
   pages: write
   id-token: write
-
-env:
-  DATA_REPORT_ISSUE: "5"
 
 concurrency:
   group: pages
@@ -30,9 +25,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    outputs:
-      data_report_ready: ${{ steps.refresh_report.outputs.notify || steps.pushed_report.outputs.notify }}
-      data_report_b64: ${{ steps.refresh_report.outputs.report_b64 || steps.pushed_report.outputs.report_b64 }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -48,48 +40,12 @@ jobs:
           python -m pip install -r requirements.txt
           python -m unittest discover tests
 
-      - name: Refresh and validate provider data
+      - name: Review and validate non-Zillow provider data
         id: refresh
         if: github.event_name != 'push' || hashFiles('public/data/redfin/latest.json') == '' || hashFiles('public/data/realtor/inventory/latest.json') == '' || hashFiles('public/data/realtor/hotness/latest.json') == '' || hashFiles('public/data/cpi/latest.json') == '' || hashFiles('public/data/permits/history/latest.json') == '' || hashFiles('public/data/permits/provisional/latest.json') == '' || contains(github.event.head_commit.message, '[refresh-data]')
-        env:
-          FULL_REFRESH: ${{ contains(github.event.head_commit.message, '[refresh-data]') }}
         run: |
           python scripts/data_update_report.py snapshot --output "$RUNNER_TEMP/data-before.json"
-          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$FULL_REFRESH" != "true" ]; then
-            set +e
-            python pipeline/update_redfin.py
-            redfin_status=$?
-            python pipeline/update_realtor.py
-            realtor_status=$?
-            python pipeline/update_cpi.py
-            cpi_status=$?
-            python pipeline/update_permits.py
-            permits_status=$?
-            set -e
-            python scripts/data_update_report.py record-status \
-              --output "$RUNNER_TEMP/data-refresh-status.json" \
-              zillow=not_checked redfin="$redfin_status" realtor="$realtor_status" \
-              cpi="$cpi_status" permits="$permits_status"
-            if [ "$redfin_status" -ne 0 ]; then
-              echo "::warning::Redfin refresh failed; retaining its prior validated release."
-            fi
-            if [ "$realtor_status" -ne 0 ]; then
-              echo "::warning::Realtor.com refresh failed; retaining its prior validated releases."
-            fi
-            if [ "$cpi_status" -ne 0 ]; then
-              echo "::warning::BLS CPI refresh failed; retaining its prior validated release."
-            fi
-            if [ "$permits_status" -ne 0 ]; then
-              echo "::warning::Census building permits refresh failed; retaining its prior validated releases."
-            fi
-            if [ "$redfin_status" -ne 0 ] && [ "$realtor_status" -ne 0 ] && [ "$cpi_status" -ne 0 ] && [ "$permits_status" -ne 0 ]; then
-              exit 1
-            fi
-            exit 0
-          fi
           set +e
-          python pipeline/update_data.py
-          zillow_status=$?
           python pipeline/update_redfin.py
           redfin_status=$?
           python pipeline/update_realtor.py
@@ -101,11 +57,8 @@ jobs:
           set -e
           python scripts/data_update_report.py record-status \
             --output "$RUNNER_TEMP/data-refresh-status.json" \
-            zillow="$zillow_status" redfin="$redfin_status" realtor="$realtor_status" \
+            zillow=not_checked redfin="$redfin_status" realtor="$realtor_status" \
             cpi="$cpi_status" permits="$permits_status"
-          if [ "$zillow_status" -ne 0 ]; then
-            echo "::warning::Zillow refresh failed; retaining its prior validated release."
-          fi
           if [ "$redfin_status" -ne 0 ]; then
             echo "::warning::Redfin refresh failed; retaining its prior validated release."
           fi
@@ -118,7 +71,7 @@ jobs:
           if [ "$permits_status" -ne 0 ]; then
             echo "::warning::Census building permits refresh failed; retaining its prior validated releases."
           fi
-          if [ "$zillow_status" -ne 0 ] && [ "$redfin_status" -ne 0 ] && [ "$realtor_status" -ne 0 ] && [ "$cpi_status" -ne 0 ] && [ "$permits_status" -ne 0 ]; then
+          if [ "$redfin_status" -ne 0 ] && [ "$realtor_status" -ne 0 ] && [ "$cpi_status" -ne 0 ] && [ "$permits_status" -ne 0 ]; then
             exit 1
           fi
 
@@ -134,43 +87,33 @@ jobs:
             git config user.name "housing-market-lab[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add public/data
-            git commit -m "data: publish validated provider releases"
+            git commit -m "data: publish validated provider releases [skip ci]"
             git push
           else
             echo "No new provider observations."
           fi
 
-      - name: Prepare successful refresh report
-        id: refresh_report
+      - name: Write provider update summary
         if: steps.refresh.outcome == 'success'
         env:
-          REPORT_RECIPIENT: ${{ github.repository_owner }}
           REPORT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           python scripts/data_update_report.py report \
             --before "$RUNNER_TEMP/data-before.json" \
             --statuses "$RUNNER_TEMP/data-refresh-status.json" \
-            --output "$RUNNER_TEMP/data-release-report.md" \
-            --github-output "$GITHUB_OUTPUT" \
             --summary "$GITHUB_STEP_SUMMARY" \
-            --recipient "$REPORT_RECIPIENT" \
             --run-url "$REPORT_RUN_URL" \
             --site-url "https://desenlin.github.io/housing-market-lab/"
 
-      - name: Prepare report for pushed data release
-        id: pushed_report
+      - name: Summarize a pushed data release
         if: "${{ github.event_name == 'push' && steps.refresh.outcome == 'skipped' && !startsWith(github.event.head_commit.message, 'data: publish validated provider releases') }}"
         env:
           BEFORE_SHA: ${{ github.event.before }}
-          REPORT_RECIPIENT: ${{ github.repository_owner }}
           REPORT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           python scripts/data_update_report.py git-report \
             --before-ref "$BEFORE_SHA" \
-            --output "$RUNNER_TEMP/data-release-report.md" \
-            --github-output "$GITHUB_OUTPUT" \
             --summary "$GITHUB_STEP_SUMMARY" \
-            --recipient "$REPORT_RECIPIENT" \
             --run-url "$REPORT_RUN_URL" \
             --site-url "https://desenlin.github.io/housing-market-lab/"
 
@@ -211,15 +154,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
-
-      - name: Post successful data-release report
-        if: needs.build.outputs.data_report_ready == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          DATA_REPORT_B64: ${{ needs.build.outputs.data_report_b64 }}
-        run: |
-          report_path="$RUNNER_TEMP/data-release-report.md"
-          printf '%s' "$DATA_REPORT_B64" | base64 --decode > "$report_path"
-          gh issue comment "$DATA_REPORT_ISSUE" \
-            --repo "$GITHUB_REPOSITORY" \
-            --body-file "$report_path"
