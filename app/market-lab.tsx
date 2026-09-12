@@ -2876,8 +2876,8 @@ export default function MarketLab() {
 
         <TabsContent value="about" className="space-y-5">
           <section className="regional-intro">
-            <div><p className="section-kicker">About the project</p><h2>Housing evidence for learning, research, and public discussion.</h2></div>
-            <p>The Housing Market Lab is an instructional and research-oriented platform that brings together selected public real estate and housing-market data from multiple sources in a consistent, locally focused interface. Its primary geographic focus is Los Angeles and Orange Counties, with city-, ZIP-code-, and metropolitan-level comparisons where the underlying data permit.</p>
+            <div><p className="section-kicker">About the project</p><h2>A teaching-focused view of Southern California housing markets.</h2></div>
+            <p>Housing Market Lab is an independent academic project for classroom exploration and research. It organizes selected aggregate housing indicators into comparable views of Los Angeles and Orange Counties, with city/community, ZIP-code, and metropolitan perspectives where coverage permits. The lab does not contain property listings or property-level records.</p>
           </section>
 
           <section className="about-objectives" aria-label="Project objectives">

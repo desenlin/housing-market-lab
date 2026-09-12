@@ -27,7 +27,11 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /<TabsTrigger value="activity">Market Conditions<\/TabsTrigger>\s*<TabsTrigger value="permits">Building Permits<\/TabsTrigger>/);
   assert.match(source, /<TabsTrigger value="methods">Data &amp; methods<\/TabsTrigger>\s*<TabsTrigger value="about">About<\/TabsTrigger>/);
   assert.match(source, /<TabsTrigger value="facts">Market Brief<\/TabsTrigger>\s*<TabsTrigger value="methods">Data &amp; methods<\/TabsTrigger>/);
-  assert.match(source, /Housing evidence for learning, research, and public discussion/);
+  assert.match(source, /A teaching-focused view of Southern California housing markets/);
+  assert.match(source, /independent academic project for classroom exploration and research/);
+  assert.match(source, /selected aggregate housing indicators/);
+  assert.match(source, /does not contain property listings or property-level records/);
+  assert.doesNotMatch(source, /instructional and research-oriented platform/);
   assert.match(source, /Support instruction/);
   assert.match(source, /Facilitate research/);
   assert.match(source, /Inform public discussion/);
@@ -154,6 +158,9 @@ test("market brief automation remains review gated", async () => {
 
 test("repository front page separates project licenses from third-party terms", async () => {
   const readme = await readProjectFile("README.md");
+  assert.match(readme, /independent academic project for classroom exploration and research/i);
+  assert.match(readme, /aggregate Southern California housing indicators/i);
+  assert.match(readme, /does not contain property listings or property-level records/i);
   assert.match(readme, /## Citation/);
   assert.match(readme, /## Academic-use disclaimer/);
   assert.match(readme, /not financial, investment, legal, valuation, or real-estate advice/i);

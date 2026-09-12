@@ -4,7 +4,7 @@
 [![MIT licensed code](https://img.shields.io/badge/code-MIT-12355b.svg)](LICENSE)
 [![CC BY 4.0 educational content](https://img.shields.io/badge/content-CC%20BY%204.0-ff7a1a.svg)](https://creativecommons.org/licenses/by/4.0/)
 
-Southern California housing data for teaching and academic research. The current release focuses on city/community and ZIP-level observations in Orange and Los Angeles counties, with a separate metropolitan comparison view.
+Housing Market Lab is an independent academic project for classroom exploration and research. It organizes selected aggregate Southern California housing indicators into comparable city/community, ZIP-level, and metropolitan views. It does not contain property listings or property-level records.
 
 **Live application:** <https://desenlin.com/housing-market-lab/>
 
