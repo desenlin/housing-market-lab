@@ -134,7 +134,7 @@ The pipeline matches place names or five-digit ZCTA codes to provider regions an
 
 ## OpenStreetMap
 
-The interactive maps request the standard OpenStreetMap tile layer at `https://tile.openstreetmap.org/{z}/{x}/{y}.png` only for the area and zoom level a visitor views. The application does not prefetch, scrape, proxy, or archive map tiles. Visible attribution is retained on every map.
+The interactive maps request the standard OpenStreetMap tile layer at `https://tile.openstreetmap.org/{z}/{x}/{y}.png` only for the area and zoom level a visitor views. No tile archive or background area download is created. Visible attribution is retained on every map.
 
 Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright). Tile use is subject to the [OpenStreetMap Foundation tile usage policy](https://operations.osmfoundation.org/policies/tiles/).
 
@@ -159,7 +159,7 @@ Before publication, each updater merges the new local extract with the current v
 
 The scheduled workflow checks all providers on four staggered dates each month. Release timing is intentionally decoupled: a newer CPI release does not require a simultaneous Zillow release, and a newer Zillow release does not wait for CPI. Nominal housing observations remain available through Zillow's latest validated month. Constant-dollar levels and real changes use exact matched months except for the disclosed October 2025 log-linear deflator interpolation. Inflation overlays use only official CPI observations. Unmatched newer housing months remain unavailable in real terms until BLS publishes the corresponding CPI observation.
 
-Data provided by Zillow Group, Redfin, and Realtor.com® Economic Research. This repository does not redistribute the complete provider files. See [THIRD_PARTY_DATA.md](THIRD_PARTY_DATA.md) for source-specific attribution and reuse limits.
+Data provided by Zillow Group, Redfin, and Realtor.com® Economic Research. Complete provider source files are not retained or published. See [THIRD_PARTY_DATA.md](THIRD_PARTY_DATA.md) for source-specific attribution and reuse limits.
 
 ## Intended use and disclaimer
 

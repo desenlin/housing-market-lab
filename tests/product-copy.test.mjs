@@ -95,6 +95,24 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /aria-pressed=\{activeActivitySelectedIds\.includes\(item\.region\.id\)\}/);
   assert.match(source, /Select a place from the ranking or add a comparison to display the chart/);
   assert.match(source, /Citation:<\/strong> Lin, D\. \(2026\)\. <cite>Housing Market Lab<\/cite> \[Computer software\]/);
+  assert.match(source, /An instructional view of Southern California housing data for classroom exploration and academic research/);
+});
+
+test("places linked provider attribution beside charts and maps", async () => {
+  const page = await readProjectFile("app/market-lab.tsx");
+  const attribution = await readProjectFile("components/figure-attribution.tsx");
+  const acs = await readProjectFile("components/acs/acs-panel.tsx");
+  const permits = await readProjectFile("components/permits/permit-panel.tsx");
+  assert.match(attribution, /Data provided by Zillow Group/);
+  assert.match(attribution, /Data provided by Redfin/);
+  assert.match(attribution, /Realtor\.com® Economic Research/);
+  assert.match(attribution, /U\.S\. Bureau of Labor Statistics/);
+  assert.match(attribution, /U\.S\. Census Bureau, American Community Survey/);
+  assert.match(attribution, /© .*OpenStreetMap contributors/);
+  assert.match(page, /<FigureAttribution sources=\{mapSources\} boundaries basemap \/>/);
+  assert.match(page, /<FigureAttribution sources=\{\[activityLens === "redfin" \? "redfin" : "realtor"\]\} \/>/);
+  assert.match(acs, /<FigureAttribution sources=\{\["census-acs", "zillow"\]\} \/>/);
+  assert.match(permits, /metric === "units_per_1000" \? \["census-bps", "census-acs"\] : \["census-bps"\]/);
 });
 
 test("market brief prioritizes questions, quality controls, and direct evidence", async () => {

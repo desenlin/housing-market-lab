@@ -17,6 +17,7 @@ import { ExternalLink, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { FigureAttribution } from "@/components/figure-attribution";
 import { DEFAULT_MAP_FIT_OPTIONS, focusedMapBounds } from "@/lib/map-view";
 
 type Value = number | null;
@@ -322,6 +323,7 @@ function AcsMap({ county, mapData, dataset, metricKey, view, selectedId, onSelec
       </div>
       <div ref={containerRef} className="leaflet-map" role="region" aria-label={`${metric.label} ACS map`} />
       <p className="map-coverage">Estimates describe the full ACS period. Map colors are descriptive; hover for estimates and 90% margins of error.</p>
+      <FigureAttribution sources={view === "change" && metricKey === "median_household_income" ? ["census-acs", "bls"] : ["census-acs"]} boundaries basemap />
     </div>
   );
 }
@@ -395,6 +397,7 @@ function RelationshipChart({ relationship, points, domains, selectedId }: {
       <p className="data-note">{incomeValue
         ? "Ask: When similarly valued communities have different household incomes, what roles might wealth, access, expectations, or housing supply play? The relationship is descriptive, not causal."
         : "Ask: Why can communities with similar asking rents have different rent-burden rates? Consider household income, household composition, and the difference between asking rents and rents paid by existing tenants."}</p>
+      <FigureAttribution sources={["census-acs", "zillow"]} />
     </div>
   );
 }

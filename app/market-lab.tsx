@@ -37,6 +37,7 @@ import {
 import { PermitPanel, type PermitManifest } from "@/components/permits/permit-panel";
 import { AcsPanel, type AcsManifestSummary } from "@/components/acs/acs-panel";
 import { FactEnginePanel } from "@/components/facts/fact-engine-panel";
+import { FigureAttribution, type FigureSource } from "@/components/figure-attribution";
 import { DEFAULT_MAP_FIT_OPTIONS, focusedMapBounds } from "@/lib/map-view";
 
 type Value = number | null;
@@ -1282,6 +1283,7 @@ function HotnessQuadrant({
           <span><i className="selected" />Selected ZIP</span>
         </div>
         <p className="data-note">Upper-right ZIPs combine stronger listing attention with faster-moving supply. Scores are relative rankings, not percentage changes.</p>
+        <FigureAttribution sources={["realtor"]} />
       </CardContent>
     </Card>
   );
@@ -1434,6 +1436,14 @@ function CountyMap({
     : view === "yoy"
       ? "change from one year earlier"
       : `index (${shortDate(`${indexBaseMonth}-01`)} = 100)`;
+  const providerSource: FigureSource = provider.toLowerCase().startsWith("realtor")
+    ? "realtor"
+    : provider.toLowerCase().startsWith("redfin")
+      ? "redfin"
+      : "zillow";
+  const mapSources: FigureSource[] = priceAdjustment
+    ? [providerSource, "bls"]
+    : [providerSource];
 
   useEffect(() => {
     let cancelled = false;
@@ -1596,6 +1606,7 @@ function CountyMap({
         aria-label={`${countyLabel} ${geographyLabel.toLowerCase()} map of ${metricLabel.toLowerCase()}`}
       />
       <p className="map-coverage">{observed} of {shapes.regions.length} boundaries have a current {provider} observation for this measure{showQuality ? `; ${flagged} are provider-flagged` : ""}. Gray boundaries have no data; unshaded map areas are outside the displayed {dataset.geography === "city" ? "city/CDP" : "ZCTA"} geography. Hover or tap a boundary for details; click a data region to update the focus series.</p>
+      <FigureAttribution sources={mapSources} boundaries basemap />
     </div>
   );
 }
@@ -2281,7 +2292,7 @@ export default function MarketLab() {
             <p className="eyebrow">Real Estate Analytics</p>
             <h1><a className="header-link" href="./" aria-label="Housing Market Lab home">Housing Market Lab</a></h1>
             <p className="byline">Created by <a className="header-link" href="https://desenlin.com/">Desen Lin</a>, <a className="header-link" href="https://www.fullerton.edu/">California State University, Fullerton</a>.</p>
-            <p className="deck">A focused view of Southern California’s housing market—and the cycles around it.</p>
+            <p className="deck">An instructional view of Southern California housing data for classroom exploration and academic research.</p>
           </div>
           <a className="release-stamp release-stamp-link" href="#current-release-provenance" onClick={openReleaseProvenance}>
             <span>Latest validated release</span>
@@ -2409,6 +2420,7 @@ export default function MarketLab() {
               </CardHeader>
               <CardContent className="p-3 pt-0 sm:p-5 sm:pt-0">
                 <SeriesChart dataset={dataset} regions={selectedRegions} metric={metric} view={view} timeRange={timeRange} indexBaseMonth={indexBaseMonth} priceAdjustment={localPriceAdjustment} overlays={localInflationOverlays} />
+                <FigureAttribution sources={localMetricSupportsReal && (localBasis === "real" || (view === "yoy" && showLocalInflation)) && cpiManifest ? ["zillow", "bls"] : ["zillow"]} />
                 {localBasis === "real" && (
                   <p className="data-note">October 2025 uses a log-linear CPI interpolation between September and November because BLS did not publish that month. Official CPI overlays retain the gap; no other missing or trailing CPI month is filled.</p>
                 )}
@@ -2594,6 +2606,7 @@ export default function MarketLab() {
                       showQuality={activityLens === "realtor"}
                       smoothMonths={activityLens === "realtor" && activeActivityView === "level" && activityMetricMetadata.source_product === "inventory" ? 3 : 1}
                     />
+                    <FigureAttribution sources={[activityLens === "redfin" ? "redfin" : "realtor"]} />
                     {activityLens === "realtor" && activeActivityView === "level" && activityMetricMetadata.source_product === "inventory" && (
                       <InventoryLineGuide />
                     )}
@@ -2761,6 +2774,7 @@ export default function MarketLab() {
               </CardHeader>
               <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                 <SeriesChart dataset={datasets.metro} regions={regionalRegions} metric={regionalMetric} view={regionalView} timeRange={regionalTimeRange} indexBaseMonth={regionalIndexBaseMonth} priceAdjustment={regionalPriceAdjustment} overlays={regionalInflationOverlays} />
+                <FigureAttribution sources={regionalMetricSupportsReal && (regionalBasis === "real" || ((regionalView === "yoy" || regionalView === "index") && showRegionalInflation)) && cpiManifest ? ["zillow", "bls"] : ["zillow"]} />
                 {regionalBasis === "real" && <p className="data-note">All real metro series use U.S. city-average CPI-U. October 2025 uses a log-linear interpolation between September and November; official CPI overlays retain the gap.</p>}
               </CardContent>
             </Card>
@@ -2779,6 +2793,7 @@ export default function MarketLab() {
               </CardHeader>
               <CardContent className="cycle-chart-wrap">
                 <RegionalCycleChart dataset={datasets.metro} selectedIds={regionalIds} cpi={cpi?.series.us ?? null} interpolationRules={cpi?.real_value_interpolation ?? []} />
+                <FigureAttribution sources={cpi?.series.us ? ["zillow", "bls"] : ["zillow"]} />
               </CardContent>
             </Card>
           </section>
@@ -2803,8 +2818,8 @@ export default function MarketLab() {
             <Card><CardHeader><CardTitle>ACS housing context</CardTitle></CardHeader><CardContent className="method-copy"><p>The housing-context layer retains six selected ACS five-year measures and their 90% margins of error. The latest cross-section covers every mapped city, Census-designated place, and ZCTA in the two counties; it does not expose a general ACS variable catalog.</p><p>Structural change compares non-overlapping five-year periods for cities and communities. Consecutive overlapping vintages are not treated as annual observations. Prior-period household income is converted to the latest vintage’s dollars using annual-average U.S. CPI-U.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Geographies</CardTitle></CardHeader><CardContent className="method-copy"><p>City/community maps retain every Census incorporated place and Census-designated place (CDP) assigned to Orange or Los Angeles County, whether or not a provider reports data. Zillow and Redfin observations are matched independently, and an unincorporated CDP is never reassigned to a neighboring city.</p><p>ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs. Census places and ZCTAs do not necessarily cover or classify land in the same way.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Reading the maps</CardTitle></CardHeader><CardContent className="method-copy"><p>The legend distinguishes three states: <strong>colored</strong> means the selected provider reports a current observation; <strong>gray</strong> means an official city/CDP or mapped ZCTA boundary exists but the selected observation is unavailable; <strong>unshaded</strong> means the land falls outside the displayed place geography. Maps open on a focused mainland view; offshore boundaries remain in the map geometry and can be reached by panning.</p><p>Unshaded county remainder, wilderness, and open space should not be interpreted as a missing housing market. For example, unshaded portions of Laguna Coast Wilderness Park are not a separate Census place. OpenStreetMap supplies the underlying geographic context.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Zillow, Redfin, Realtor.com, BLS CPI, ACS, Census building permits, and Census map geometry use independent versioned releases. Each family keeps the current validated release and one rollback.</p><p>When a new provider file omits older dates, the lab carries those dates forward from its prior compact extract. Overlapping dates use the newest provider release, including revisions and explicit missing values. A failed update leaves the prior validated release available and does not block another source.</p><p>The public brief archive contains approved editions, not every generated fact packet. When enough recurring questions receive newer evidence, an automated workflow prepares a draft pull request; it cannot publish or merge the edition. Each approved edition preserves its publication or reconstruction status, observation cutoff, source releases, and evidence fingerprint. Corrections are labeled rather than silently rewriting the record.</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Cost &amp; portability</CardTitle></CardHeader><CardContent className="method-copy"><p>The site is a static export with no database, application server, paid API, or paid map service. GitHub Actions performs periodic updates and GitHub Pages serves the files.</p><p>ACS checks run separately from monthly market updates and stop after a lightweight vintage check when no new release exists. New ACS vintages request only selected variables, publish only local estimates and margins of error, and reuse the shared map geometry. County-level shards keep generated JSON files below 1 MB, and an automated storage budget prevents unbounded growth.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Release design</CardTitle></CardHeader><CardContent className="method-copy"><p>Zillow, Redfin, Realtor.com, BLS CPI, ACS, Census building permits, and Census map geometry use independent versioned releases. Scheduled refreshes use provider-published data files and retain only the selected measures and local geographies used by the lab. Each family keeps the current validated release and one rollback.</p><p>When a new provider file omits older dates, the lab carries those dates forward from its prior compact extract. Overlapping dates use the newest provider release, including revisions and explicit missing values. A failed update leaves the prior validated release available and does not block another source.</p><p>The public brief archive contains approved editions, not every generated fact packet. When enough recurring questions receive newer evidence, a review workflow prepares a draft pull request; it cannot publish or merge the edition. Each approved edition preserves its publication or reconstruction status, observation cutoff, source releases, and evidence fingerprint. Corrections are labeled rather than silently rewriting the record.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Cost &amp; portability</CardTitle></CardHeader><CardContent className="method-copy"><p>The site is a static export with no database, application server, paid API, or paid map service. GitHub Actions manages periodic data refreshes, and GitHub Pages serves the files.</p><p>ACS checks run separately from monthly market updates and stop after a lightweight vintage check when no new release exists. New ACS vintages request only selected variables, publish only local estimates and margins of error, and reuse the shared map geometry. County-level shards keep generated JSON files below 1 MB, and a storage limit prevents unbounded growth.</p></CardContent></Card>
           </section>
           <Card className="disclaimer-card">
             <CardHeader><CardTitle>Academic-use disclaimer</CardTitle></CardHeader>

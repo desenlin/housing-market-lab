@@ -176,6 +176,10 @@ button, select { font: inherit; }
 .leaflet-tooltip span { display: block; font-size: 11px; }
 .leaflet-control-attribution { font-size: 9px !important; }
 .map-coverage { margin: 7px 0 0; color: #71818c; font-size: 10px; }
+.figure-attribution { margin: 8px 0 0; color: #657681; font-size: 10px; line-height: 1.45; }
+.figure-attribution strong { color: #40596b; font-weight: 800; }
+.figure-attribution a { color: #2f617f; text-decoration: underline; text-decoration-color: #9fb6c4; text-underline-offset: 2px; }
+.figure-attribution a:hover { color: #b94d00; }
 .regional-intro { display: grid; grid-template-columns: 1fr 1fr; align-items: end; gap: 40px; border-bottom: 1px solid #c9d5db; padding: 10px 2px 20px; }
 .regional-intro h2 { max-width: 620px; margin: 0; color: #12355b; font-family: Georgia, serif; font-size: clamp(28px, 4vw, 43px); line-height: 1.08; }
 .regional-intro > p { margin: 0; color: #566b7a; line-height: 1.65; }

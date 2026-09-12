@@ -13,7 +13,7 @@ The compact files under `public/data/` are filtered and transformed for this ins
 
 Zillow's Research data page provides downloads for use in a user's own analyses. Its general terms separately grant limited personal use, permit non-personal analysis and attributed derivative displays for "Aggregate Data" from Zillow Local-Info Pages, and state that other Zillow data may not be displayed without prior written approval. The Research CSV downloads used here are not expressly identified as Local-Info Page Aggregate Data or covered by a general downstream-redistribution license.
 
-The automated update retrieves publisher-provided Research CSV download URLs rather than scraping property listings or search pages. That distinction reduces scraping-related concerns, but it does not independently establish a right to publish processed, machine-readable extracts. Housing Market Lab therefore excludes those extracts from its MIT and CC BY licenses, provides the required source attribution, and treats broader redistribution permission as unresolved. Written confirmation from Zillow is the clearest way to remove that uncertainty.
+Scheduled refreshes use the provider-published Zillow Research download files and retain selected aggregate series for the lab's two-county teaching scope. The project does not collect property listings or search results. This sourcing method does not itself establish downstream-redistribution rights, so Zillow-derived extracts remain excluded from the project's MIT and CC BY licenses. Housing Market Lab provides source attribution and treats broader redistribution permission as unresolved; anyone seeking broader reuse should consult Zillow's current terms and obtain any permission required.
 
 ## Redfin Data Center
 
