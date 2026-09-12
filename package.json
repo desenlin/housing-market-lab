@@ -1,6 +1,7 @@
 {
   "name": "housing-market-lab",
   "version": "0.2.0",
+  "license": "MIT",
   "private": true,
   "engines": {
     "node": ">=22.13.0"

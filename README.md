@@ -134,10 +134,10 @@ GitHub also provides structured citation metadata from [CITATION.cff](CITATION.c
 
 This project is provided for instruction and academic research. It is not financial, investment, legal, valuation, or real-estate advice and should not be relied on for transactions or commercial decision-making.
 
-The filtered data releases are intended for instructional and noncommercial academic-research use. Zillow, Redfin, Realtor.com, Census, and OpenStreetMap data remain subject to their respective provider licenses and terms. This repository does not grant commercial-use rights to third-party data or imply endorsement by any provider or California State University, Fullerton.
+The application's intended use is instruction and academic research. This purpose statement is not a license for, or an additional restriction on, third-party data. Zillow, Redfin, Realtor.com, Census, and OpenStreetMap materials remain subject to their respective provider licenses and terms. This repository does not grant commercial-use or redistribution rights to third-party data or imply endorsement by any provider or California State University, Fullerton.
 
 ## Licenses and attribution
 
-The original software code in this repository is licensed under the [MIT License](LICENSE). Original educational prose and project-authored explanatory material are licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/), unless otherwise noted. When reusing or adapting original project materials, credit Desen Lin and link to this repository.
+The original software code in this repository is licensed under the [MIT License](LICENSE). Original educational prose and project-authored explanatory material are licensed under [Creative Commons Attribution 4.0 International](LICENSE-CONTENT.md), unless otherwise noted. When reusing or adapting original project materials, credit Desen Lin and link to this repository. The [licensing map](LICENSES.md) explains which terms apply to each category of material.
 
 Third-party data, cartographic boundaries, map tiles, institutional names, and trademarks are excluded from both licenses. No rights to those materials are granted by this repository. Data provided by Zillow Group, Redfin, and Realtor.com® Economic Research. Map data © OpenStreetMap contributors. See [Third-party data, licensing, and attribution](THIRD_PARTY_DATA.md) before reusing any data files.

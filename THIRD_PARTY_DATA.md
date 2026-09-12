@@ -1,6 +1,6 @@
 # Third-party data, licensing, and attribution
 
-Housing Market Lab combines original software and educational material with external data. The repository's MIT and CC BY 4.0 licenses apply only to the project-authored materials identified in [README.md](README.md) and [LICENSE](LICENSE). They do **not** license the data, geographic boundaries, map tiles, provider names, logos, or trademarks described below.
+Housing Market Lab combines original software and educational material with external data. The repository's MIT and CC BY 4.0 licenses apply only to the project-authored materials identified in [LICENSES.md](LICENSES.md). They do **not** license the data, geographic boundaries, map tiles, provider names, logos, or trademarks described below.
 
 The compact files under `public/data/` are filtered and transformed for this instructional application. Their presence in a public repository does not grant downstream users permission to reproduce, redistribute, sell, sublicense, or use the underlying third-party material. Anyone reusing those files must independently comply with the applicable provider terms and obtain permission where required.
 
@@ -11,7 +11,9 @@ The compact files under `public/data/` are filtered and transformed for this ins
 - **Guidance and terms:** [ZHVI User Guide](https://www.zillow.com/research/zhvi-user-guide/) and [Zillow Terms of Use](https://www.zillow.com/corporate/terms-of-use/)
 - **Required project attribution:** Data provided by Zillow Group.
 
-Zillow's terms permit specified uses of aggregate data and derivative displays when Zillow is cited, but they do not provide a general open-data license for all Research downloads. Do not assume that this repository can pass through broader redistribution or commercial-use rights.
+Zillow's Research data page provides downloads for use in a user's own analyses. Its general terms separately grant limited personal use, permit non-personal analysis and attributed derivative displays for "Aggregate Data" from Zillow Local-Info Pages, and state that other Zillow data may not be displayed without prior written approval. The Research CSV downloads used here are not expressly identified as Local-Info Page Aggregate Data or covered by a general downstream-redistribution license.
+
+The automated update retrieves publisher-provided Research CSV download URLs rather than scraping property listings or search pages. That distinction reduces scraping-related concerns, but it does not independently establish a right to publish processed, machine-readable extracts. Housing Market Lab therefore excludes those extracts from its MIT and CC BY licenses, provides the required source attribution, and treats broader redistribution permission as unresolved. Written confirmation from Zillow is the clearest way to remove that uncertainty.
 
 ## Redfin Data Center
 

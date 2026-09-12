@@ -123,16 +123,20 @@ test("market brief automation remains review gated", async () => {
   assert.match(generator, /No causal claim or forecast has been introduced/);
 });
 
-test("repository front page includes citation and academic-use limits", async () => {
+test("repository front page separates project licenses from third-party terms", async () => {
   const readme = await readProjectFile("README.md");
   assert.match(readme, /## Citation/);
   assert.match(readme, /## Academic-use disclaimer/);
   assert.match(readme, /not financial, investment, legal, valuation, or real-estate advice/i);
-  assert.match(readme, /noncommercial academic-research use/i);
+  assert.match(readme, /intended use is instruction and academic research/i);
+  assert.match(readme, /does not grant commercial-use or redistribution rights to third-party data/i);
   assert.match(readme, /\[Desen Lin\]\(https:\/\/desenlin\.com\/\)/);
+  assert.match(readme, /\[licensing map\]\(LICENSES\.md\)/);
+  assert.match(readme, /\[Creative Commons Attribution 4\.0 International\]\(LICENSE-CONTENT\.md\)/);
   assert.match(readme, /\[Third-party data, licensing, and attribution\]\(THIRD_PARTY_DATA\.md\)/);
   const notices = await readProjectFile("THIRD_PARTY_DATA.md");
   assert.match(notices, /do \*\*not\*\* license the data/i);
+  assert.match(notices, /treats broader redistribution permission as unresolved/i);
   assert.match(notices, /Zillow Research/);
   assert.match(notices, /Redfin Data Center/);
   assert.match(notices, /Realtor\.com Economic Research/);
