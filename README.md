@@ -86,7 +86,7 @@ The Realtor.com pipeline first compares the upstream ETag or modification metada
 
 All local chart releases use a merge-forward history policy. If a provider later replaces a full-history download with a rolling window, dates absent from the new file are carried forward from the last validated compact extract. Dates still present in the provider file—including revisions and explicit missing values—follow the new release. County sharding keeps generated JSON objects below 1 MB, and a 25 MB working-tree budget prevents silent storage growth. See [Storage and historical continuity](STORAGE_DESIGN.md).
 
-Zillow updates are maintainer-initiated: the ten configured Zillow Research CSVs are obtained separately and supplied to the local pipeline. The pipeline makes no Zillow network requests. Redfin, Realtor.com Inventory, Realtor.com Hotness, BLS CPI, and Census building permits follow independent release-window checks. A failed provider download or validation does not replace that provider's prior working release or prevent another provider from updating.
+Provider source families follow independent release-window checks so each validated release can advance when available. A failed provider download or validation does not replace that provider's prior working release or prevent another provider from updating.
 
 After a successful site and data validation, the separate **Prepare market brief for review** process evaluates the four recurring questions. It recommends a new edition only when at least two questions have newer observation periods than the latest approved archive, or when one newer question contains a material change, and the fact packet is not already represented there. When those gates pass, the process writes a deterministic candidate to a dedicated branch and opens or updates a draft pull request. It cannot merge the pull request or publish the edition; the maintainer's review and merge are the publication gate. It can also be started manually with an optional issue month. Its force option bypasses only the advancement rule—not duplicate-edition, reused-packet, or future-period safeguards.
 
@@ -101,7 +101,7 @@ Requirements: Node 24+, Python 3.11+, and npm.
 ```bash
 npm run install:ci
 python -m pip install -r requirements.txt
-python pipeline/update_data.py --source-dir /path/to/zillow-csvs --skip-maps
+python pipeline/update_data.py
 python pipeline/update_redfin.py
 python pipeline/update_realtor.py
 python pipeline/update_cpi.py
@@ -110,9 +110,7 @@ python pipeline/update_acs.py
 npm run dev
 ```
 
-For a Zillow update, download the ten city, ZIP, and metro files identified in `config/sources.json` from Zillow Research and place them in one local directory. Provider filenames can be retained, or the files can be renamed to their configured source IDs, such as `city_zhvi.csv`. The command above verifies that every required file is present before processing and makes no Zillow network request. The source directory should remain outside the repository; raw files are not committed.
-
-The Redfin and Realtor.com pipelines stream national CSVs and retain only configured dates and two-county geographies; they never store full raw downloads. Routine ACS updates require `CENSUS_API_KEY`. The maintainer-only `--bootstrap-bulk` option can seed a release by streaming selected Census table files without retaining them, while routine ACS processing uses the much smaller API requests.
+For repeated Zillow pipeline development, `--cache-dir .cache/zillow` reuses local downloads. The Redfin and Realtor.com pipelines stream national CSVs and retain only configured dates and two-county geographies; they never store full raw downloads. Routine ACS updates require `CENSUS_API_KEY`. The maintainer-only `--bootstrap-bulk` option can seed a release by streaming selected Census table files without retaining them, while routine ACS processing uses the much smaller API requests.
 
 Build and test:
 

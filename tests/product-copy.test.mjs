@@ -99,8 +99,9 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Housing evidence with documented methods/);
   assert.match(source, /The lab organizes selected housing indicators for teaching and academic research/);
   assert.match(source, /<CardTitle>Technical design<\/CardTitle>/);
-  assert.match(source, /maintainer-initiated local import/);
+  assert.match(source, /Provider-published files are processed into the selected measures/);
   assert.match(source, /Provider updates pass validation before release/);
+  assert.doesNotMatch(source, /maintainer-initiated local import/);
   assert.doesNotMatch(source, /A small, inspectable data product/);
   assert.doesNotMatch(source, /Cost &amp; portability/);
   assert.doesNotMatch(source, /Scheduled refreshes/);
@@ -166,7 +167,9 @@ test("repository front page separates project licenses from third-party terms", 
   assert.match(notices, /do \*\*not\*\* license the data/i);
   assert.match(notices, /treats broader redistribution permission as unresolved/i);
   assert.match(notices, /Zillow Research/);
-  assert.match(notices, /pipeline does not retrieve Zillow files/i);
+  assert.match(notices, /aggregate series at city, ZIP, and metro level/i);
+  assert.match(notices, /does not collect current property listings/i);
+  assert.doesNotMatch(notices, /pipeline does not retrieve Zillow files/i);
   assert.match(notices, /Redfin Data Center/);
   assert.match(notices, /Realtor\.com Economic Research/);
   assert.match(notices, /Building Permits Survey/);

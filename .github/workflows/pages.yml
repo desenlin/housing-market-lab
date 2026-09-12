@@ -5,8 +5,7 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    # Non-Zillow sources publish independently. Zillow releases enter the
-    # repository only through a maintainer-provided local-file import.
+    # Providers publish independently, and their release timing can differ.
     - cron: "23 13 12 * *"
     - cron: "23 13 18 * *"
     - cron: "23 13 24 * *"
@@ -40,12 +39,14 @@ jobs:
           python -m pip install -r requirements.txt
           python -m unittest discover tests
 
-      - name: Review and validate non-Zillow provider data
+      - name: Refresh and validate provider data
         id: refresh
-        if: github.event_name != 'push' || hashFiles('public/data/redfin/latest.json') == '' || hashFiles('public/data/realtor/inventory/latest.json') == '' || hashFiles('public/data/realtor/hotness/latest.json') == '' || hashFiles('public/data/cpi/latest.json') == '' || hashFiles('public/data/permits/history/latest.json') == '' || hashFiles('public/data/permits/provisional/latest.json') == '' || contains(github.event.head_commit.message, '[refresh-data]')
+        if: github.event_name != 'push' || hashFiles('public/data/latest.json') == '' || hashFiles('public/data/redfin/latest.json') == '' || hashFiles('public/data/realtor/inventory/latest.json') == '' || hashFiles('public/data/realtor/hotness/latest.json') == '' || hashFiles('public/data/cpi/latest.json') == '' || hashFiles('public/data/permits/history/latest.json') == '' || hashFiles('public/data/permits/provisional/latest.json') == '' || contains(github.event.head_commit.message, '[refresh-data]')
         run: |
           python scripts/data_update_report.py snapshot --output "$RUNNER_TEMP/data-before.json"
           set +e
+          python pipeline/update_data.py
+          zillow_status=$?
           python pipeline/update_redfin.py
           redfin_status=$?
           python pipeline/update_realtor.py
@@ -57,8 +58,11 @@ jobs:
           set -e
           python scripts/data_update_report.py record-status \
             --output "$RUNNER_TEMP/data-refresh-status.json" \
-            zillow=not_checked redfin="$redfin_status" realtor="$realtor_status" \
+            zillow="$zillow_status" redfin="$redfin_status" realtor="$realtor_status" \
             cpi="$cpi_status" permits="$permits_status"
+          if [ "$zillow_status" -ne 0 ]; then
+            echo "::warning::Zillow refresh failed; retaining its prior validated release."
+          fi
           if [ "$redfin_status" -ne 0 ]; then
             echo "::warning::Redfin refresh failed; retaining its prior validated release."
           fi
@@ -71,7 +75,7 @@ jobs:
           if [ "$permits_status" -ne 0 ]; then
             echo "::warning::Census building permits refresh failed; retaining its prior validated releases."
           fi
-          if [ "$redfin_status" -ne 0 ] && [ "$realtor_status" -ne 0 ] && [ "$cpi_status" -ne 0 ] && [ "$permits_status" -ne 0 ]; then
+          if [ "$zillow_status" -ne 0 ] && [ "$redfin_status" -ne 0 ] && [ "$realtor_status" -ne 0 ] && [ "$cpi_status" -ne 0 ] && [ "$permits_status" -ne 0 ]; then
             exit 1
           fi
 
