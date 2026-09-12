@@ -16,7 +16,7 @@ import io
 import json
 import math
 import os
-import tempfile
+import shutil
 import urllib.request
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -25,13 +25,13 @@ from typing import Any, Iterable
 
 try:
     from pipeline.storage import (
-        bundle_sha, dataset_shards, load_dataset_release, load_map_release,
-        merge_dataset_history, prune_releases,
+        atomic_write, bundle_sha, dataset_shards, load_dataset_release,
+        load_map_release, merge_dataset_history, prune_releases,
     )
 except ModuleNotFoundError:  # direct script execution
     from storage import (  # type: ignore[no-redef]
-        bundle_sha, dataset_shards, load_dataset_release, load_map_release,
-        merge_dataset_history, prune_releases,
+        atomic_write, bundle_sha, dataset_shards, load_dataset_release,
+        load_map_release, merge_dataset_history, prune_releases,
     )
 
 
@@ -268,6 +268,37 @@ def existing_bundle_sha() -> str | None:
         return None
 
 
+def publish_release(
+    root: Path,
+    release: str,
+    digest: str,
+    files: dict[str, bytes],
+    keep: int,
+) -> list[str]:
+    """Promote a complete release without leaving an orphan on failure."""
+    if (
+        not isinstance(digest, str)
+        or len(digest) != 64
+        or any(character not in "0123456789abcdef" for character in digest.lower())
+    ):
+        raise ValueError("Redfin bundle digest must be a SHA-256 hex string")
+
+    pointer = compact_json({"release": release, "bundle_sha256": digest})
+    release_dir = root / "releases" / release
+    release_created = False
+    try:
+        release_dir.mkdir(parents=True, exist_ok=False)
+        release_created = True
+        for name, contents in files.items():
+            (release_dir / name).write_bytes(contents)
+        atomic_write(root / "latest.json", pointer)
+    except Exception:
+        if release_created:
+            shutil.rmtree(release_dir, ignore_errors=True)
+        raise
+    return prune_releases(root, keep)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, default=CONFIG_PATH)
@@ -341,17 +372,13 @@ def main() -> None:
     total = sum(len(value) for value in files.values())
     if total > int(config["max_published_bytes_per_release"]):
         raise ValueError(f"Processed Redfin release is too large: {total:,} bytes")
-    release_dir = PUBLIC_DATA / "releases" / release
-    release_dir.mkdir(parents=True, exist_ok=False)
-    for name, contents in files.items():
-        (release_dir / name).write_bytes(contents)
-    pointer = compact_json({"release": release, "bundle_sha256": bundle_sha})
-    PUBLIC_DATA.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(dir=PUBLIC_DATA, delete=False) as handle:
-        handle.write(pointer)
-        temporary_pointer = Path(handle.name)
-    temporary_pointer.replace(PUBLIC_DATA / "latest.json")
-    removed = prune_releases(PUBLIC_DATA, int(config["keep_releases"]))
+    removed = publish_release(
+        PUBLIC_DATA,
+        release,
+        digest,
+        files,
+        int(config["keep_releases"]),
+    )
     suffix = f"; pruned {', '.join(removed)}" if removed else ""
     print(f"Published Redfin release {release}: {total:,} bytes{suffix}")
 

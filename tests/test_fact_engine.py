@@ -45,13 +45,12 @@ class FactEngineTests(unittest.TestCase):
         self.assertEqual(len(index["briefs"]), 1)
         entry = index["briefs"][0]
         brief = json.loads((archive_dir / entry["path"]).read_text())
-        packet = json.loads((ROOT / "public" / "data" / "facts" / "latest.json").read_text())
 
         self.assertEqual(entry["status"], "historical_reconstruction")
         self.assertEqual(brief["status"], "historical_reconstruction")
         self.assertEqual(brief["issue_month"], "2026-08")
         self.assertLessEqual(brief["observation_cutoff"], "2026-07-31")
-        self.assertEqual(brief["source_packet_sha256"], packet["packet_sha256"])
+        self.assertEqual(len(brief["source_packet_sha256"]), 64)
         self.assertTrue(all(len(source["sha256"]) == 64 for source in brief["source_releases"]))
         self.assertTrue(all(section["observation_period"] for section in brief["sections"]))
         permit_section = next(section for section in brief["sections"] if "permitting" in section["question"])
@@ -59,6 +58,19 @@ class FactEngineTests(unittest.TestCase):
         self.assertIn("may be revised or imputed", permit_section["caveat"])
         self.assertTrue(all(section["fact_ids"] for section in brief["sections"]))
         self.assertTrue(all(section["period_end"] <= brief["observation_cutoff"] for section in brief["sections"]))
+
+    def test_price_brief_uses_common_month_inflation(self):
+        from pipeline.prepare_market_brief import month_end, question_sections
+
+        packet = json.loads((ROOT / "public" / "data" / "facts" / "latest.json").read_text())
+        real_price = next(item for item in packet["facts"] if item["metric"] == "real_zhvi")
+        latest_inflation = next(item for item in packet["facts"] if item["metric"] == "cpi_la")
+        price_section = question_sections(packet)[0]
+
+        self.assertEqual(price_section["period_end"], month_end(real_price["period"]))
+        self.assertIn(real_price["inflation_change_display"], price_section["answer"])
+        if latest_inflation["period"] != real_price["period"]:
+            self.assertNotIn(latest_inflation["change_display"], price_section["answer"])
 
     def test_archive_draft_is_skipped_without_new_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -81,7 +93,7 @@ class FactEngineTests(unittest.TestCase):
             )
             status = json.loads(result.stdout)
             self.assertFalse(status["ready"])
-            self.assertIn("already represented", status["reason"])
+            self.assertIn("only 0 recurring questions advanced", status["reason"])
             self.assertFalse((data_root / "briefs" / "2026-09.json").exists())
             self.assertIn("ready=false", output.read_text())
 

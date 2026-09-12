@@ -54,6 +54,20 @@ class StoragePolicyTest(unittest.TestCase):
         merged, _ = merge_dataset_history(previous, incoming)
         self.assertEqual(expand_series(merged["regions"][0]["series"]["value"], 3), [10, None, 12])
 
+    def test_merge_preserves_explicit_empty_quality_array(self):
+        previous = dataset(
+            ["2025-01"],
+            [{
+                "id": "1", "name": "90001", "county": "Los Angeles County",
+                "series": {"value": [10]}, "quality": {"hotness": []},
+            }],
+        )
+        incoming = dataset(["2025-02"], [])
+
+        merged, _ = merge_dataset_history(previous, incoming)
+
+        self.assertEqual(merged["regions"][0]["quality"], {"hotness": []})
+
     def test_county_shards_keep_generated_objects_small_and_separate(self):
         payload = dataset(
             ["2025-01"],

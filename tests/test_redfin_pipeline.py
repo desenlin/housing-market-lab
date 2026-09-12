@@ -1,6 +1,16 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
-from pipeline.update_redfin import compact_series, parse_value, stream_selected_rows
+from pipeline import update_redfin
+from pipeline.update_redfin import (
+    compact_series,
+    parse_value,
+    publish_release,
+    stream_selected_rows,
+)
 
 
 METRICS = {
@@ -74,6 +84,59 @@ class RedfinPipelineTest(unittest.TestCase):
         self.assertEqual(scanned, 4)
         self.assertEqual(selected["1"]["2024-03-31"]["months_supply"], 3.5)
         self.assertEqual(selected["1"]["2024-03-31"]["sold_above_original_share"], 0.4)
+
+    def test_publish_release_writes_digest_pointer_and_prunes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "redfin"
+            for name in ("2026-09-01-r000000", "2026-09-02-r000000"):
+                (root / "releases" / name).mkdir(parents=True)
+            digest = "a" * 64
+            removed = publish_release(
+                root,
+                "2026-09-03-r000000",
+                digest,
+                {"city.json": b"{}", "manifest.json": b"{}"},
+                2,
+            )
+
+            self.assertEqual(removed, ["2026-09-01-r000000"])
+            self.assertEqual(
+                json.loads((root / "latest.json").read_text()),
+                {"release": "2026-09-03-r000000", "bundle_sha256": digest},
+            )
+            self.assertTrue(
+                (root / "releases" / "2026-09-03-r000000" / "city.json").is_file()
+            )
+
+    def test_publish_release_removes_new_directory_when_pointer_write_fails(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "redfin"
+            release = "2026-09-03-r000000"
+            with patch.object(update_redfin, "atomic_write", side_effect=OSError("failed")):
+                with self.assertRaises(OSError):
+                    publish_release(
+                        root,
+                        release,
+                        "a" * 64,
+                        {"city.json": b"{}", "manifest.json": b"{}"},
+                        2,
+                    )
+
+            self.assertFalse((root / "releases" / release).exists())
+
+    def test_publish_release_rejects_non_digest_before_creating_release(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "redfin"
+            with self.assertRaisesRegex(ValueError, "SHA-256"):
+                publish_release(
+                    root,
+                    "2026-09-03-r000000",
+                    update_redfin.bundle_sha,  # type: ignore[arg-type]
+                    {"manifest.json": b"{}"},
+                    2,
+                )
+
+            self.assertFalse((root / "releases").exists())
 
 
 if __name__ == "__main__":

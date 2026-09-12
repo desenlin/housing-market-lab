@@ -53,8 +53,8 @@ def question_sections(packet: dict[str, Any]) -> list[dict[str, Any]]:
     price_kept_pace = real_price["change"] >= 0
     price_answer = (
         f"{'Yes' if price_kept_pace else 'No'}. Los Angeles metro home values changed "
-        f"{nominal_price['change_display']} from one year earlier, while LA-area CPI-U changed "
-        f"{inflation['change_display']}. The implied inflation-adjusted change was "
+        f"{real_price['nominal_change_display']} from one year earlier, while LA-area CPI-U changed "
+        f"{real_price['inflation_change_display']} over the same period. The implied inflation-adjusted change was "
         f"{real_price['change_display']}."
     )
     permit_changes = " and ".join(
@@ -74,11 +74,11 @@ def question_sections(packet: dict[str, Any]) -> list[dict[str, Any]]:
         {
             "question": "Are home values keeping pace with local inflation?",
             "answer": price_answer,
-            "fact_ids": [real_price["id"], nominal_price["id"], inflation["id"]],
-            "period_end": max(month_end(item["period"]) for item in (real_price, nominal_price, inflation)),
+            "fact_ids": [real_price["id"], nominal_price["id"]],
+            "period_end": month_end(real_price["period"]),
             "observation_period": datetime.fromisoformat(month_end(real_price["period"])).strftime("%B %Y"),
             "status": "validated",
-            "evidence": [nominal_price["evidence"], inflation["evidence"]],
+            "evidence": [real_price["evidence"], nominal_price["evidence"]],
             "sources": "Zillow Research + U.S. Bureau of Labor Statistics",
             "caveat": f"{real_price['caveat']} {inflation['caveat']}",
         },

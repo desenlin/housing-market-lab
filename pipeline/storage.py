@@ -175,9 +175,8 @@ def merge_dataset_history(
                     else date in prior_flags
                 )
             ]
-            if flags:
-                quality[quality_key] = flags
-        if quality:
+            quality[quality_key] = flags
+        if quality_keys:
             metadata["quality"] = quality
         regions.append(metadata)
 

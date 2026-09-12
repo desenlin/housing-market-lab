@@ -189,7 +189,7 @@ def cpi_and_real_fact(cpi_release: str, cpi_dir: Path, zillow_release: str,
             nominal = zhvi["value"] / zhvi["prior"]
             inflation_ratio = float(la["values"][cpi_index]) / float(la["values"][cpi_index - 12])
             real_change = nominal / inflation_ratio - 1
-            facts.append(fact(
+            real_fact = fact(
                 fact_id="derived-la-real-zhvi", provider="Zillow Research + BLS CPI-U",
                 release=f"{zillow_release} + {cpi_release}", metric="real_zhvi",
                 geography="Los Angeles metro", period=zhvi["period"], value=zhvi["value"],
@@ -197,7 +197,14 @@ def cpi_and_real_fact(cpi_release: str, cpi_dir: Path, zillow_release: str,
                 breadth=1, coverage="Common-month Zillow ZHVI and LA-area CPI-U",
                 evidence=f"Nominal ZHVI changed {(nominal-1)*100:+.1f}% while LA-area CPI-U changed {(inflation_ratio-1)*100:+.1f}%.",
                 caveat="Real change is a purchasing-power comparison, not an affordability measure."
-            ))
+            )
+            real_fact.update({
+                "nominal_change": nominal - 1,
+                "nominal_change_display": fmt(nominal - 1, "usd", True, "percent"),
+                "inflation_change": inflation_ratio - 1,
+                "inflation_change_display": fmt(inflation_ratio - 1, "index", True, "percent"),
+            })
+            facts.append(real_fact)
     return facts
 
 
