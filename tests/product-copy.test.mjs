@@ -35,6 +35,9 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Source: \{provider\}/);
   assert.match(source, /Definition of \$\{label\}/);
   assert.match(source, /rolling three-month window/i);
+  assert.match(source, /const activityFreshnessDate = activityDates\.at\(-1\)/);
+  assert.match(source, /className="metric-title-row"[\s\S]*className="metric-freshness">Data through \{shortDate\(activityFreshnessDate\)\}<\/span>/);
+  assert.match(styles, /\.metric-freshness[^}]+white-space: nowrap;/);
   assert.match(source, /View Redfin Data Center/);
   assert.match(source, /Inventory &amp; buyer interest — Realtor\.com/);
   assert.match(source, /View Realtor\.com Data Library/);

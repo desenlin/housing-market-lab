@@ -2247,6 +2247,10 @@ export default function MarketLab() {
   const realtorCurrentManifest = activityMetricMetadata?.source_product
     ? realtorManifests[activityMetricMetadata.source_product]
     : undefined;
+  const activityFreshnessDate = activityDates.at(-1)
+    ?? (activityLens === "redfin"
+      ? redfinManifest?.release ?? manifest.release
+      : realtorCurrentManifest?.release ?? manifest.release);
   const realtorSupportValue = (metricKey: MetricKey) => {
     if (activityLens !== "realtor" || !activityDataset || !activityPrimary || !activityDataset.metrics[metricKey]) return null;
     const series = metricSeries(activityDataset, activityPrimary, metricKey);
@@ -2475,7 +2479,7 @@ export default function MarketLab() {
                     provider={activityLens === "redfin" ? "Redfin" : "Realtor.com® Economic Research"}
                     frequency={activityLens === "redfin" ? redfinManifest?.frequency ?? "Rolling three-month" : "Monthly"}
                   />
-                  <span>Data through {shortDate(activityDates.at(-1) ?? (activityLens === "redfin" ? redfinManifest?.release ?? manifest.release : realtorCurrentManifest?.release ?? manifest.release))}</span>
+                  <span>Data through {shortDate(activityFreshnessDate)}</span>
                   {activityLens === "realtor" && realtorError && <span className="source-warning">{realtorError}</span>}
                 </div>
                 <div className="control-grid activity-controls">
@@ -2563,7 +2567,13 @@ export default function MarketLab() {
               <section className="analysis-grid">
                 <Card className="chart-card">
                   <CardHeader className="chart-header">
-                    <div><p className="section-kicker">Local activity</p><CardTitle><MetricHeading metric={activityMetricMetadata} fallback={activityMetricMetadata.label} /></CardTitle></div>
+                    <div>
+                      <p className="section-kicker">Local activity</p>
+                      <div className="metric-title-row">
+                        <CardTitle><MetricHeading metric={activityMetricMetadata} fallback={activityMetricMetadata.label} /></CardTitle>
+                        <span className="metric-freshness">Data through {shortDate(activityFreshnessDate)}</span>
+                      </div>
+                    </div>
                     <div className="chart-options">
                       <TimeRangeControl value={activeActivityTimeRange} onChange={changeActivityTimeRange} />
                       <p>{activeActivityView === "index"
