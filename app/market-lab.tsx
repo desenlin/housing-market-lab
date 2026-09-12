@@ -1441,7 +1441,7 @@ function CountyMap({
     : provider.toLowerCase().startsWith("redfin")
       ? "redfin"
       : "zillow";
-  const mapSources: FigureSource[] = priceAdjustment
+  const mapSources: FigureSource[] = priceAdjustment?.basis === "real"
     ? [providerSource, "bls"]
     : [providerSource];
 
