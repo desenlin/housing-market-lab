@@ -19,6 +19,12 @@ test("routine refresh checks CPI and building permits throughout the monthly rel
   assert.match(workflow, /Realtor\.com refresh failed; retaining its prior validated releases/);
   assert.match(workflow, /BLS CPI refresh failed; retaining its prior validated release/);
   assert.match(workflow, /Census building permits refresh failed; retaining its prior validated releases/);
+  assert.match(workflow, /issues: write/);
+  assert.match(workflow, /DATA_REPORT_ISSUE: "5"/);
+  assert.match(workflow, /python scripts\/data_update_report\.py snapshot/);
+  assert.match(workflow, /name: Post successful data-release report/);
+  assert.match(workflow, /gh issue comment "\$DATA_REPORT_ISSUE"/);
+  assert.match(workflow, /if: needs\.build\.outputs\.data_report_ready == 'true'/);
 });
 
 test("ACS uses a separate low-frequency change-detecting workflow", async () => {

@@ -15,8 +15,12 @@ on:
 
 permissions:
   contents: write
+  issues: write
   pages: write
   id-token: write
+
+env:
+  DATA_REPORT_ISSUE: "5"
 
 concurrency:
   group: pages
@@ -26,6 +30,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    outputs:
+      data_report_ready: ${{ steps.refresh_report.outputs.notify || steps.pushed_report.outputs.notify }}
+      data_report_b64: ${{ steps.refresh_report.outputs.report_b64 || steps.pushed_report.outputs.report_b64 }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -47,6 +54,7 @@ jobs:
         env:
           FULL_REFRESH: ${{ contains(github.event.head_commit.message, '[refresh-data]') }}
         run: |
+          python scripts/data_update_report.py snapshot --output "$RUNNER_TEMP/data-before.json"
           if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$FULL_REFRESH" != "true" ]; then
             set +e
             python pipeline/update_redfin.py
@@ -58,6 +66,10 @@ jobs:
             python pipeline/update_permits.py
             permits_status=$?
             set -e
+            python scripts/data_update_report.py record-status \
+              --output "$RUNNER_TEMP/data-refresh-status.json" \
+              zillow=not_checked redfin="$redfin_status" realtor="$realtor_status" \
+              cpi="$cpi_status" permits="$permits_status"
             if [ "$redfin_status" -ne 0 ]; then
               echo "::warning::Redfin refresh failed; retaining its prior validated release."
             fi
@@ -87,6 +99,10 @@ jobs:
           python pipeline/update_permits.py
           permits_status=$?
           set -e
+          python scripts/data_update_report.py record-status \
+            --output "$RUNNER_TEMP/data-refresh-status.json" \
+            zillow="$zillow_status" redfin="$redfin_status" realtor="$realtor_status" \
+            cpi="$cpi_status" permits="$permits_status"
           if [ "$zillow_status" -ne 0 ]; then
             echo "::warning::Zillow refresh failed; retaining its prior validated release."
           fi
@@ -123,6 +139,40 @@ jobs:
           else
             echo "No new provider observations."
           fi
+
+      - name: Prepare successful refresh report
+        id: refresh_report
+        if: steps.refresh.outcome == 'success'
+        env:
+          REPORT_RECIPIENT: ${{ github.repository_owner }}
+          REPORT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python scripts/data_update_report.py report \
+            --before "$RUNNER_TEMP/data-before.json" \
+            --statuses "$RUNNER_TEMP/data-refresh-status.json" \
+            --output "$RUNNER_TEMP/data-release-report.md" \
+            --github-output "$GITHUB_OUTPUT" \
+            --summary "$GITHUB_STEP_SUMMARY" \
+            --recipient "$REPORT_RECIPIENT" \
+            --run-url "$REPORT_RUN_URL" \
+            --site-url "https://desenlin.github.io/housing-market-lab/"
+
+      - name: Prepare report for pushed data release
+        id: pushed_report
+        if: "${{ github.event_name == 'push' && steps.refresh.outcome == 'skipped' && !startsWith(github.event.head_commit.message, 'data: publish validated provider releases') }}"
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          REPORT_RECIPIENT: ${{ github.repository_owner }}
+          REPORT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python scripts/data_update_report.py git-report \
+            --before-ref "$BEFORE_SHA" \
+            --output "$RUNNER_TEMP/data-release-report.md" \
+            --github-output "$GITHUB_OUTPUT" \
+            --summary "$GITHUB_STEP_SUMMARY" \
+            --recipient "$REPORT_RECIPIENT" \
+            --run-url "$REPORT_RUN_URL" \
+            --site-url "https://desenlin.github.io/housing-market-lab/"
 
       - name: Set up Node
         uses: actions/setup-node@v7
@@ -161,3 +211,15 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+      - name: Post successful data-release report
+        if: needs.build.outputs.data_report_ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DATA_REPORT_B64: ${{ needs.build.outputs.data_report_b64 }}
+        run: |
+          report_path="$RUNNER_TEMP/data-release-report.md"
+          printf '%s' "$DATA_REPORT_B64" | base64 --decode > "$report_path"
+          gh issue comment "$DATA_REPORT_ISSUE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --body-file "$report_path"
