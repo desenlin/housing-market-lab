@@ -4,7 +4,7 @@
 [![MIT licensed code](https://img.shields.io/badge/code-MIT-12355b.svg)](LICENSE)
 [![CC BY 4.0 educational content](https://img.shields.io/badge/content-CC%20BY%204.0-ff7a1a.svg)](https://creativecommons.org/licenses/by/4.0/)
 
-An instructional view of Southern California housing data for classroom exploration and academic research. The current release focuses on city/community and ZIP-level observations in Orange and Los Angeles counties, with a separate metropolitan comparison view.
+Southern California housing data for teaching and academic research. The current release focuses on city/community and ZIP-level observations in Orange and Los Angeles counties, with a separate metropolitan comparison view.
 
 **Live application:** <https://desenlin.com/housing-market-lab/>
 

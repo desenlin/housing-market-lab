@@ -95,7 +95,13 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /aria-pressed=\{activeActivitySelectedIds\.includes\(item\.region\.id\)\}/);
   assert.match(source, /Select a place from the ranking or add a comparison to display the chart/);
   assert.match(source, /Citation:<\/strong> Lin, D\. \(2026\)\. <cite>Housing Market Lab<\/cite> \[Computer software\]/);
-  assert.match(source, /An instructional view of Southern California housing data for classroom exploration and academic research/);
+  assert.match(source, /Southern California housing data for teaching and research/);
+  assert.match(source, /Housing evidence with documented methods/);
+  assert.match(source, /The lab organizes selected housing indicators for teaching and academic research/);
+  assert.match(source, /<CardTitle>Technical design<\/CardTitle>/);
+  assert.doesNotMatch(source, /A small, inspectable data product/);
+  assert.doesNotMatch(source, /Cost &amp; portability/);
+  assert.match(styles, /\.deck \{[^}]+white-space: nowrap;/);
 });
 
 test("places linked provider attribution beside charts and maps", async () => {

@@ -43,7 +43,7 @@ button, select { font: inherit; }
 .byline { margin: 10px 0 0; color: #ffd0ad; font-size: 13px; font-weight: 650; }
 .header-link, .header-link:hover, .header-link:focus-visible { color: inherit; font: inherit; text-decoration: none; }
 .header-link:focus-visible { border-radius: 2px; outline: 2px solid #ffb47b; outline-offset: 3px; }
-.deck { max-width: 700px; margin: 7px 0 0; color: #ccdae5; font-size: 16px; line-height: 1.5; }
+.deck { max-width: none; margin: 7px 0 0; color: #ccdae5; font-size: 15px; line-height: 1.5; white-space: nowrap; }
 .release-stamp { min-width: 220px; border-left: 1px solid #55718a; padding-left: 20px; display: grid; gap: 4px; }
 .release-stamp-link, .release-stamp-link:hover { color: inherit; text-decoration: none; }
 .release-stamp-link:focus-visible { border-radius: 3px; outline: 2px solid #ffb47b; outline-offset: 5px; text-decoration: none; }
@@ -440,6 +440,9 @@ footer p { margin: 0; }
   .footer-about { justify-items: start; text-align: left; }
   .hotness-chart { height: 360px; }
   .provenance-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 720px) {
+  .deck { white-space: normal; }
 }
 @media (max-width: 620px) {
   .site-header { padding: 24px 17px 22px; } .header-inner { display: block; }
