@@ -145,6 +145,7 @@ test("places linked provider attribution beside charts and maps", async () => {
   const attribution = await readProjectFile("components/figure-attribution.tsx");
   const acs = await readProjectFile("components/acs/acs-panel.tsx");
   const permits = await readProjectFile("components/permits/permit-panel.tsx");
+  const styles = await readProjectFile("app/globals.css");
   assert.match(attribution, /Data provided by Zillow Group/);
   assert.match(attribution, /Data provided by Redfin/);
   assert.match(attribution, /Realtor\.com® Economic Research/);
@@ -155,10 +156,14 @@ test("places linked provider attribution beside charts and maps", async () => {
   assert.match(page, /<FigureAttribution sources=\{\[activityLens === "redfin" \? "redfin" : "realtor"\]\} \/>/);
   assert.match(acs, /<FigureAttribution sources=\{\["census-acs", "zillow"\]\} \/>/);
   assert.match(permits, /metric === "units_per_1000" \? \["census-bps", "census-acs"\] : \["census-bps"\]/);
+  assert.match(styles, /--attribution-link: #9ed0ef/);
+  assert.match(styles, /\.figure-attribution \{[^}]+font-size: 11px/);
+  assert.match(styles, /\.figure-attribution a \{[^}]+color: var\(--attribution-link\)/);
 });
 
 test("market brief prioritizes questions, quality controls, and direct evidence", async () => {
   const source = await readProjectFile("components/facts/fact-engine-panel.tsx");
+  const styles = await readProjectFile("app/globals.css");
   assert.match(source, /Are home values keeping pace with local inflation\?/);
   assert.match(source, /Is residential permitting increasing\?/);
   assert.match(source, /Has metropolitan inventory shifted materially\?/);
@@ -170,6 +175,16 @@ test("market brief prioritizes questions, quality controls, and direct evidence"
   assert.match(source, /Previous market briefs/);
   assert.match(source, /Historical reconstruction/);
   assert.match(source, /correction is labeled rather than silently replacing the original record/);
+  assert.match(styles, /--brief-action: #b9def4/);
+  assert.match(styles, /--brief-archive-bg: #202b33/);
+  assert.match(styles, /--brief-reconstruction-fg: #edc5a8/);
+  assert.match(styles, /\.market-brief-header h2 \{[^}]+color: var\(--section-heading\)/);
+  assert.match(styles, /\.market-brief-header > p \{[^}]+color: var\(--section-copy\)/);
+  assert.match(styles, /\.brief-card-footer button \{[^}]+color: var\(--brief-action\)/);
+  assert.match(styles, /\.brief-standard-card h3 \{[^}]+color: var\(--section-heading\)/);
+  assert.match(styles, /\.brief-archive-heading h2 \{[^}]+color: var\(--section-heading\)/);
+  assert.match(styles, /\.brief-archive-sections article \{[^}]+background: var\(--card\)/);
+  assert.match(styles, /\.brief-reconstruction-note \{[^}]+background: var\(--brief-reconstruction-bg\)[^}]+color: var\(--brief-reconstruction-fg\)/);
 });
 
 test("market brief automation remains review gated", async () => {
