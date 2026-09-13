@@ -30,6 +30,20 @@ test("provides a persistent light and dark theme control", async () => {
   assert.match(styles, /\.dark \.rank-row\.selected \{[^}]+color: var\(--foreground\)/);
   assert.match(styles, /\.dark \.rank-name small[^}]+color: var\(--detail-muted\)/);
   assert.match(styles, /\.dark \.brief-evidence p \{[^}]+color: var\(--detail-copy\)/);
+  assert.match(styles, /--permit-status-bg: #30251f/);
+  assert.match(styles, /--acs-moe-bg: #202b33/);
+  assert.match(styles, /--acs-change-bg: #1d303a/);
+  assert.match(styles, /\.kpi-label \{[^}]+color: var\(--kpi-label\)/);
+  assert.match(styles, /\.kpi-value \{[^}]+color: var\(--kpi-value\)/);
+  assert.match(styles, /\.kpi-note \{[^}]+color: var\(--kpi-note\)/);
+  assert.match(styles, /\.permit-kpis \.kpi-card:last-child \{[^}]+background: var\(--permit-status-bg\)/);
+  assert.match(styles, /\.acs-kpis \.kpi-card:nth-child\(2\) \{[^}]+background: var\(--acs-moe-bg\)/);
+  assert.match(styles, /\.acs-kpis \.kpi-card:nth-child\(3\) \{[^}]+background: var\(--acs-change-bg\)/);
+  assert.match(styles, /--context-accent: #8fc9e5/);
+  assert.match(styles, /\.permit-county-summary \.section-kicker \{[^}]+color: var\(--context-accent\)/);
+  assert.match(styles, /\.permit-county-summary dd \{[^}]+color: var\(--detail-heading\)/);
+  assert.match(styles, /\.acs-section-heading h3 \{[^}]+color: var\(--section-heading\)/);
+  assert.match(styles, /\.acs-section-heading > p \{[^}]+color: var\(--detail-copy\)/);
 });
 
 test("publishes the requested authorship, controls, and map attribution", async () => {
