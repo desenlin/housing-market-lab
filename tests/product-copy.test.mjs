@@ -20,6 +20,16 @@ test("provides a persistent light and dark theme control", async () => {
   assert.match(styles, /\.dark \{/);
   assert.match(styles, /\.theme-toggle/);
   assert.match(styles, /--chart-grid:/);
+  assert.match(styles, /--section-heading: #f0f4f7/);
+  assert.match(styles, /--section-copy: #c4ced5/);
+  assert.match(styles, /\.regional-intro h2 \{[^}]+color: var\(--section-heading\)/);
+  assert.match(styles, /\.regional-intro > p \{[^}]+color: var\(--section-copy\)/);
+  assert.match(styles, /\.provenance-card h3[^}]+color: var\(--section-heading\)/);
+  assert.match(styles, /\.provenance-grid dd \{[^}]+color: var\(--detail-heading\)/);
+  assert.match(styles, /\.dark \.rank-row:hover, \.dark \.rank-row\.active/);
+  assert.match(styles, /\.dark \.rank-row\.selected \{[^}]+color: var\(--foreground\)/);
+  assert.match(styles, /\.dark \.rank-name small[^}]+color: var\(--detail-muted\)/);
+  assert.match(styles, /\.dark \.brief-evidence p \{[^}]+color: var\(--detail-copy\)/);
 });
 
 test("publishes the requested authorship, controls, and map attribution", async () => {
