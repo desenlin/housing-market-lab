@@ -103,7 +103,13 @@ const METRIC_OPTIONS: Array<{ key: PermitMetricKey; label: string }> = [
   { key: "large_multifamily_share", label: "5+-unit share" },
   { key: "units_per_1000_stock", label: "Units per 1,000 existing units" },
 ];
-const COLORS = ["#ff7a1a", "#12355b", "#2f7d6d", "#9b4f96", "#c7a227"];
+const COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+];
 const MAP_COLORS = ["#fff0e4", "#ffd1ad", "#ffa866", "#ed6b10", "#9d3f00"];
 
 function formatDate(value: string) {
@@ -247,10 +253,10 @@ function PermitMap({ mapData, dataset, county, metric, dateIndex, selectedId, on
         const colorIndex = Math.min(MAP_COLORS.length - 1, Math.max(0, Math.floor(ratio * MAP_COLORS.length)));
         const selected = item?.region?.id === selectedId;
         return {
-          color: selected ? "#12355b" : "#ffffff",
+          color: selected ? "var(--chart-2)" : "var(--chart-selected-stroke)",
           weight: selected ? 3 : 1.2,
           dashArray: item?.region ? undefined : "4 3",
-          fillColor: item?.region ? MAP_COLORS[colorIndex] : "#e8edf0",
+          fillColor: item?.region ? MAP_COLORS[colorIndex] : "var(--map-no-data)",
           fillOpacity: item?.region ? 0.78 : 0.52,
         };
       },
@@ -462,10 +468,19 @@ export function PermitPanel({ mapData, onManifest }: { mapData: MapData; onManif
             <div className="permit-chart" aria-label={`${metricInfo.label} trend`}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 14, right: 16, bottom: 5, left: 4 }}>
-                  <CartesianGrid stroke="#dbe3e8" strokeDasharray="3 4" />
-                  <XAxis dataKey="date" minTickGap={frequency === "monthly" ? 45 : 24} tickFormatter={formatDate} tick={{ fill: "#627180", fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tickFormatter={(value) => formatValue(Number(value), metricInfo)} width={66} tick={{ fill: "#627180", fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <ChartTooltip labelFormatter={(value) => formatDate(String(value))} formatter={(value, name) => [formatValue(Number(value), metricInfo), selected.find((region) => region.id === name)?.name ?? name]} />
+                  <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 4" />
+                  <XAxis dataKey="date" minTickGap={frequency === "monthly" ? 45 : 24} tickFormatter={formatDate} tick={{ fill: "var(--chart-label)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={(value) => formatValue(Number(value), metricInfo)} width={66} tick={{ fill: "var(--chart-label)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <ChartTooltip
+                    labelFormatter={(value) => formatDate(String(value))}
+                    formatter={(value, name) => [formatValue(Number(value), metricInfo), selected.find((region) => region.id === name)?.name ?? name]}
+                    contentStyle={{
+                      borderColor: "var(--chart-tooltip-border)",
+                      background: "var(--chart-tooltip-bg)",
+                      color: "var(--chart-tooltip-text)",
+                      boxShadow: "var(--chart-tooltip-shadow)",
+                    }}
+                  />
                   {selected.map((region, index) => <Line key={region.id} type="monotone" dataKey={region.id} name={region.name} stroke={COLORS[index]} strokeWidth={index === 0 ? 2.8 : 1.8} dot={false} connectNulls={false} isAnimationActive={false} />)}
                 </LineChart>
               </ResponsiveContainer>

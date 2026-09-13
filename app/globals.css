@@ -11,6 +11,33 @@
   --border: #cfdae0; --input: #bdcbd2; --ring: #ff7a1a;
   --chart-1: #ff7a1a; --chart-2: #12355b; --chart-3: #2f7d6d;
   --chart-4: #9b4f96; --chart-5: #c7a227; --radius: 0.65rem;
+  --chart-overlay: #5d6570; --chart-grid: #dbe3e8; --chart-axis: #b9c6cf;
+  --chart-label: #627180; --chart-label-strong: #3f5667; --chart-reference: #7f8f99;
+  --chart-tooltip-bg: #ffffff; --chart-tooltip-border: #cbd6dc;
+  --chart-tooltip-text: #102a43; --chart-tooltip-shadow: 0 12px 30px #12355b20;
+  --chart-point-muted: #9baab4; --chart-point-stroke: #6d7f8b;
+  --chart-selected-stroke: #ffffff; --chart-selected-accent: #7e3100;
+  --chart-selected-label: #7e3100; --quality-flag-fill: #fffaf4;
+  --quality-flag-stroke: #9a4b00; --map-no-data: #dce3e6;
+}
+.dark {
+  color-scheme: dark;
+  --background: #10171d; --foreground: #e7edf2; --card: #192229;
+  --card-foreground: #e7edf2; --popover: #1d272f; --popover-foreground: #e7edf2;
+  --primary: #86b9df; --primary-foreground: #0d1820; --secondary: #26333c;
+  --secondary-foreground: #dce8f1; --muted: #222d35; --muted-foreground: #aebbc5;
+  --accent: #3a2a20; --accent-foreground: #ffb784; --destructive: #ff7d73;
+  --border: #3a4852; --input: #4b5b66; --ring: #ff944a;
+  --chart-1: #ff984f; --chart-2: #79b7e5; --chart-3: #62c8ae;
+  --chart-4: #d58bce; --chart-5: #e1c35c;
+  --chart-overlay: #c0c8cf; --chart-grid: #34434d; --chart-axis: #536571;
+  --chart-label: #b7c3cb; --chart-label-strong: #d9e2e8; --chart-reference: #71818c;
+  --chart-tooltip-bg: #202a32; --chart-tooltip-border: #53636e;
+  --chart-tooltip-text: #edf2f5; --chart-tooltip-shadow: 0 12px 30px rgb(0 0 0 / .45);
+  --chart-point-muted: #82939f; --chart-point-stroke: #a6b4bd;
+  --chart-selected-stroke: #10171d; --chart-selected-accent: #ffbe8f;
+  --chart-selected-label: #ffc49a; --quality-flag-fill: #3d3023;
+  --quality-flag-stroke: #ffc075; --map-no-data: #35424b;
 }
 @theme inline {
   --color-background: var(--background); --color-foreground: var(--foreground);
@@ -35,9 +62,18 @@ body {
   margin: 0; color: var(--foreground); font-family: var(--font-sans);
   background: linear-gradient(90deg, transparent 0 95%, rgb(18 53 91 / .025) 95% 96%, transparent 96%) 0 0 / 24px 24px, var(--background);
 }
+.dark body {
+  background: linear-gradient(90deg, transparent 0 95%, rgb(134 185 223 / .035) 95% 96%, transparent 96%) 0 0 / 24px 24px, var(--background);
+}
 button, select { font: inherit; }
 .site-header { color: white; background: #102f50; border-bottom: 5px solid #ff7a1a; padding: 30px 24px 27px; }
 .header-inner { max-width: 1240px; margin: 0 auto; display: flex; gap: 40px; justify-content: space-between; align-items: end; }
+.header-tools { display: flex; gap: 16px; align-items: center; }
+.theme-toggle { display: inline-grid; place-items: center; width: 38px; height: 38px; flex: 0 0 auto; border: 1px solid #668097; border-radius: 50%; background: rgb(255 255 255 / .06); color: #ffd0ad; cursor: pointer; transition: border-color .16s ease, background-color .16s ease, color .16s ease; }
+.theme-toggle:hover { border-color: #ffb47b; background: rgb(255 255 255 / .12); color: #fff; }
+.theme-toggle:focus-visible { outline: 2px solid #ffb47b; outline-offset: 3px; }
+.theme-toggle:disabled { cursor: default; opacity: .55; }
+.theme-toggle svg { width: 18px; height: 18px; }
 .eyebrow, .section-kicker { margin: 0 0 7px; color: #ffb47b; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
 .site-header h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(34px, 5vw, 58px); line-height: .98; font-weight: 600; letter-spacing: -.035em; }
 .byline { margin: 10px 0 0; color: #ffd0ad; font-size: 13px; font-weight: 650; }
@@ -423,6 +459,78 @@ footer p { margin: 0; }
 .status-screen h1 { margin: 0; font-family: Georgia, serif; } .status-screen p { margin: 0; color: #687b89; }
 .loader { width: 28px; height: 28px; border: 3px solid #ccd9df; border-top-color: #ff7a1a; border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Explicit color-scheme overrides keep every analytical surface legible in dark mode. */
+.dark :where(.main-tabs, .comparison-row, .price-controls, .regional-controls + .time-range, .regional-price-controls + .time-range, .chart-header, .ranking-card [data-slot="card-header"], .regional-intro, .market-brief-header, .brief-question-card [data-slot="card-header"], .brief-archive, .brief-audit div, .brief-archive-body, .acs-control-note, .acs-section-heading, .hotness-quadrant-card [data-slot="card-header"]) { border-color: var(--border); }
+.dark :where(.control-deck, .map-panel, .rank-row, .permit-rank-row, .acs-rank-row, .brief-method-note, .brief-archive-item, .brief-archive-sections article) { border-color: var(--border); background: var(--card); color: var(--foreground); box-shadow: 0 3px 15px rgb(0 0 0 / .18); }
+.dark :where(.chart-card, .ranking-card, .method-grid > div, .provenance-card, .permit-county-summary > div, .brief-question-card, .brief-standard-card, .hotness-quadrant-card, .about-objectives > div, .about-principles) { border-color: var(--border); box-shadow: 0 3px 15px rgb(0 0 0 / .18); }
+.dark :where(.source-strip, .control-label, .selection-count, .price-basis-note, .kpi-label, .kpi-note, .chart-header > p, .chart-options > p, .inflation-toggle, .time-range, .index-base, .series-guide, .series-guide-method, .quality-summary, .rank-columns, .rank-number, .rank-name small, .chart-empty, .map-heading p, .map-palette > span, .map-legend, .map-coverage, .map-selection span:nth-child(2), .figure-attribution, .regional-intro > p, .permit-definition, .permit-chart-window, .permit-rank-columns, .permit-county-summary dt, .permit-county-summary p, .permit-status, .market-brief-header > p, .brief-date, .brief-source-row, .brief-audit, .brief-standard p, .brief-archive-heading > p, .brief-archive-title small, .brief-archive-source, .brief-archive-caveat, .fact-status, .fact-empty, .acs-control-note, .acs-rank-columns, .acs-rank-row > span:last-child, .acs-section-heading > p, .acs-profile-card p:last-child, .acs-method-note, .quadrant-date, .quadrant-key, .cycle-key, .method-copy, .provenance-intro, .provenance-grid dt, .provenance-grid dd small, .provenance-technical > p, .fingerprint-list dt, .fingerprint-list dd, .attribution, .status-screen p) { color: #aebbc5; }
+.dark :where(.kpi-value, .quality-summary strong, .map-heading h3, .map-selection strong, .figure-attribution strong, .regional-intro h2, .permit-county-summary dd, .market-brief-header h2, .brief-question-card h3, .brief-answer, .brief-standard-card h3, .brief-standard strong, .brief-method-note summary, .brief-card-footer button, .brief-archive-heading h2, .brief-archive-date, .brief-archive-title strong, .brief-archive-question h3, .acs-section-heading h3, .acs-profile-value, .hotness-tooltip strong, .cycle-key span:first-child, .cycle-tooltip strong, .method-grid h3, .provenance-card h3, .disclaimer-card h3, .about-objectives h3, .about-principles h3, .provenance-grid dd, .provenance-technical summary, .status-screen) { color: #e7edf2; }
+.dark :where(.metric-freshness, .chip, .brief-standard > span, .brief-archive-badge) { border-color: #465661; background: #243039; color: #c7d5de; }
+.dark :where(.control-label select, .time-range button, .index-base input, .map-palette button) { border-color: #4a5a65; background: #172027; color: #dce5eb; }
+.dark :where(.time-range button.active, .map-palette button.active, .permit-add) { border-color: #79b7e5; background: #2f6183; color: #fff; }
+.dark :where(.chip.primary, .rank-row:hover, .rank-row.active, .permit-rank-row:hover, .permit-rank-row.active) { border-color: #735039; background: #34271f; color: #ffc49a; }
+.dark .rank-row.selected { background: #243440; box-shadow: inset 3px 0 #86a4b8; }
+.dark :where(.acs-rank-row:hover, .acs-rank-row.active) { background: #213542; }
+.dark :where(.definition-help, .acs-chart-tooltip, .hotness-tooltip, .cycle-tooltip, .leaflet-tooltip) { border-color: #53636e; background: #202a32; color: #c4d0d8; box-shadow: 0 10px 25px rgb(0 0 0 / .35); }
+.dark :where(.definition-help, .leaflet-tooltip strong, .acs-chart-tooltip strong, .cycle-tooltip strong) { color: #dbe7ef; }
+.dark .definition-tooltip { background: #263845 !important; color: #fff !important; }
+.dark :where(.data-note, .map-selection) { background: #33261e; color: #e5bea3; }
+.dark .series-guide-line::before { border-color: #90a7b7; }
+.dark .series-guide-line.monthly::after { background: #90a7b7; }
+.dark :where(.quality-summary, .brief-audit div) { border-color: #34434d; }
+.dark .quality-summary-flag { color: #ffc075; }
+.dark .quality-summary-flag i { border-color: #ffc075; background: #3d3023; }
+.dark :where(.map-palette button, .map-reset, .figure-attribution a, .permit-method-note a, .acs-method-note a, .source-link) { color: #91c6e9; }
+.dark :where(.map-reset:hover, .figure-attribution a:hover) { color: #ffad76; }
+.dark .map-gradient, .dark .map-swatch { border-color: rgb(230 238 243 / .28); }
+.dark .map-swatch.no-data { background: var(--map-no-data); }
+.dark .map-swatch.flagged { border-color: #ffc075; background: #3d3023; }
+.dark .map-swatch.outside { background: repeating-linear-gradient(135deg, #192229 0 3px, #2d3942 3px 5px); }
+.dark .map-swatch.permit-cdp { background: #35424b; }
+.dark .leaflet-map { border-color: #45545f; background: #202a31; }
+.dark .leaflet-tile-pane { filter: invert(.92) hue-rotate(180deg) brightness(.58) contrast(1.25) saturate(.45); }
+.dark .leaflet-control-attribution { background: rgb(25 34 41 / .86) !important; color: #b7c3cb; }
+.dark .leaflet-control-attribution a { color: #9ed0ef; }
+.dark .leaflet-bar a { border-color: #44535e; background: #202a32; color: #dce6ec; }
+.dark .leaflet-bar a:hover, .dark .leaflet-bar a:focus { background: #2a3740; }
+.dark .leaflet-bar a.leaflet-disabled { background: #1a2229; color: #667782; }
+.dark .leaflet-tooltip-top::before { border-top-color: #202a32; }
+.dark .leaflet-tooltip-bottom::before { border-bottom-color: #202a32; }
+.dark .leaflet-tooltip-left::before { border-left-color: #202a32; }
+.dark .leaflet-tooltip-right::before { border-right-color: #202a32; }
+.dark .source-badge { border-color: #47606f; background: #21323d; color: #bcd8e9; }
+.dark .source-badge.redfin { border-color: #744a48; background: #382525; color: #ffaaa4; }
+.dark .source-badge.realtor { border-color: #79613c; background: #392f20; color: #ffd08a; }
+.dark .source-badge.zillow-derived { border-color: #5d5782; background: #2c2944; color: #c8c0ff; }
+.dark .source-badge.bls { border-color: #3e705e; background: #20362e; color: #9be0c2; }
+.dark .source-badge.census { border-color: #416b80; background: #20343f; color: #9ed3ed; }
+.dark :where(.source-warning, .price-basis-note.warning, .rank-name .quality-mini, .quality-text) { color: #ffd08a; }
+.dark :where(.chart-header .section-kicker, .ranking-card .section-kicker, .regional-intro .section-kicker, .market-brief-header .section-kicker, .brief-standard-card .section-kicker, .brief-question-card .section-kicker, .brief-archive-heading .section-kicker, .about-objectives .section-kicker) { color: #ff9f5c; }
+.dark :where(.permit-intro .section-kicker, .acs-intro .section-kicker, .acs-ranking .section-kicker, .acs-section-heading .section-kicker) { color: #8fc9e5; }
+.dark .activity-intro .section-kicker { color: #ffaaa4; }
+.dark .positive { color: #69d3b5; }
+.dark .negative { color: #ff8e84; }
+.dark :where(.permit-status-chip.preliminary, .brief-status.review, .brief-archive-badge.corrected) { border-color: #82613c; background: #3b3021; color: #ffd08a; }
+.dark :where(.permit-status-chip.final, .brief-status.checked) { border-color: #447865; background: #20382f; color: #9be0c2; }
+.dark .permit-add:disabled { border-color: #3d4a53; background: #29343c; color: #7f909c; }
+.dark :where(.permit-kpis .kpi-card:last-child, .permit-error, .disclaimer-card) { border-color: #76523a; background: #30251f; color: #e9c5ab; }
+.dark :where(.brief-evidence, .brief-archive-body, .acs-kpis .kpi-card:nth-child(2), .provenance-technical) { background: #202b33; }
+.dark :where(.brief-evidence p, .brief-method-note, .brief-archive-body, .provenance-technical > p) { color: #b6c3cc; }
+.dark .brief-evidence strong { color: #d6e3eb; }
+.dark .brief-archive-body { border-color: var(--border); }
+.dark .brief-reconstruction-note { background: #35281f; color: #edc5a8; }
+.dark :where(.acs-kpis .kpi-card:nth-child(3)) { border-color: #44697c; background: #1d303a; }
+.dark :where(.acs-chart-tooltip, .hotness-tooltip, .cycle-tooltip) { color: #c4d0d8; }
+.dark .quadrant-key i { background: var(--chart-2); }
+.dark .quadrant-key i.flagged { border-color: var(--quality-flag-stroke); background: var(--quality-flag-fill); }
+.dark .quadrant-key i.selected { border-color: var(--chart-selected-accent); background: var(--chart-1); }
+.dark .method-copy code { background: #38291f; color: #ffbc8e; }
+.dark .provenance-grid div { border-color: #3a4852; }
+.dark .provenance-technical { border-color: #3a4852; }
+.dark .provenance-technical > p { border-color: #3a4852; }
+.dark .fingerprint-list code { color: #ffbc8e; }
+.dark .loader { border-color: #3a4852; border-top-color: #ff984f; }
 @media (max-width: 980px) {
   .acs-analysis-grid { grid-template-columns: 1fr; }
 }
@@ -446,7 +554,8 @@ footer p { margin: 0; }
 }
 @media (max-width: 620px) {
   .site-header { padding: 24px 17px 22px; } .header-inner { display: block; }
-  .release-stamp { margin-top: 19px; border-left: 0; border-top: 1px solid #55718a; padding: 13px 0 0; }
+  .header-tools { display: grid; grid-template-columns: 38px minmax(0, 1fr); align-items: flex-start; margin-top: 19px; }
+  .release-stamp { min-width: 0; border-left: 0; border-top: 1px solid #55718a; padding: 13px 0 0; }
   .page-shell { padding: 0 12px 36px; } .main-tabs { gap: 13px !important; overflow-x: auto; }
   .main-tabs button { font-size: 12px; } .control-grid, .regional-controls, .activity-controls { grid-template-columns: 1fr; max-width: none; }
   .comparison-row { align-items: stretch; flex-wrap: wrap; } .comparison-select { min-width: 100%; }

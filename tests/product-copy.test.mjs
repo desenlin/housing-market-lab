@@ -5,6 +5,23 @@ import test from "node:test";
 const readProjectFile = (path) =>
   readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
+test("provides a persistent light and dark theme control", async () => {
+  const layout = await readProjectFile("app/layout.tsx");
+  const page = await readProjectFile("app/market-lab.tsx");
+  const toggle = await readProjectFile("components/theme-toggle.tsx");
+  const styles = await readProjectFile("app/globals.css");
+
+  assert.match(layout, /attribute="class"/);
+  assert.match(layout, /defaultTheme="light"/);
+  assert.match(layout, /storageKey="housing-market-lab-theme"/);
+  assert.match(page, /<ThemeToggle \/>/);
+  assert.match(toggle, /Switch to light theme/);
+  assert.match(toggle, /Switch to dark theme/);
+  assert.match(styles, /\.dark \{/);
+  assert.match(styles, /\.theme-toggle/);
+  assert.match(styles, /--chart-grid:/);
+});
+
 test("publishes the requested authorship, controls, and map attribution", async () => {
   const source = await readProjectFile("app/market-lab.tsx");
   const styles = await readProjectFile("app/globals.css");

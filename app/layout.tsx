@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "leaflet/dist/leaflet.css";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -20,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script async src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ANALYTICS_ID}`} />
         <script
@@ -32,7 +33,17 @@ gtag('config', '${GOOGLE_ANALYTICS_ID}');`,
           }}
         />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+          disableTransitionOnChange
+          storageKey="housing-market-lab-theme"
+        >
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

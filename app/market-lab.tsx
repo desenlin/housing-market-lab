@@ -38,6 +38,7 @@ import { PermitPanel, type PermitManifest } from "@/components/permits/permit-pa
 import { AcsPanel, type AcsManifestSummary } from "@/components/acs/acs-panel";
 import { FactEnginePanel } from "@/components/facts/fact-engine-panel";
 import { FigureAttribution, type FigureSource } from "@/components/figure-attribution";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { DEFAULT_MAP_FIT_OPTIONS, focusedMapBounds } from "@/lib/map-view";
 
 type Value = number | null;
@@ -274,7 +275,13 @@ const REALTOR_METRICS: { key: MetricKey; label: string }[] = [
   { key: "viewer_ratio", label: "Listing viewers relative to U.S." },
   { key: "hotness_score", label: "Market Hotness score" },
 ];
-const COLORS = ["#ff7a1a", "#12355b", "#2f7d6d", "#9b4f96", "#c7a227"];
+const COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+];
 const MAP_PALETTES: Record<MapPaletteKey, string[]> = {
   navy: ["#edf4fa", "#b9d2e5", "#74a8cc", "#2f6f9f", "#12355b"],
   orange: ["#fff3e8", "#ffd2aa", "#f7a35c", "#df6b1c", "#913500"],
@@ -477,7 +484,7 @@ function cpiOverlay(cpi: CpiSeries | null, view: ViewKey): ChartOverlay[] {
     label: view === "yoy" ? `${cpi.label} inflation` : cpi.label,
     dates: cpi.dates,
     values: cpi.values,
-    color: "#5d6570",
+    color: "var(--chart-overlay)",
     dashed: true,
   }];
 }
@@ -787,9 +794,9 @@ function SeriesDot({
       cx={cx}
       cy={cy}
       r={flagged ? 3.4 : 1.6}
-      fill={flagged ? "#fffaf4" : color}
+      fill={flagged ? "var(--quality-flag-fill)" : color}
       fillOpacity={flagged ? 1 : 0.42}
-      stroke={flagged ? "#9a4b00" : color}
+      stroke={flagged ? "var(--quality-flag-stroke)" : color}
       strokeWidth={flagged ? 1.7 : 0.5}
     />
   );
@@ -898,20 +905,20 @@ function SeriesChart({
     <div className="h-[360px] min-w-0 w-full" aria-label="Housing market time-series chart">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chart.rows} margin={{ top: 12, right: 12, left: 8, bottom: 8 }}>
-          <CartesianGrid stroke="#dbe3e8" strokeDasharray="3 4" vertical={false} />
+          <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 4" vertical={false} />
           <XAxis
             dataKey="date"
             ticks={timeTicks}
             tickFormatter={(date) => showMonthOnAxis ? shortDate(String(date)) : String(date).slice(0, 4)}
-            tick={{ fill: "#627180", fontSize: 12 }}
-            axisLine={{ stroke: "#b9c6cf" }}
+            tick={{ fill: "var(--chart-label)", fontSize: 12 }}
+            axisLine={{ stroke: "var(--chart-axis)" }}
             tickLine={false}
           />
           <YAxis
             width={78}
             domain={valueDomain}
             tickFormatter={(value) => formatValue(Number(value), chart.unit, view, true, chart.changeMode)}
-            tick={{ fill: "#627180", fontSize: 12 }}
+            tick={{ fill: "var(--chart-label)", fontSize: 12 }}
             axisLine={false}
             tickLine={false}
           />
@@ -929,7 +936,13 @@ function SeriesChart({
                 `${label}${flagged ? " · provider flagged" : ""}`,
               ];
             }}
-            contentStyle={{ borderRadius: 8, borderColor: "#cbd6dc", boxShadow: "0 12px 30px #12355b20" }}
+            contentStyle={{
+              borderRadius: 8,
+              borderColor: "var(--chart-tooltip-border)",
+              background: "var(--chart-tooltip-bg)",
+              color: "var(--chart-tooltip-text)",
+              boxShadow: "var(--chart-tooltip-shadow)",
+            }}
           />
           <Legend formatter={(id) => regions.find((region) => region.id === String(id))?.name ?? overlayById.get(String(id))?.label ?? String(id)} />
           {regions.flatMap((region, index) => {
@@ -1088,7 +1101,7 @@ function RegionalCycleChart({
         name: region.name,
         inventoryGrowth: inventoryByMonth.get(month) as number,
         homeValueGrowth: valueByMonth.get(month) as number,
-        color: selectedIndex >= 0 ? COLORS[selectedIndex % COLORS.length] : "#9baab4",
+        color: selectedIndex >= 0 ? COLORS[selectedIndex % COLORS.length] : "var(--chart-point-muted)",
         selected: selectedIndex >= 0,
         spotlight,
         role: region.role,
@@ -1109,16 +1122,16 @@ function RegionalCycleChart({
       <div className="regional-cycle-chart" aria-label="Metro housing cycle position chart">
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 32, right: 28, bottom: 34, left: 8 }}>
-            <CartesianGrid stroke="#dbe3e8" strokeDasharray="3 4" />
+            <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 4" />
             <XAxis
               type="number"
               dataKey="inventoryGrowth"
               domain={xDomain}
               tickFormatter={(value) => `${Math.round(Number(value) * 100)}%`}
-              tick={{ fill: "#627180", fontSize: 11 }}
-              axisLine={{ stroke: "#b9c6cf" }}
+              tick={{ fill: "var(--chart-label)", fontSize: 11 }}
+              axisLine={{ stroke: "var(--chart-axis)" }}
               tickLine={false}
-              label={{ value: "For-sale inventory growth", position: "insideBottom", offset: -24, fill: "#526675", fontSize: 11 }}
+              label={{ value: "For-sale inventory growth", position: "insideBottom", offset: -24, fill: "var(--chart-label)", fontSize: 11 }}
             />
             <YAxis
               type="number"
@@ -1126,14 +1139,14 @@ function RegionalCycleChart({
               domain={yDomain}
               width={52}
               tickFormatter={(value) => `${Math.round(Number(value) * 100)}%`}
-              tick={{ fill: "#627180", fontSize: 11 }}
+              tick={{ fill: "var(--chart-label)", fontSize: 11 }}
               axisLine={false}
               tickLine={false}
-              label={{ value: cpi ? "Real home-value growth" : "Home-value growth", angle: -90, position: "insideLeft", offset: 5, fill: "#526675", fontSize: 11 }}
+              label={{ value: cpi ? "Real home-value growth" : "Home-value growth", angle: -90, position: "insideLeft", offset: 5, fill: "var(--chart-label)", fontSize: 11 }}
             />
             <ZAxis range={[75, 75]} />
-            <ReferenceLine x={0} stroke="#7f8f99" strokeWidth={1.2} />
-            <ReferenceLine y={0} stroke="#7f8f99" strokeWidth={1.2} />
+            <ReferenceLine x={0} stroke="var(--chart-reference)" strokeWidth={1.2} />
+            <ReferenceLine y={0} stroke="var(--chart-reference)" strokeWidth={1.2} />
             <ChartTooltip cursor={{ strokeDasharray: "3 3" }} content={<RegionalCycleTooltip real={Boolean(cpi)} />} />
             <Scatter data={snapshot.points} isAnimationActive={false}>
               {snapshot.points.map((point) => (
@@ -1141,11 +1154,11 @@ function RegionalCycleChart({
                   key={point.id}
                   fill={point.color}
                   fillOpacity={point.selected || point.spotlight ? 1 : 0.42}
-                  stroke={point.role === "nearby" ? "#d85d08" : point.role === "focus" ? "#12355b" : point.selected ? "#ffffff" : "#6d7f8b"}
+                  stroke={point.role === "nearby" ? "var(--chart-1)" : point.role === "focus" ? "var(--chart-2)" : point.selected ? "var(--chart-selected-stroke)" : "var(--chart-point-stroke)"}
                   strokeWidth={point.spotlight ? 3 : point.selected ? 2 : 1}
                 />
               ))}
-              <LabelList dataKey="label" position="top" offset={7} fill="#3f5667" fontSize={10} fontWeight={700} />
+              <LabelList dataKey="label" position="top" offset={7} fill="var(--chart-label-strong)" fontSize={10} fontWeight={700} />
             </Scatter>
           </ScatterChart>
         </ResponsiveContainer>
@@ -1262,17 +1275,17 @@ function HotnessQuadrant({
         <div className="hotness-chart" aria-label="Demand score versus supply score by ZIP code">
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={{ top: 12, right: 24, bottom: 14, left: 0 }}>
-              <CartesianGrid stroke="#dbe3e8" strokeDasharray="3 4" />
-              <XAxis type="number" dataKey="demand" name="Demand score" domain={[0, 100]} tick={{ fill: "#627180", fontSize: 11 }} label={{ value: "Demand score →", position: "insideBottom", offset: -8, fill: "#526a7a", fontSize: 11 }} />
-              <YAxis type="number" dataKey="supply" name="Supply score" domain={[0, 100]} width={44} tick={{ fill: "#627180", fontSize: 11 }} label={{ value: "Supply score →", angle: -90, position: "insideLeft", fill: "#526a7a", fontSize: 11 }} />
+              <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 4" />
+              <XAxis type="number" dataKey="demand" name="Demand score" domain={[0, 100]} tick={{ fill: "var(--chart-label)", fontSize: 11 }} label={{ value: "Demand score →", position: "insideBottom", offset: -8, fill: "var(--chart-label)", fontSize: 11 }} />
+              <YAxis type="number" dataKey="supply" name="Supply score" domain={[0, 100]} width={44} tick={{ fill: "var(--chart-label)", fontSize: 11 }} label={{ value: "Supply score →", angle: -90, position: "insideLeft", fill: "var(--chart-label)", fontSize: 11 }} />
               <ZAxis range={[34, 34]} />
-              <ReferenceLine x={50} stroke="#9aaab4" strokeDasharray="4 4" />
-              <ReferenceLine y={50} stroke="#9aaab4" strokeDasharray="4 4" />
+              <ReferenceLine x={50} stroke="var(--chart-reference)" strokeDasharray="4 4" />
+              <ReferenceLine y={50} stroke="var(--chart-reference)" strokeDasharray="4 4" />
               <ChartTooltip cursor={{ strokeDasharray: "3 3" }} content={<HotnessChartTooltip />} />
-              <Scatter name="Reported ZIPs" data={unflagged} fill="#12355b" fillOpacity={0.48} />
-              <Scatter name="Provider flagged" data={flagged} fill="#fff7e8" stroke="#9a4b00" strokeWidth={1.5} />
-              <Scatter name="Selected ZIP" data={focus} fill="#ff7a1a" stroke="#7e3100" strokeWidth={1.5}>
-                <LabelList dataKey="label" position="top" fill="#7e3100" fontSize={11} fontWeight={700} />
+              <Scatter name="Reported ZIPs" data={unflagged} fill="var(--chart-2)" fillOpacity={0.48} />
+              <Scatter name="Provider flagged" data={flagged} fill="var(--quality-flag-fill)" stroke="var(--quality-flag-stroke)" strokeWidth={1.5} />
+              <Scatter name="Selected ZIP" data={focus} fill="var(--chart-1)" stroke="var(--chart-selected-accent)" strokeWidth={1.5}>
+                <LabelList dataKey="label" position="top" fill="var(--chart-selected-label)" fontSize={11} fontWeight={700} />
               </Scatter>
             </ScatterChart>
           </ResponsiveContainer>
@@ -1493,11 +1506,11 @@ function CountyMap({
         const item = valueById.get(id);
         const isSelected = item?.dataId === selectedId;
         return {
-          color: isSelected ? "#ff7a1a" : item?.qualityFlagged ? "#9a4b00" : "#ffffff",
+          color: isSelected ? "var(--chart-1)" : item?.qualityFlagged ? "var(--quality-flag-stroke)" : "var(--chart-selected-stroke)",
           weight: isSelected ? 3 : item?.qualityFlagged ? 2.2 : 1.2,
           dashArray: item?.qualityFlagged ? "5 3" : undefined,
           opacity: 1,
-          fillColor: fillById.get(id) ?? "#dce3e6",
+          fillColor: fillById.get(id) ?? "var(--map-no-data)",
           fillOpacity: isSelected ? 0.88 : 0.72,
         };
       },
@@ -2294,11 +2307,14 @@ export default function MarketLab() {
             <p className="byline">Created by <a className="header-link" href="https://desenlin.com/">Desen Lin</a>, <a className="header-link" href="https://www.fullerton.edu/">California State University, Fullerton</a>.</p>
             <p className="deck">Southern California housing data for teaching and research.</p>
           </div>
-          <a className="release-stamp release-stamp-link" href="#current-release-provenance" onClick={openReleaseProvenance}>
-            <span>Latest validated release</span>
-            <strong>{manifest.release}</strong>
-            <small>Data through {shortDate(Object.values(manifest.latest_observations).sort().at(-1) ?? manifest.release)}</small>
-          </a>
+          <div className="header-tools">
+            <ThemeToggle />
+            <a className="release-stamp release-stamp-link" href="#current-release-provenance" onClick={openReleaseProvenance}>
+              <span>Latest validated release</span>
+              <strong>{manifest.release}</strong>
+              <small>Data through {shortDate(Object.values(manifest.latest_observations).sort().at(-1) ?? manifest.release)}</small>
+            </a>
+          </div>
         </div>
       </header>
 

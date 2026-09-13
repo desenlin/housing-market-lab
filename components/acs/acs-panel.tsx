@@ -271,8 +271,8 @@ function AcsMap({ county, mapData, dataset, metricKey, view, selectedId, onSelec
         const item = byId.get(String(feature?.properties?.id ?? ""));
         const value = item?.value;
         const ratio = value == null ? 0 : view === "change" ? (value + span!) / (2 * span!) : high === low ? 0.5 : (value - low) / (high - low);
-        const color = value == null ? "#dce3e6" : palette[Math.min(palette.length - 1, Math.max(0, Math.floor(ratio * palette.length)))];
-        return { color: item?.id === selectedId ? "#12355b" : "#ffffff", weight: item?.id === selectedId ? 3 : 1.1, fillColor: color, fillOpacity: item?.id === selectedId ? 0.9 : 0.75 };
+        const color = value == null ? "var(--map-no-data)" : palette[Math.min(palette.length - 1, Math.max(0, Math.floor(ratio * palette.length)))];
+        return { color: item?.id === selectedId ? "var(--chart-2)" : "var(--chart-selected-stroke)", weight: item?.id === selectedId ? 3 : 1.1, fillColor: color, fillOpacity: item?.id === selectedId ? 0.9 : 0.75 };
       },
       onEachFeature: (feature, layer) => {
         const item = byId.get(String(feature.properties?.id ?? ""));
@@ -360,7 +360,7 @@ function RelationshipChart({ relationship, points, domains, selectedId }: {
       <div className="acs-relationship-chart">
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 14, right: 12, bottom: 26, left: 6 }}>
-            <CartesianGrid stroke="#dfe6ea" strokeDasharray="3 3" />
+            <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 3" />
             <XAxis
               type="number"
               dataKey="x"
@@ -369,9 +369,9 @@ function RelationshipChart({ relationship, points, domains, selectedId }: {
               allowDataOverflow
               allowDecimals={false}
               tickCount={5}
-              tick={{ fontSize: 11 }}
+              tick={{ fill: "var(--chart-label)", fontSize: 11 }}
               tickFormatter={(value) => incomeValue ? `$${Math.round(Number(value) / 1000)}k` : `${Math.round(Number(value))}%`}
-              label={{ value: incomeValue ? "Median household income" : "Rent-burdened households", position: "insideBottom", offset: -16, fontSize: 11 }}
+              label={{ value: incomeValue ? "Median household income" : "Rent-burdened households", position: "insideBottom", offset: -16, fill: "var(--chart-label)", fontSize: 11 }}
             />
             <YAxis
               type="number"
@@ -381,15 +381,15 @@ function RelationshipChart({ relationship, points, domains, selectedId }: {
               allowDataOverflow
               allowDecimals={false}
               tickCount={5}
-              tick={{ fontSize: 11 }}
+              tick={{ fill: "var(--chart-label)", fontSize: 11 }}
               tickFormatter={(value) => incomeValue ? `$${Math.round(Number(value) / 1000)}k` : `$${Math.round(Number(value))}`}
               width={58}
-              label={{ value: incomeValue ? "Typical home value" : "Typical asking rent", angle: -90, position: "insideLeft", fontSize: 11 }}
+              label={{ value: incomeValue ? "Typical home value" : "Typical asking rent", angle: -90, position: "insideLeft", fill: "var(--chart-label)", fontSize: 11 }}
             />
             <ZAxis range={[42, 42]} />
             <ChartTooltip content={<RelationshipTooltip relationship={relationship} />} />
-            <Scatter data={points} fill="#12355b" fillOpacity={0.55}>
-              {points.map((point) => <Cell key={point.id} fill={point.id === selectedId ? "#ff7a1a" : "#12355b"} fillOpacity={point.id === selectedId ? 1 : 0.52} stroke={point.id === selectedId ? "#7e3100" : "none"} />)}
+            <Scatter data={points} fill="var(--chart-2)" fillOpacity={0.55}>
+              {points.map((point) => <Cell key={point.id} fill={point.id === selectedId ? "var(--chart-1)" : "var(--chart-2)"} fillOpacity={point.id === selectedId ? 1 : 0.52} stroke={point.id === selectedId ? "var(--chart-selected-accent)" : "none"} />)}
             </Scatter>
           </ScatterChart>
         </ResponsiveContainer>
