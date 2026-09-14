@@ -93,8 +93,8 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Simple moving average; no polynomial fit/);
   assert.match(source, /Market Hotness quadrant/);
   assert.match(source, /current validated release and one rollback/);
-  assert.match(source, /County-level shards keep generated JSON files below 1 MB/);
-  assert.match(source, /carries those dates forward from its prior compact extract/);
+  assert.match(source, /Published JSON files remain below 1 MB/);
+  assert.match(source, /HCD is rebuilt from the current APR snapshot/);
   assert.match(source, /Coverage identifies the newest observation in each source/);
   assert.match(source, /Final permit history/);
   assert.match(source, /Preliminary permits/);
@@ -143,7 +143,7 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Southern California housing data for teaching and research/);
   assert.match(source, /Housing evidence with documented methods/);
   assert.match(source, /The lab organizes selected housing indicators for teaching and academic research/);
-  assert.match(source, /<CardTitle>Technical design<\/CardTitle>/);
+  assert.match(source, /<MethodCard title="Technical design">/);
   assert.match(source, /Provider-published files are processed into the selected measures/);
   assert.match(source, /Provider updates pass validation before release/);
   assert.doesNotMatch(source, /maintainer-initiated local import/);

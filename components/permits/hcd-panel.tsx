@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { MethodCard } from "@/components/method-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
@@ -10,14 +11,14 @@ type Stage = { total: number | null; types: Record<string, number>; income: numb
 type Cell = { records: number; permits: Stage; completions: Stage };
 type Region = { id: string; name: string; county: string; jurisdiction_type: string; housing_stock: number; housing_stock_vintage: number; annual: (Cell | null)[] };
 type Dataset = { years: number[]; types: Record<string, string>; income_fields: string[]; regions: Region[] };
-type Manifest = { release: string; created_at: string; latest_year: number; bundle_sha256: string; data_page: string; source: { last_modified: string } };
+export type HcdManifest = { release: string; created_at: string; latest_year: number; bundle_sha256: string; data_page: string; source: { last_modified: string } };
 const colors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--muted-foreground)", "var(--foreground)"];
 const number = (value: number | null | undefined, decimals = 0) => value == null ? "Unavailable" : value.toLocaleString("en-US", { maximumFractionDigits: decimals });
 const tooltipStyle = { background: "var(--popover)", color: "var(--popover-foreground)", border: "1px solid var(--border)", borderRadius: 8 };
 
 export function HcdPanel() {
   const [data, setData] = useState<Dataset | null>(null);
-  const [manifest, setManifest] = useState<Manifest | null>(null);
+  const [manifest, setManifest] = useState<HcdManifest | null>(null);
   const [error, setError] = useState(false);
   const [county, setCounty] = useState("Orange County");
   const [selected, setSelected] = useState("Fullerton");
@@ -75,6 +76,10 @@ export function HcdPanel() {
   ];
   return <div className="space-y-5">
     <section className="control-deck" aria-label="Housing delivery controls">
+      <div className="source-strip">
+        <span className="source-badge census">Source: California HCD APR · Annual</span>
+        <span>Data through {manifest.latest_year}</span>
+      </div>
       <div className="control-grid hcd-controls">
         <label className="control-label"><span>County</span><NativeSelect aria-label="HCD county" value={county} onChange={e => { setCounty(e.target.value); setSelected(""); }}>
           {["Orange County", "Los Angeles County"].map(c => <NativeSelectOption key={c}>{c}</NativeSelectOption>)}
@@ -134,8 +139,8 @@ export function HcdPanel() {
   </div>;
 }
 
-export function HcdMethods() {
-  const [manifest, setManifest] = useState<Manifest | null>(null);
+export function useHcdManifest() {
+  const [manifest, setManifest] = useState<HcdManifest | null>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
@@ -144,14 +149,16 @@ export function HcdMethods() {
     void (async () => { const pointer = await get(`${base}/latest.json`); setManifest(await get(`${base}/releases/${pointer.release}/manifest.json`)); })().catch(() => { if (!controller.signal.aborted) setError(true); });
     return () => controller.abort();
   }, []);
-  return <Card><CardHeader><CardTitle>HCD housing delivery: sources and provenance</CardTitle></CardHeader><CardContent className="method-copy">
+  return { manifest, error };
+}
+
+export function HcdMethods() {
+  return <MethodCard title="HCD housing delivery">
     <p>California HCD Housing Element Annual Progress Reports, Table A2, provide annual permitted and completed units, housing types, ADUs and reported affordability for Los Angeles and Orange County jurisdictions. County jurisdictions cover unincorporated areas only; CDPs have no separate APR totals.</p>
     <p>Census BPS measures privately owned new residential construction authorizations. HCD also covers categories such as conversions and manufactured housing. The two permit series remain separate. Completions indicate readiness for occupancy, not actual occupancy or net housing-stock growth.</p>
     <p>Annual permits and completions represent different project cohorts, so their ratio is not a completion rate. No-row years remain unavailable. Three-year averages require three consecutive available years. Production intensity uses fixed ACS five-year housing-stock denominators.</p>
     <p>Historical activity dated outside the reporting year is excluded; undated activity is retained. Inconsistent totals or affordability components are withheld. Repeated projects across reporting years are not automatically treated as duplicates. Observed zeroes do not certify reporting completeness, and recent years may be revised.</p>
     <p>ADUs are counted once in a separate structure category. Reported affordability is not household rent burden; non-deed-restricted units need not be subsidized or permanently affordable.</p>
     <p><a className="source-link" href="https://data.ca.gov/dataset/housing-element-annual-progress-report-apr-data-by-jurisdiction-and-year" target="_blank" rel="noreferrer">HCD data and dictionaries</a> · <a className="source-link" href="https://www.hcd.ca.gov/apr/forms" target="_blank" rel="noreferrer">Reporting instructions</a></p>
-    {manifest ? <dl className="provenance-grid"><div><dt>Annual observations</dt><dd>Through {manifest.latest_year}</dd></div><div><dt>Source updated</dt><dd>{manifest.source.last_modified.slice(0,10)}</dd></div><div><dt>Validated</dt><dd>{manifest.created_at.slice(0,10)}</dd></div><div><dt>Release</dt><dd>{manifest.release}</dd></div></dl> : <p role="status">{error ? "HCD provenance is temporarily unavailable." : "Loading HCD provenance…"}</p>}
-    {manifest && <details className="mt-3"><summary>Technical release fingerprint</summary><p className="break-all">SHA-256: {manifest.bundle_sha256}</p></details>}
-  </CardContent></Card>;
+  </MethodCard>;
 }
