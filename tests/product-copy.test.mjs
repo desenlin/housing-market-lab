@@ -47,6 +47,7 @@ test("provides a persistent light and dark theme control", async () => {
   assert.match(styles, /\.dark \.rank-row\.selected \{[^}]+color: var\(--foreground\)/);
   assert.match(styles, /\.dark \.rank-name small[^}]+color: var\(--detail-muted\)/);
   assert.match(styles, /\.dark \.brief-evidence p \{[^}]+color: var\(--detail-copy\)/);
+  assert.match(styles, /\.dark \.map-selection strong,[\s\S]*\.dark \.leaflet-tooltip strong \{ color: #e7edf2; \}/);
   assert.match(styles, /--permit-status-bg: #30251f/);
   assert.match(styles, /--acs-moe-bg: #202b33/);
   assert.match(styles, /--acs-change-bg: #1d303a/);

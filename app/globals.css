@@ -519,6 +519,8 @@ footer p { margin: 0; }
 .dark .rank-name small, .dark .acs-rank-row > span:last-child { color: var(--detail-muted); }
 .dark :where(.definition-help, .acs-chart-tooltip, .hotness-tooltip, .cycle-tooltip, .leaflet-tooltip) { border-color: #53636e; background: #202a32; color: #c4d0d8; box-shadow: 0 10px 25px rgb(0 0 0 / .35); }
 .dark :where(.definition-help, .leaflet-tooltip strong, .acs-chart-tooltip strong, .cycle-tooltip strong) { color: #dbe7ef; }
+.dark .map-selection strong,
+.dark .leaflet-tooltip strong { color: #e7edf2; }
 .dark .definition-tooltip { background: #263845 !important; color: #fff !important; }
 .dark :where(.data-note, .map-selection) { background: #33261e; color: #e5bea3; }
 .dark .series-guide-line::before { border-color: #90a7b7; }
