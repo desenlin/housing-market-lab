@@ -2830,7 +2830,7 @@ export default function MarketLab() {
         </TabsContent>
 
         <TabsContent value="facts" className="space-y-5">
-          <FactEnginePanel basePath={process.env.NEXT_PUBLIC_BASE_PATH ?? ""} onNavigate={setMainTab} />
+          <FactEnginePanel basePath={process.env.NEXT_PUBLIC_BASE_PATH ?? ""} onNavigate={(tab) => { if (tab === "permits") setSupplyView("activity"); setMainTab(tab); }} />
         </TabsContent>
 
         <TabsContent value="methods" className="space-y-5">

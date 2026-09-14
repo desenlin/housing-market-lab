@@ -41,6 +41,9 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Check annual Housing Supply review rules
+        run: python -m unittest discover -s tests -p 'test_market_brief_supply.py'
+
       - name: Rebuild the deterministic fact packet
         run: python pipeline/build_fact_engine.py
 

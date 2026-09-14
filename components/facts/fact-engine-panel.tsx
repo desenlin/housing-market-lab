@@ -147,7 +147,7 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
       kicker: "Construction pipeline",
       question: "Is residential permitting increasing?",
       answer: permits.map((item) => `${item.geography.replace(" County", "")}: ${item.change_display}`).join(" · "),
-      facts: permits, destination: "permits", linkLabel: "Explore building permits",
+      facts: permits, destination: "permits", linkLabel: "Explore Census permit activity",
     });
     if (inventory) output.push({
       kicker: "Homes available for sale",

@@ -628,12 +628,12 @@ footer p { margin: 0; }
 /* Methods cards share a compact default height; each expands independently. */
 .method-grid { align-items: start; }
 .method-card { gap: 12px; }
-.method-card.is-collapsed { height: 250px; }
+.method-card.is-collapsed { height: 230px; }
 .method-card > [data-slot="card-header"] { min-height: 44px; }
 .method-card-body { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 12px; }
-.method-preview { flex-shrink: 0; }
-.method-preview > p { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
-.method-toggle { align-self: flex-start; margin-top: 0; flex-shrink: 0; color: var(--section-heading); }
+.method-preview { flex-shrink: 0; min-height: 4.95em; }
+.method-preview > p { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.method-toggle { padding-inline: 0; align-self: flex-start; margin-top: 0; flex-shrink: 0; color: var(--section-heading); }
 .method-card.is-expanded .method-toggle { margin-top: 12px; }
 @media (prefers-reduced-motion: no-preference) { .method-toggle { transition: background-color .15s; } }
 

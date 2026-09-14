@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import calendar
+import hashlib
 import json
 import re
 from datetime import date, datetime
@@ -49,6 +50,11 @@ def question_sections(packet: dict[str, Any]) -> list[dict[str, Any]]:
     )
     if len(permits) != 2:
         raise ValueError(f"Expected two county permit facts; found {len(permits)}")
+
+    if len({item["period"] for item in permits}) != 1:
+        raise ValueError("County BPS facts must use the same year-to-date window")
+    if any(item["provider"] != "U.S. Census Bureau Building Permits Survey" or not item["provisional"] for item in permits):
+        raise ValueError("The recurring permitting question requires preliminary Census BPS evidence, not HCD delivery")
 
     price_kept_pace = real_price["change"] >= 0
     price_answer = (
@@ -122,12 +128,78 @@ def source_releases(packet: dict[str, Any]) -> list[dict[str, str]]:
     labels = {
         "zillow": "Zillow Research",
         "cpi": "U.S. Bureau of Labor Statistics",
-        "permits_provisional": "U.S. Census Bureau Building Permits Survey",
+        "permits_provisional": "Census BPS — preliminary current-year observations",
+        "permits_history": "Census BPS — final comparison history",
     }
     return [
         {"provider": label, **packet["source_releases"][key]}
         for key, label in labels.items()
     ]
+
+
+def housing_supply_review(data_root: Path, latest: dict[str, Any] | None, issue_month: str) -> dict[str, Any]:
+    """Track annual HCD evidence separately from monthly question advancement."""
+    base = data_root / "hcd"
+    if not (base / "latest.json").exists():
+        return {"status": "unavailable", "review_required": True,
+                "reason": "No HCD snapshot is available; do not infer annual delivery from BPS permits."}
+    try:
+        pointer = read_json(base / "latest.json")
+        folder = base / "releases" / pointer["release"]
+        manifest = read_json(folder / "manifest.json")
+        payload = (folder / "annual.json").read_bytes()
+        digest = hashlib.sha256(payload).hexdigest()
+        if digest != pointer["bundle_sha256"] or digest != manifest["bundle_sha256"] or manifest["release"] != pointer["release"]:
+            raise ValueError("HCD pointer, manifest and annual payload do not agree")
+        dataset = json.loads(payload)
+        year = manifest["latest_year"]
+        if year != max(dataset["years"]):
+            raise ValueError("HCD coverage year does not match the annual payload")
+        # Annual data from a later validated snapshot must not support an earlier issue.
+        cutoff = month_end(issue_month)
+        if manifest["created_at"][:10] > cutoff or f"{year}-12-31" > cutoff:
+            return {"status": "outside_issue", "review_required": True,
+                    "reason": "The HCD snapshot was validated after the issue cutoff or contains a later reporting year; exclude it from this issue."}
+        prior = (latest or {}).get("housing_supply_review", {})
+        if prior.get("sha256") == digest:
+            status = "unchanged"
+        elif not prior.get("sha256"):
+            status = "first_review"
+        elif year > prior.get("latest_year", 0):
+            status = "new_annual_year"
+        elif year < prior.get("latest_year", 0):
+            raise ValueError("HCD reporting year regressed")
+        else:
+            status = "revised_annual_snapshot"
+        rows = []
+        current_index = dataset["years"].index(year)
+        for county in ("Los Angeles County", "Orange County"):
+            cities = [r for r in dataset["regions"] if r["county"] == county and r["jurisdiction_type"] == "incorporated_city"]
+            observed = sum(r["annual"][current_index] is not None and r["annual"][current_index]["completions"]["total"] is not None for r in cities)
+            rows.append({"county": county, "reporting_cities": observed, "reference_cities": len(cities)})
+        return {"status": status, "review_required": status != "unchanged", "provider": "California HCD APR",
+                "release": pointer["release"], "sha256": digest, "latest_year": year,
+                "validated_at": manifest["created_at"], "coverage": rows,
+                "reason": "Annual context only; this does not advance a monthly question or certify complete reporting."}
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        return {"status": "invalid", "review_required": True, "reason": f"HCD evidence is ineligible: {error}"}
+
+
+def supply_review_markdown(review: dict[str, Any]) -> str:
+    text = ("\n### Housing Supply review (separate annual check)\n\n"
+            f"HCD status: **{review['status']}**. {review['reason']}\n")
+    if "release" in review:
+        text += f"\nAnnual coverage: {review['latest_year']}; release `{review['release']}`; SHA-256 `{review['sha256']}`.\n"
+        for row in review["coverage"]:
+            text += f"- {row['county']}: {row['reporting_cities']} of {row['reference_cities']} cities have reported completion totals.\n"
+    return text + (
+        "\n- [ ] Keep Census BPS monthly/YTD authorizations separate from HCD annual permitted/completed units.\n"
+        "- [ ] Treat HCD revisions as revisions, not new monthly activity; review first or changed snapshots before adding findings.\n"
+        "- [ ] Use matched cities and reporting years for changes; missing values and zero-base growth remain unavailable.\n"
+        "- [ ] State the county pool, coverage, metric, and year for rankings; identify city medians as unweighted, not county totals.\n"
+        "- [ ] Do not infer starts, actual occupancy, net stock growth, backlog, or a cohort completion rate from these annual flows.\n"
+        "- [ ] Confirm any added HCD finding is supported by the eligible release and cite that release explicitly.\n"
+    )
 
 
 def write_outputs(path: Path | None, values: dict[str, str]) -> None:
@@ -152,6 +224,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     latest_entry = max(index["briefs"], key=lambda item: item["issue_month"], default=None)
     latest = read_json(archive_dir / latest_entry["path"]) if latest_entry else None
     sections = question_sections(packet)
+    supply_review = housing_supply_review(data_root, latest, issue_month)
     prior_periods = {item["question"]: item["period_end"] for item in latest["sections"]} if latest else {}
     advanced = [
         item["question"] for item in sections
@@ -182,6 +255,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     ready = not reasons
 
     result = {
+        "housing_supply_review": supply_review,
         "ready": ready,
         "issue_month": issue_month,
         "advanced_questions": advanced,
@@ -209,6 +283,7 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
         "source_packet_sha256": packet["packet_sha256"],
         "source_releases": source_releases(packet),
         "sections": sections,
+        "housing_supply_review": supply_review,
     }
     brief_path = archive_dir / f"{issue_month}.json"
     brief_path.write_text(json.dumps(brief, indent=2, ensure_ascii=False) + "\n")
@@ -226,8 +301,9 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
 
 def review_markdown(result: dict[str, Any]) -> str:
     questions = "\n".join(f"- {item}" for item in result["advanced_questions"]) or "- None"
+    supply_note = supply_review_markdown(result["housing_supply_review"])
     if not result["ready"]:
-        return f"## Market brief readiness\n\nNo draft is recommended: {result['reason']}.\n\n### Questions with newer evidence\n\n{questions}\n"
+        return f"## Market brief readiness\n\nNo draft is recommended: {result['reason']}.\n\n### Questions with newer evidence\n\n{questions}\n" + supply_note
     return (
         f"## Proposed {result['issue_month']} market brief\n\n"
         "This candidate was generated deterministically from the current validated fact packet. "
@@ -242,6 +318,7 @@ def review_markdown(result: dict[str, Any]) -> str:
         "- [ ] No causal claim or forecast has been introduced.\n"
         "- [ ] Source releases and the fact-packet fingerprint are retained.\n\n"
         f"Fact packet: `{result['packet_sha256']}`\n"
+        + supply_note
     )
 
 
