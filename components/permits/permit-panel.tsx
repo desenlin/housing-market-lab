@@ -13,6 +13,7 @@ import {
 } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DefinitionHelp } from "@/components/definition-help";
 import { FigureAttribution } from "@/components/figure-attribution";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { DEFAULT_MAP_FIT_OPTIONS, focusedMapBounds } from "@/lib/map-view";
@@ -82,7 +83,7 @@ export type PermitManifest = {
   counts: { jurisdictions: number; cities: number; county_unincorporated: number };
 };
 
-type MapData = {
+export type MapData = {
   counties: Record<string, {
     bounds: [[number, number], [number, number]];
     regions: Array<{
@@ -110,7 +111,14 @@ const COLORS = [
   "var(--chart-4)",
   "var(--chart-5)",
 ];
-const MAP_COLORS = ["#fff0e4", "#ffd1ad", "#ffa866", "#ed6b10", "#9d3f00"];
+const MAP_PALETTES = { orange: ["#fff0e4", "#ffd1ad", "#ffa866", "#ed6b10", "#9d3f00"], navy: ["#e5eff6", "#b5cee1", "#7ca5c4", "#376d96", "#102f50"] };
+const CONTROL_DEFINITIONS: Record<string, string> = {
+  County: "Select one county or both. County unincorporated totals are separate jurisdictions; CDPs are geographic context only.",
+  Frequency: "Monthly observations show short-run authorizations; annual observations use final Census benchmarks.",
+  Metric: "Choose the number, building-size mix, or housing-stock-normalized intensity of units authorized by permits.",
+  "Map & ranking date": "Observation period used for the map, ranking, and summary cards.",
+  "Chart range": "Limits the visible history without changing the observation selected for the map and ranking.",
+};
 
 function formatDate(value: string) {
   if (/^\d{4}$/.test(value)) return value;
@@ -172,21 +180,25 @@ function LabelledSelect({ label, value, onChange, children }: {
 }) {
   return (
     <label className="control-label">
-      <span>{label}</span>
+      <span>{label}{CONTROL_DEFINITIONS[label] && <DefinitionHelp label={label} definition={CONTROL_DEFINITIONS[label]} />}</span>
       <NativeSelect value={value} onChange={(event) => onChange(event.target.value)}>{children}</NativeSelect>
     </label>
   );
 }
 
-function PermitMap({ mapData, dataset, county, metric, dateIndex, selectedId, onSelect }: {
+export function PermitMap({ mapData, dataset, county, metric, dateIndex, selectedId, onSelect, source = "census-bps", title = "Permit jurisdiction map" }: {
+  source?: "census-bps" | "hcd";
+  title?: string;
   mapData: MapData;
-  dataset: PermitDataset;
+  dataset: { dates: string[]; metrics: Record<string, PermitMetric>; regions: Array<{ id: string; series: Record<string, Value[]> }> };
   county: string;
-  metric: PermitMetricKey;
+  metric: string;
   dateIndex: number;
   selectedId: string;
   onSelect: (id: string) => void;
 }) {
+  const [palette, setPalette] = useState<"navy" | "orange">("orange");
+  const MAP_COLORS = MAP_PALETTES[palette];
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
   const layerRef = useRef<import("leaflet").GeoJSON | null>(null);
@@ -256,7 +268,7 @@ function PermitMap({ mapData, dataset, county, metric, dateIndex, selectedId, on
           color: selected ? "var(--chart-2)" : "var(--chart-selected-stroke)",
           weight: selected ? 3 : 1.2,
           dashArray: item?.region ? undefined : "4 3",
-          fillColor: item?.region ? MAP_COLORS[colorIndex] : "var(--map-no-data)",
+          fillColor: item?.value != null ? MAP_COLORS[colorIndex] : "var(--map-no-data)",
           fillOpacity: item?.region ? 0.78 : 0.52,
         };
       },
@@ -282,7 +294,7 @@ function PermitMap({ mapData, dataset, county, metric, dateIndex, selectedId, on
       lastFit.current = fitKey;
     }
     map.invalidateSize({ pan: false });
-  }, [county, dateIndex, dataset.dates, high, low, metricInfo, ready, selectedId, shapes, values]);
+  }, [county, dateIndex, dataset.dates, high, low, metricInfo, ready, selectedId, shapes, values, MAP_COLORS]);
 
   function resetMap() {
     const L = leafletRef.current;
@@ -295,26 +307,30 @@ function PermitMap({ mapData, dataset, county, metric, dateIndex, selectedId, on
     <div className="map-panel permit-map-panel">
       <div className="map-heading">
         <div>
-          <p className="section-kicker">Permit jurisdiction map</p>
+          <p className="section-kicker">{title}</p>
           <h3>{county === "Both" ? "Orange and Los Angeles Counties" : county}</h3>
-          <p><strong>{metricInfo.label}</strong> · {formatDate(dataset.dates[dateIndex])}</p>
+          <p><strong>{metricInfo.label}</strong><DefinitionHelp label={metricInfo.label} definition={metricInfo.definition} /> · {formatDate(dataset.dates[dateIndex])}</p>
         </div>
         <div className="map-tools">
+          <div className="map-palette" role="group" aria-label="Map color gradient"><span>Color</span>{(["navy", "orange"] as const).map(option => <button key={option} type="button" aria-pressed={palette === option} className={palette === option ? "active" : ""} onClick={() => setPalette(option)}>{option === "navy" ? "Navy" : "Orange"}</button>)}</div>
           <button type="button" className="map-reset" onClick={resetMap}><RotateCcw /> Reset map</button>
           <div className="map-legend">
             <span className="map-legend-item map-legend-scale">{formatValue(low, metricInfo)}<i className="map-gradient" style={{ background: `linear-gradient(90deg, ${MAP_COLORS.join(",")})` }} />{formatValue(high, metricInfo)}</span>
+            <span className="map-legend-item"><i className="map-swatch" style={{ background: "var(--map-no-data)" }} />Not reported</span>
             <span className="map-legend-item"><i className="map-swatch permit-cdp" />CDP · in unincorporated total</span>
           </div>
         </div>
       </div>
-      <div ref={containerRef} className="leaflet-map" role="region" aria-label={`Building permits map for ${county}`} />
+      <div ref={containerRef} className="leaflet-map" role="region" aria-label={`${source === "hcd" ? "Housing delivery" : "Building permits"} map for ${county}`} />
       <p className="map-coverage">{reported} incorporated-city boundaries report this observation. {cdpCount} Census-designated place boundaries are geographic context only and belong to the county unincorporated aggregate. Unshaded land outside place boundaries may also be part of that aggregate.</p>
-      <FigureAttribution sources={metric === "units_per_1000_stock" ? ["census-bps", "census-acs"] : ["census-bps"]} boundaries basemap />
+      <FigureAttribution sources={metric === "units_per_1000_stock" ? [source, "census-acs"] : [source]} boundaries basemap />
     </div>
   );
 }
 
-export function PermitPanel({ mapData, onManifest }: { mapData: MapData; onManifest?: (history: PermitManifest, provisional: PermitManifest) => void }) {
+export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: MapData; lensControl: React.ReactNode; onManifest?: (history: PermitManifest, provisional: PermitManifest) => void }) {
+  const [chartPalette, setChartPalette] = useState<"orange" | "navy">("orange");
+  const chartColors = chartPalette === "orange" ? COLORS : [COLORS[1], COLORS[0], ...COLORS.slice(2)];
   const [annual, setAnnual] = useState<PermitDataset | null>(null);
   const [monthly, setMonthly] = useState<PermitDataset | null>(null);
   const [historyManifest, setHistoryManifest] = useState<PermitManifest | null>(null);
@@ -391,8 +407,8 @@ export function PermitPanel({ mapData, onManifest }: { mapData: MapData; onManif
     ...selected.map((region) => [region.id, region.series[metric][chartStartIndex + offset]]),
   ])) ?? [];
 
-  if (error) return <div className="permit-status permit-error"><strong>Building permits are temporarily unavailable.</strong><span>{error}</span></div>;
-  if (!dataset || !metricInfo || !historyManifest || !provisionalManifest) return <div className="permit-status"><span className="loader" />Loading building permits…</div>;
+  if (error) return <div className="permit-status permit-error">{lensControl}<strong>Building permits are temporarily unavailable.</strong><span>{error}</span></div>;
+  if (!dataset || !metricInfo || !historyManifest || !provisionalManifest) return <div className="permit-status">{lensControl}<span className="loader" />Loading building permits…</div>;
 
   const currentIsPreliminary = frequency === "monthly" && selectedDate > `${historyManifest.latest_final_year}-12`;
   const counties = county === "Both" ? ["Orange County", "Los Angeles County"] : [county];
@@ -407,6 +423,7 @@ export function PermitPanel({ mapData, onManifest }: { mapData: MapData; onManif
           <span>Final through {historyManifest.latest_final_year}; preliminary through {formatDate(provisionalManifest.latest_observation ?? "")}</span>
         </div>
         <div className="control-grid permit-controls">
+          {lensControl}
           <LabelledSelect label="County" value={county} onChange={setCounty}>{COUNTY_OPTIONS.map((option) => <NativeSelectOption key={option} value={option}>{option}</NativeSelectOption>)}</LabelledSelect>
           <LabelledSelect label="Frequency" value={frequency} onChange={(value) => setFrequency(value as Frequency)}><NativeSelectOption value="monthly">Monthly · 2022–present</NativeSelectOption><NativeSelectOption value="annual">Annual · 1980–present</NativeSelectOption></LabelledSelect>
           <LabelledSelect label="Metric" value={metric} onChange={(value) => setMetric(value as PermitMetricKey)}>{METRIC_OPTIONS.map((option) => <NativeSelectOption key={option.key} value={option.key}>{option.label}</NativeSelectOption>)}</LabelledSelect>
@@ -417,22 +434,23 @@ export function PermitPanel({ mapData, onManifest }: { mapData: MapData; onManif
           <button className="permit-add" type="button" disabled={!addId || selectedIds.length >= 5} onClick={() => { if (addId && !selectedIds.includes(addId)) setSelectedIds((current) => [...current, addId].slice(0, 5)); setAddId(""); }}>Add</button>
         </div>
         <div className="chips">
-          {selected.map((region, index) => <button type="button" key={region.id} className={index === 0 ? "chip primary" : "chip"} onClick={() => setSelectedIds((current) => [region.id, ...current.filter((id) => id !== region.id)])}><i style={{ background: COLORS[index] }} />{region.name}<X onClick={(event) => { event.stopPropagation(); setSelectedIds((current) => current.filter((id) => id !== region.id)); }} /></button>)}
+          {selected.map((region, index) => <button type="button" key={region.id} className={index === 0 ? "chip primary" : "chip"} onClick={() => setSelectedIds((current) => [region.id, ...current.filter((id) => id !== region.id)])}><i style={{ background: chartColors[index] }} />{region.name}<X onClick={(event) => { event.stopPropagation(); setSelectedIds((current) => current.filter((id) => id !== region.id)); }} /></button>)}
         </div>
       </section>
 
       <section className="kpi-grid permit-kpis">
         <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">{primary?.name ?? "Focus jurisdiction"}</p><p className="kpi-value">{formatValue(primaryValue, metricInfo)}</p><p className="kpi-note">{metricInfo.short_label} · {formatDate(selectedDate)}</p></CardContent></Card>
-        <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">Structure mix</p><p className="kpi-value">{formatValue(primary?.series.large_multifamily_share[dateIndex] ?? null, dataset.metrics.large_multifamily_share)}</p><p className="kpi-note">Share of authorized units in 5+-unit buildings</p></CardContent></Card>
-        <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">City rank</p><p className="kpi-value">{primaryRank > 0 ? `#${primaryRank}` : "—"}</p><p className="kpi-note">Of {ranked.length} reporting cities in selected county view</p></CardContent></Card>
-        <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">Observation status</p><p className="kpi-value permit-quality-value">{isImputed ? "Imputed" : currentIsPreliminary ? "Preliminary" : "Final"}</p><p className="kpi-note">{isImputed ? "Census estimate; use with added caution" : currentIsPreliminary ? "May be revised or imputed" : "Final annual benchmark"}</p></CardContent></Card>
+        <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">Structure mix<DefinitionHelp label="Structure mix" definition="Share of authorized units in buildings containing five or more units; this describes structure size, not tenure." /></p><p className="kpi-value">{formatValue(primary?.series.large_multifamily_share[dateIndex] ?? null, dataset.metrics.large_multifamily_share)}</p><p className="kpi-note">Share of authorized units in 5+-unit buildings</p></CardContent></Card>
+        <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">City rank<DefinitionHelp label="City rank" definition="Descending rank among incorporated cities reporting the selected measure and period. Unincorporated county totals are excluded." /></p><p className="kpi-value">{primaryRank > 0 ? `#${primaryRank}` : "—"}</p><p className="kpi-note">Of {ranked.length} reporting cities in selected county view</p></CardContent></Card>
+        <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">Observation status<DefinitionHelp label="Observation status" definition="Preliminary observations may be revised. Imputed observations are Census estimates. Final observations reflect the annual benchmark." /></p><p className="kpi-value permit-quality-value">{isImputed ? "Imputed" : currentIsPreliminary ? "Preliminary" : "Final"}</p><p className="kpi-note">{isImputed ? "Census estimate; use with added caution" : currentIsPreliminary ? "May be revised or imputed" : "Final annual benchmark"}</p></CardContent></Card>
       </section>
 
       <section className="analysis-grid permit-analysis-grid">
         <Card className="chart-card">
           <CardHeader className="chart-header permit-chart-header">
-            <div><p className="section-kicker">Trend comparison</p><CardTitle>{metricInfo.label}</CardTitle></div>
+            <div><p className="section-kicker">Trend comparison</p><CardTitle>{metricInfo.label}<DefinitionHelp label={metricInfo.label} definition={metricInfo.definition} /></CardTitle></div>
             <div className="permit-chart-options">
+              <div className="map-palette" role="group" aria-label="Permit chart colors"><span>Color</span>{(["navy", "orange"] as const).map(option => <button key={option} type="button" className={chartPalette === option ? "active" : ""} aria-pressed={chartPalette === option} onClick={() => setChartPalette(option)}>{option === "navy" ? "Navy" : "Orange"}</button>)}</div>
               <p className="permit-definition">{metricInfo.definition}</p>
               <LabelledSelect
                 label="Chart range"
@@ -476,7 +494,7 @@ export function PermitPanel({ mapData, onManifest }: { mapData: MapData; onManif
                       boxShadow: "var(--chart-tooltip-shadow)",
                     }}
                   />
-                  {selected.map((region, index) => <Line key={region.id} type="monotone" dataKey={region.id} name={region.name} stroke={COLORS[index]} strokeWidth={index === 0 ? 2.8 : 1.8} dot={false} connectNulls={false} isAnimationActive={false} />)}
+                  {selected.map((region, index) => <Line key={region.id} type="monotone" dataKey={region.id} name={region.name} stroke={chartColors[index]} strokeWidth={index === 0 ? 2.8 : 1.8} dot={false} connectNulls={false} isAnimationActive={false} />)}
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -495,7 +513,7 @@ export function PermitPanel({ mapData, onManifest }: { mapData: MapData; onManif
       <section className="permit-county-summary" aria-label="County totals">
         {counties.map((countyName) => {
           const uninc = dataset.regions.find((region) => region.county === countyName && region.jurisdiction_type === "county_unincorporated");
-          return <Card key={countyName}><CardHeader><p className="section-kicker">County accounting</p><CardTitle>{countyName}</CardTitle></CardHeader><CardContent><dl><div><dt>All permit jurisdictions</dt><dd>{formatValue(countyAggregate(dataset, countyName, metric, dateIndex), metricInfo)}</dd></div><div><dt>County unincorporated area</dt><dd>{formatValue(uninc?.series[metric][dateIndex] ?? null, metricInfo)}</dd></div></dl><p>County total sums incorporated cities and the county unincorporated aggregate; it does not double-count CDPs.</p></CardContent></Card>;
+          return <Card key={countyName}><CardHeader><p className="section-kicker">County accounting<DefinitionHelp label="County accounting" definition="County totals combine incorporated jurisdictions with the unincorporated county aggregate, without adding CDPs again." /></p><CardTitle>{countyName}</CardTitle></CardHeader><CardContent><dl><div><dt>All permit jurisdictions</dt><dd>{formatValue(countyAggregate(dataset, countyName, metric, dateIndex), metricInfo)}</dd></div><div><dt>County unincorporated area</dt><dd>{formatValue(uninc?.series[metric][dateIndex] ?? null, metricInfo)}</dd></div></dl><p>County total sums incorporated cities and the county unincorporated aggregate; it does not double-count CDPs.</p></CardContent></Card>;
         })}
       </section>
 

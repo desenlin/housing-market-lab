@@ -9,7 +9,7 @@ export type FigureSource =
 
 const SOURCES: Record<FigureSource, { label: string; href: string }> = {
   hcd: {
-    label: "California Department of Housing and Community Development, Annual Progress Reports",
+    label: "California Department of Housing and Community Development (HCD), Annual Progress Reports",
     href: "https://www.hcd.ca.gov/housing-open-data-tools/apr-dashboard",
   },
   zillow: {
@@ -33,7 +33,7 @@ const SOURCES: Record<FigureSource, { label: string; href: string }> = {
     href: "https://www.census.gov/programs-surveys/acs/data.html",
   },
   "census-bps": {
-    label: "U.S. Census Bureau, Building Permits Survey",
+    label: "U.S. Census Bureau, Building Permits Survey (BPS)",
     href: "https://www.census.gov/construction/bps/",
   },
 };

@@ -625,22 +625,26 @@ footer p { margin: 0; }
   footer { padding: 20px 17px; }
 }
 
-/* Housing Supply uses the shared control styling and a clear view selector. */
-.hcd-controls { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, .7fr); }
-.hcd-controls .control-label, .comparison-row .control-label { min-width: 0; }
-.supply-view-tabs { border: 1px solid var(--border); padding: 5px; }
-.supply-view-tabs [role="tab"] { padding: 10px 20px; font-size: 14px; }
-.supply-view-tabs [data-state="active"] { background: var(--foreground); color: var(--background); }
-@media (max-width: 640px) { .hcd-controls { grid-template-columns: minmax(0, 1fr); } }
-
 /* Methods cards share a compact default height; each expands independently. */
 .method-grid { align-items: start; }
 .method-card { gap: 12px; }
-.method-card.is-collapsed { height: 280px; }
+.method-card.is-collapsed { height: 250px; }
 .method-card > [data-slot="card-header"] { min-height: 44px; }
 .method-card-body { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 12px; }
 .method-preview { flex-shrink: 0; }
 .method-preview > p { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
-.method-toggle { align-self: flex-start; margin-top: auto; flex-shrink: 0; color: var(--section-heading); }
+.method-toggle { align-self: flex-start; margin-top: 0; flex-shrink: 0; color: var(--section-heading); }
 .method-card.is-expanded .method-toggle { margin-top: 12px; }
 @media (prefers-reduced-motion: no-preference) { .method-toggle { transition: background-color .15s; } }
+
+.hcd-controls { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, .65fr) minmax(0, 1.35fr); }
+.permit-controls { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr); }
+@media (max-width: 1100px) { .hcd-controls, .permit-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .hcd-controls, .permit-controls { grid-template-columns: minmax(0, 1fr); } }
+
+.hcd-controls, .permit-controls { align-items: end; }
+
+.hcd-controls .control-label, .permit-controls .control-label { min-width: 0; }
+.hcd-controls .control-label > span, .permit-controls .control-label > span { display: flex; align-items: center; gap: 4px; }
+.hcd-figures > [data-slot="card"] { height: 100%; }
+.hcd-map-select { max-width: 440px; }

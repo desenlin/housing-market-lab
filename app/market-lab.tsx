@@ -35,6 +35,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PermitPanel, type PermitManifest } from "@/components/permits/permit-panel";
+import { SupplyLens } from "@/components/permits/supply-lens";
 import { MethodCard } from "@/components/method-card";
 import { HcdPanel, HcdMethods, useHcdManifest } from "@/components/permits/hcd-panel";
 import { AcsPanel, type AcsManifestSummary } from "@/components/acs/acs-panel";
@@ -2335,6 +2336,10 @@ export default function MarketLab() {
         </TabsList>
 
         <TabsContent value="local" className="space-y-5">
+          <section className="regional-intro">
+            <div><p className="section-kicker">Local values and rents</p><h2>Home values, asking rents, and market change.</h2></div>
+            <p>Explore Zillow home-value and asking-rent indicators across cities and ZIP codes in Los Angeles and Orange Counties. Compare levels and growth, switch between nominal and inflation-adjusted dollars, and use the map to examine local differences.</p>
+          </section>
           <section className="control-deck" aria-label="Local market controls">
             <div className="source-strip">
               <SourceBadge provider={currentMetricMetadata.provider ?? "Zillow"} frequency={currentMetricMetadata.frequency ?? "Monthly"} />
@@ -2682,23 +2687,15 @@ export default function MarketLab() {
         </TabsContent>
 
         <TabsContent value="permits" className="space-y-5">
-          <Tabs value={supplyView} onValueChange={setSupplyView}>
           <section className="regional-intro activity-intro">
             <div><p className="section-kicker">Housing production pipeline</p><h2>{supplyView === "activity" ? "Where new homes are being authorized." : "How much housing is reaching completion?"}</h2></div>
             <p>{supplyView === "activity" ? "Building permits are an early indicator of intended construction, not completed homes. Compare permitting across cities and county unincorporated areas." : "Explore annual housing delivery in Los Angeles and Orange Counties. Compare up to two jurisdictions, including their housing types and ADU contribution."}</p>
           </section>
-          <TabsList aria-label="Housing supply views" className="supply-view-tabs h-auto flex-wrap mt-4 mb-4">
-            <TabsTrigger value="activity" aria-label="Permit activity · Census">Permit activity</TabsTrigger>
-            <TabsTrigger value="delivery" aria-label="Housing delivery · HCD">Housing delivery</TabsTrigger>
-          </TabsList>
-          <TabsContent value="activity" className="space-y-5">
-          <PermitPanel
+          {supplyView === "activity" ? <PermitPanel
             mapData={maps.city}
+            lensControl={<SupplyLens value={supplyView} onChange={setSupplyView} />}
             onManifest={(history, provisional) => setPermitManifests({ history, provisional })}
-          />
-          </TabsContent>
-          <TabsContent value="delivery"><HcdPanel /></TabsContent>
-          </Tabs>
+          /> : <HcdPanel mapData={maps.city} lensControl={<SupplyLens value={supplyView} onChange={setSupplyView} />} />}
         </TabsContent>
 
         <TabsContent value="context" className="space-y-5">
