@@ -64,16 +64,13 @@ def question_sections(packet: dict[str, Any]) -> list[dict[str, Any]]:
         f"{real_price['change_display']}."
     )
     if all(item["change"] > 0 for item in permits):
-        permit_lead = "Yes. Residential permitting is increasing in both counties."
+        permit_lead = "Yes. Permitting rose in both counties."
     elif all(item["change"] < 0 for item in permits):
-        permit_lead = "No. Residential permitting is declining in both counties."
+        permit_lead = "No. Permitting fell in both counties."
     elif all(item["change"] == 0 for item in permits):
-        permit_lead = "No. Residential permitting is unchanged in both counties."
+        permit_lead = "No. Permitting was unchanged."
     else:
-        permit_lead = "The counties differ in whether residential permitting is increasing."
-    permit_changes = " and ".join(
-        f"{item['change_display']} in {item['geography']}" for item in permits
-    )
+        permit_lead = "Permitting trends differ by county."
     inventory_answer = (
         f"{'Yes' if inventory['material'] else 'Not under the Lab’s 5% reporting threshold'}. "
         f"Los Angeles metro for-sale inventory changed {inventory['change_display']} from one year earlier."
@@ -98,12 +95,12 @@ def question_sections(packet: dict[str, Any]) -> list[dict[str, Any]]:
         },
         {
             "question": "Is residential permitting increasing?",
-            "answer": f"{permit_lead} Year-to-date authorizations changed {permit_changes} compared with the same months one year earlier.",
+            "answer": permit_lead,
             "fact_ids": [item["id"] for item in permits],
             "period_end": max(month_end(item["period"]) for item in permits),
             "observation_period": permits[0]["period"],
             "status": "preliminary",
-            "evidence": [item["evidence"] for item in permits],
+            "evidence": [f"{item['evidence']} Year-to-date change: {item['change_display']}." for item in permits],
             "sources": "U.S. Census Bureau Building Permits Survey",
             "caveat": permits[0]["caveat"],
         },

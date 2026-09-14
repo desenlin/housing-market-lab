@@ -89,15 +89,10 @@ function findFact(packet: FactPacket, metric: string) {
 }
 
 function permittingAnswer(facts: Fact[]) {
-  const lead = facts.every((fact) => fact.change > 0)
-    ? "Yes. Residential permitting is increasing in both counties."
-    : facts.every((fact) => fact.change < 0)
-      ? "No. Residential permitting is declining in both counties."
-      : facts.every((fact) => fact.change === 0)
-        ? "No. Residential permitting is unchanged in both counties."
-        : "The counties differ in whether residential permitting is increasing.";
-  const changes = facts.map((fact) => `${fact.change_display} in ${fact.geography}`).join(" and ");
-  return `${lead} Year-to-date authorizations changed ${changes} compared with the same months one year earlier.`;
+  if (facts.every((fact) => fact.change > 0)) return "Yes. Permitting rose in both counties.";
+  if (facts.every((fact) => fact.change < 0)) return "No. Permitting fell in both counties.";
+  if (facts.every((fact) => fact.change === 0)) return "No. Permitting was unchanged.";
+  return "Permitting trends differ by county.";
 }
 
 function Standard({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
@@ -196,7 +191,7 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
               <p className="brief-answer">{item.answer}</p>
               <div className="brief-source-row"><span>{[...new Set(item.facts.map((fact) => fact.provider))].join(" · ")}</span></div>
               <div className="brief-evidence">
-                {item.facts.map((fact) => <p key={fact.id}><strong>{fact.geography}:</strong> {fact.evidence}</p>)}
+                {item.facts.map((fact) => <p key={fact.id}><strong>{fact.geography}:</strong> {fact.evidence}{fact.metric === "permits_ytd" && ` Year-to-date change: ${fact.change_display}.`}</p>)}
               </div>
               {[...new Set(item.facts.filter((fact) => fact.provisional && fact.caveat).map((fact) => fact.caveat))].map((caveat) => <p className="brief-archive-caveat" key={caveat}>{caveat}</p>)}
               <div className="brief-card-footer">
