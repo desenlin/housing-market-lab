@@ -35,6 +35,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PermitPanel, type PermitManifest } from "@/components/permits/permit-panel";
+import { HcdPanel } from "@/components/permits/hcd-panel";
 import { AcsPanel, type AcsManifestSummary } from "@/components/acs/acs-panel";
 import { FactEnginePanel } from "@/components/facts/fact-engine-panel";
 import { FigureAttribution, type FigureSource } from "@/components/figure-attribution";
@@ -2322,7 +2323,7 @@ export default function MarketLab() {
         <TabsList variant="line" className="main-tabs" aria-label="Dashboard sections">
           <TabsTrigger value="local">Prices &amp; Rents</TabsTrigger>
           <TabsTrigger value="activity">Market Conditions</TabsTrigger>
-          <TabsTrigger value="permits">Building Permits</TabsTrigger>
+          <TabsTrigger value="permits">Housing Supply</TabsTrigger>
           <TabsTrigger value="context">Housing Context</TabsTrigger>
           <TabsTrigger value="regional">Metro Comparisons</TabsTrigger>
           <TabsTrigger value="facts">Market Brief</TabsTrigger>
@@ -2678,10 +2679,19 @@ export default function MarketLab() {
         </TabsContent>
 
         <TabsContent value="permits" className="space-y-5">
+          <Tabs defaultValue="activity">
+          <TabsList aria-label="Housing supply views" className="h-auto flex-wrap">
+            <TabsTrigger value="activity" aria-label="Permit activity · Census">Permit activity</TabsTrigger>
+            <TabsTrigger value="delivery" aria-label="Housing delivery · HCD">Housing delivery</TabsTrigger>
+          </TabsList>
+          <TabsContent value="activity" className="space-y-5">
           <PermitPanel
             mapData={maps.city}
             onManifest={(history, provisional) => setPermitManifests({ history, provisional })}
           />
+          </TabsContent>
+          <TabsContent value="delivery"><HcdPanel /></TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="context" className="space-y-5">
@@ -2830,6 +2840,7 @@ export default function MarketLab() {
             <Card><CardHeader><CardTitle>CPI and inflation</CardTitle></CardHeader><CardContent className="method-copy"><p>The lab retrieves monthly CPI-U, All Items directly from the U.S. Bureau of Labor Statistics: <code>CUURS49ASA0</code> for the LA area and <code>CUUR0000SA0</code> for the U.S. city average. Both are not seasonally adjusted.</p><p>Inflation overlays use only official observations. Because BLS could not collect October 2025 data during the federal appropriations lapse, the official series remains missing for that month. Only derived real housing calculations fill that single gap with the geometric midpoint of September and November CPI, equivalent to log-linear interpolation. No other missing or trailing month is filled.</p><p><a href="https://www.bls.gov/cpi/additional-resources/2025-federal-government-shutdown-impact-cpi.htm" target="_blank" rel="noreferrer">Read the BLS explanation <ExternalLink /></a></p></CardContent></Card>
             <Card><CardHeader><CardTitle>Redfin activity measures</CardTitle></CardHeader><CardContent className="method-copy"><p>Redfin supplies months of supply, median days on market, the share sold above original list, the share of active listings with price reductions, and median sale price per square foot.</p><p>City and ZIP observations are rolling three-month windows. Share changes are shown in percentage points; days and months use absolute differences; price per square foot uses percent change.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Realtor.com inventory and demand</CardTitle></CardHeader><CardContent className="method-copy"><p>Realtor.com® Economic Research supplies monthly ZIP-level active and new listings, the pending-to-active ratio, listing viewers relative to the U.S., and its Market Hotness score.</p><p>Hotness equally weights relative demand and supply scores based on listing attention and market speed. It is a comparative index, not a probability of sale. Provider-flagged ZIP-months remain visible and are explicitly marked for review.</p></CardContent></Card>
+            <Card><CardHeader><CardTitle>Annual housing delivery</CardTitle></CardHeader><CardContent className="method-copy"><p>California HCD Annual Progress Reports add annual permitted and completed housing units, ADU contribution and housing-type composition. Housing Supply keeps these observations separate from Census BPS permits because coverage and reporting definitions differ.</p><p>Completions indicate readiness for occupancy, not actual occupancy or net stock growth. Annual permits and completions represent different project cohorts. No-row jurisdiction-years remain unavailable; affordability categories are secondary reporting detail, not household rent-burden measures.</p><p><a className="source-link" href="https://www.hcd.ca.gov/housing-open-data-tools/apr-dashboard" target="_blank" rel="noreferrer">View HCD APR data and reporting guidance <ExternalLink /></a></p></CardContent></Card>
             <Card><CardHeader><CardTitle>Building permits</CardTitle></CardHeader><CardContent className="method-copy"><p>The U.S. Census Bureau Building Permits Survey reports new privately owned housing units authorized by permit-issuing jurisdictions. The lab groups units into single-unit, 2–4-unit, and 5+-unit structures and shows annual history from 1980 and comparable local monthly history from 2022.</p><p>Current-year monthly observations are preliminary and may be revised or imputed. Annual data become final after the Census Bureau’s revision cycle. Permit authorization is an early production indicator, not a housing start or completion.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>ACS housing context</CardTitle></CardHeader><CardContent className="method-copy"><p>The housing-context layer retains six selected ACS five-year measures and their 90% margins of error. The latest cross-section covers every mapped city, Census-designated place, and ZCTA in the two counties; it does not expose a general ACS variable catalog.</p><p>Structural change compares non-overlapping five-year periods for cities and communities. Consecutive overlapping vintages are not treated as annual observations. Prior-period household income is converted to the latest vintage’s dollars using annual-average U.S. CPI-U.</p></CardContent></Card>
             <Card><CardHeader><CardTitle>Geographies</CardTitle></CardHeader><CardContent className="method-copy"><p>City/community maps retain every Census incorporated place and Census-designated place (CDP) assigned to Orange or Los Angeles County, whether or not a provider reports data. Zillow and Redfin observations are matched independently, and an unincorporated CDP is never reassigned to a neighboring city.</p><p>ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs. Census places and ZCTAs do not necessarily cover or classify land in the same way.</p></CardContent></Card>

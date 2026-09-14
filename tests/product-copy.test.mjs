@@ -65,7 +65,7 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Metro Comparisons/);
   assert.match(source, /Latest cycle position/);
   assert.match(source, /Inventory growth vs\./);
-  assert.match(source, /<TabsTrigger value="activity">Market Conditions<\/TabsTrigger>\s*<TabsTrigger value="permits">Building Permits<\/TabsTrigger>/);
+  assert.match(source, /<TabsTrigger value="activity">Market Conditions<\/TabsTrigger>\s*<TabsTrigger value="permits">Housing Supply<\/TabsTrigger>/);
   assert.match(source, /<TabsTrigger value="methods">Data &amp; methods<\/TabsTrigger>\s*<TabsTrigger value="about">About<\/TabsTrigger>/);
   assert.match(source, /<TabsTrigger value="facts">Market Brief<\/TabsTrigger>\s*<TabsTrigger value="methods">Data &amp; methods<\/TabsTrigger>/);
   assert.match(source, /A teaching-focused view of Southern California housing markets/);
@@ -169,7 +169,7 @@ test("places linked provider attribution beside charts and maps", async () => {
   assert.match(page, /<FigureAttribution sources=\{mapSources\} boundaries basemap \/>/);
   assert.match(page, /<FigureAttribution sources=\{\[activityLens === "redfin" \? "redfin" : "realtor"\]\} \/>/);
   assert.match(acs, /<FigureAttribution sources=\{\["census-acs", "zillow"\]\} \/>/);
-  assert.match(permits, /metric === "units_per_1000" \? \["census-bps", "census-acs"\] : \["census-bps"\]/);
+  assert.match(permits, /metric === "units_per_1000_stock" \? \["census-bps", "census-acs"\] : \["census-bps"\]/);
   assert.match(styles, /--attribution-link: #9ed0ef/);
   assert.match(styles, /\.figure-attribution \{[^}]+font-size: 11px/);
   assert.match(styles, /\.figure-attribution a \{[^}]+color: var\(--attribution-link\)/);

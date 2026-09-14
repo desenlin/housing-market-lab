@@ -18,6 +18,7 @@ Created by **[Desen Lin](https://desenlin.com/)**, California State University, 
 - Redfin months of supply, median days on market, sales above original list, price-drop share, and median sale price per square foot
 - Realtor.com monthly ZIP-level active and new listings, pending ratio, listing viewers relative to the U.S., and Market Hotness
 - Census Building Permits Survey annual history from 1980 and monthly place-level observations from 2022, with explicit preliminary and imputation status
+- Housing Supply adds a separate California HCD annual housing-delivery view: permitted and completed units, three-year averages, completions per 1,000 existing units, ADU contribution, housing types, and secondary affordability detail.
 - A focused ACS five-year housing-context layer covering median household income, tenure, rent burden, household size, median age, and multifamily housing, with 90% margins of error
 - City/community structural comparisons between non-overlapping ACS five-year periods; overlapping annual vintages are intentionally omitted
 - Explicit source and reporting-window labels, with hover/focus definitions for market concepts
@@ -40,6 +41,7 @@ The application is a static Next.js/Vinext export. It uses no database, paid API
 - [Realtor.com® Economic Research](https://www.realtor.com/research/data/) supplies monthly ZIP-level inventory and buyer-interest measures.
 - [U.S. Bureau of Labor Statistics CPI](https://www.bls.gov/cpi/data.htm) supplies monthly LA-area and U.S. all-items CPI-U observations.
 - [U.S. Census Bureau Building Permits Survey](https://www.census.gov/construction/bps/) supplies permit-jurisdiction housing-unit authorizations; [HUD SOCDS](https://www.huduser.gov/socds/permits/) provides a public lookup interface for verification.
+- [California HCD Annual Progress Reports](https://www.hcd.ca.gov/housing-open-data-tools/apr-dashboard) supply annual local housing delivery and composition.
 - [U.S. Census Bureau American Community Survey](https://www.census.gov/programs-surveys/acs/data.html) supplies selected five-year household and housing-stock estimates and margins of error.
 - [US Census Bureau cartographic boundary files](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html) supply place and ZCTA boundaries.
 - [OpenStreetMap](https://www.openstreetmap.org/copyright) supplies contextual basemap tiles. Map data © OpenStreetMap contributors.
@@ -95,6 +97,8 @@ Repository settings must permit GitHub Actions to create pull requests. Reviewer
 Provider releases do not need to arrive in the same order. If BLS CPI arrives before Zillow, the CPI pointer advances and waits for the next housing observation. If Zillow arrives first, nominal housing data advance immediately while real series stop at the latest month with an observation in both datasets. A later validated update extends the real series. CPI is never carried forward; the only derived exception is the documented October 2025 geometric interpolation between the adjacent official months.
 
 ## Local development
+
+HCD maintenance is independent of monthly providers. `python pipeline/update_hcd.py --pilot` validates county-filtered aggregates without publishing. `python pipeline/update_hcd.py` checks source metadata before retrieving changed data; `--force` rechecks unchanged metadata without bypassing validation. The **Check annual HCD housing delivery** workflow runs in July and October, or manually. After a validated release it explicitly requests a deployment-only Pages build: bot-token commits do not trigger push workflows. Metadata-only changes do not request deployment. See [HCD methods](DATA_SOURCES.md#california-hcd-housing-delivery).
 
 Requirements: Node 24+, Python 3.11+, and npm.
 

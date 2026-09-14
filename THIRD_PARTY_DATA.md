@@ -55,6 +55,14 @@ BLS-published material is public domain except for identified third-party photog
 
 U.S. Census Bureau data and publications are generally public domain; provider marks and any identified third-party content remain excluded. The lab records release provenance, labels preliminary and imputed permit observations, and does not imply that HUD produced a separate estimate. Derived classifications and conclusions are the responsibility of Housing Market Lab and do not imply Census Bureau or HUD endorsement.
 
+## California Department of Housing and Community Development
+
+- **Material:** Selected aggregate housing delivery and composition derived from APR Table A2.
+- **Source:** [California Open Data APR catalog](https://data.ca.gov/dataset/housing-element-annual-progress-report-apr-data-by-jurisdiction-and-year).
+- **Attribution:** California Department of Housing and Community Development, Annual Progress Reports; analysis by Housing Market Lab.
+
+The catalog exposes public downloads and DataStore access but currently labels its license as unspecified. Public accessibility is not a blanket downstream license. HCD-derived data are excluded from the lab's software and original-content licenses. This release provides no new HCD figure or data export controls. Published files contain local aggregates and source metadata, not property records; HCD and reporting jurisdictions do not endorse the lab's analysis.
+
 ## OpenStreetMap
 
 - **Material used:** Interactive contextual basemap tiles; tiles are not committed to this repository.

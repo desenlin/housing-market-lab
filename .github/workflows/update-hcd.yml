@@ -1,0 +1,65 @@
+name: Check annual HCD housing delivery
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Recheck unchanged source metadata (validation still required)
+        type: boolean
+        default: false
+  schedule:
+    - cron: "47 14 15 7,10 *"
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  # Serialize with Pages, which also commits public data.
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Validate HCD pipeline
+        run: python -m unittest tests.test_hcd_pipeline
+      - name: Check and validate annual data
+        env:
+          HCD_FORCE: ${{ inputs.force }}
+        run: |
+          if [ "$HCD_FORCE" = "true" ]; then
+            python pipeline/update_hcd.py --force
+          else
+            python pipeline/update_hcd.py
+          fi
+          python scripts/check_storage.py
+      - name: Commit validated HCD files and deploy when the release changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_changed=false
+          if ! git diff --quiet -- public/data/hcd/latest.json; then
+            release_changed=true
+          fi
+          if [ -n "$(git status --porcelain -- public/data/hcd)" ]; then
+            git config user.name "housing-market-lab[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add public/data/hcd
+            git commit -m "data: update validated HCD housing delivery"
+            git push
+          fi
+          if [ "$release_changed" = "true" ]; then
+            # GITHUB_TOKEN pushes do not trigger push workflows. Dispatch explicitly.
+            gh workflow run pages.yml --ref main -f deploy_only=true
+            echo "Published a new HCD release and requested deployment." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No local HCD release change; no deployment requested." >> "$GITHUB_STEP_SUMMARY"
+          fi

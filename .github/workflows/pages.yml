@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      deploy_only:
+        description: Deploy validated committed data without refreshing providers
+        type: boolean
+        default: false
   schedule:
     # Providers publish independently, and their release timing can differ.
     - cron: "23 13 12 * *"
@@ -41,7 +46,7 @@ jobs:
 
       - name: Refresh and validate provider data
         id: refresh
-        if: github.event_name != 'push' || hashFiles('public/data/latest.json') == '' || hashFiles('public/data/redfin/latest.json') == '' || hashFiles('public/data/realtor/inventory/latest.json') == '' || hashFiles('public/data/realtor/hotness/latest.json') == '' || hashFiles('public/data/cpi/latest.json') == '' || hashFiles('public/data/permits/history/latest.json') == '' || hashFiles('public/data/permits/provisional/latest.json') == '' || contains(github.event.head_commit.message, '[refresh-data]')
+        if: "${{ !inputs.deploy_only && (github.event_name != 'push' || hashFiles('public/data/latest.json') == '' || hashFiles('public/data/redfin/latest.json') == '' || hashFiles('public/data/realtor/inventory/latest.json') == '' || hashFiles('public/data/realtor/hotness/latest.json') == '' || hashFiles('public/data/cpi/latest.json') == '' || hashFiles('public/data/permits/history/latest.json') == '' || hashFiles('public/data/permits/provisional/latest.json') == '' || contains(github.event.head_commit.message, '[refresh-data]')) }}"
         run: |
           python scripts/data_update_report.py snapshot --output "$RUNNER_TEMP/data-before.json"
           set +e

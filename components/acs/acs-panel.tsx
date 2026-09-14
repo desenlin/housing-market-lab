@@ -474,7 +474,7 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
         const y = [...values].reverse().find((value): value is number => value != null) ?? null;
         const x = region.series[xKey]?.[1] ?? null;
         if (x == null || y == null) return [];
-        const xMetric = dataset.metrics[xKey];
+        const xMetric = dataset!.metrics[xKey];
         return [{
           id: region.id,
           name: region.name,

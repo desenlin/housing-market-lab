@@ -33,6 +33,7 @@ DATA_SOURCES = (
     DataSource("permits_history", "Census building permits — final history", "public/data/permits/history/latest.json", "permits"),
     DataSource("permits_provisional", "Census building permits — provisional", "public/data/permits/provisional/latest.json", "permits"),
     DataSource("acs", "ACS five-year estimates", "public/data/acs/latest.json", "acs"),
+    DataSource("hcd", "HCD annual housing delivery", "public/data/hcd/latest.json", "hcd"),
 )
 
 
@@ -108,6 +109,8 @@ def coverage_label(root: Path, source: DataSource, pointer: dict[str, Any] | Non
         return month_range([manifest.get("latest_observation")])
     if source.key == "acs" and manifest.get("latest_year"):
         return f"{manifest['latest_year']} five-year estimates"
+    if source.key == "hcd" and manifest.get("latest_year"):
+        return f"Through {manifest['latest_year']} annual reports"
     return "—"
 
 

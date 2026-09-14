@@ -309,7 +309,7 @@ function PermitMap({ mapData, dataset, county, metric, dateIndex, selectedId, on
       </div>
       <div ref={containerRef} className="leaflet-map" role="region" aria-label={`Building permits map for ${county}`} />
       <p className="map-coverage">{reported} incorporated-city boundaries report this observation. {cdpCount} Census-designated place boundaries are geographic context only and belong to the county unincorporated aggregate. Unshaded land outside place boundaries may also be part of that aggregate.</p>
-      <FigureAttribution sources={metric === "units_per_1000" ? ["census-bps", "census-acs"] : ["census-bps"]} boundaries basemap />
+      <FigureAttribution sources={metric === "units_per_1000_stock" ? ["census-bps", "census-acs"] : ["census-bps"]} boundaries basemap />
     </div>
   );
 }
@@ -485,7 +485,7 @@ export function PermitPanel({ mapData, onManifest }: { mapData: MapData; onManif
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            <FigureAttribution sources={metric === "units_per_1000" ? ["census-bps", "census-acs"] : ["census-bps"]} />
+            <FigureAttribution sources={metric === "units_per_1000_stock" ? ["census-bps", "census-acs"] : ["census-bps"]} />
             <p className="data-note">Annual data are final after the Census Bureau’s yearly revision cycle. Current-year monthly observations are preliminary; observations identified as imputed remain included and are disclosed in the status card.</p>
           </CardContent>
         </Card>

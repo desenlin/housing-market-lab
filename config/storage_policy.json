@@ -10,6 +10,7 @@
     "realtor_hotness": 2,
     "cpi": 2,
     "acs": 2,
+    "hcd": 2,
     "permits_history": 2,
     "permits_provisional": 2
   },

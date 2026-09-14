@@ -4,9 +4,14 @@ export type FigureSource =
   | "realtor"
   | "bls"
   | "census-acs"
-  | "census-bps";
+  | "census-bps"
+  | "hcd";
 
 const SOURCES: Record<FigureSource, { label: string; href: string }> = {
+  hcd: {
+    label: "California Department of Housing and Community Development, Annual Progress Reports",
+    href: "https://www.hcd.ca.gov/housing-open-data-tools/apr-dashboard",
+  },
   zillow: {
     label: "Data provided by Zillow Group",
     href: "https://www.zillow.com/research/data/",

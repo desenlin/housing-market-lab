@@ -1,5 +1,9 @@
 # Storage and historical continuity
 
+## HCD annual housing delivery
+
+HCD has an independent release pointer under `public/data/hcd/`. Only jurisdiction-year aggregates are stored, with a 1 MB per-release cap, current plus one rollback, and the shared 25 MB public-data limit. No statewide CSV or project-level records are committed. Source metadata checks skip unchanged downloads; a calculation/reference fingerprint forces review when formulas or stock denominators change. Changed metadata with unchanged local content updates only `source-check.json`. Changes to historical source counts are accepted after validation; vanished prior jurisdiction-years or a loss of more than 20% of source records require review rather than silently publishing incomplete history. See `pipeline/update_hcd.py` and `config/hcd_sources.json`.
+
 ## Design goals
 
 The public repository should remain inexpensive to clone and reliable to update on GitHub Free while preserving observations that a provider may later remove from its current download. The design archives the lab's compact, attributed local extracts—not national raw provider files.

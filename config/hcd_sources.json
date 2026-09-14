@@ -1,0 +1,9 @@
+{
+  "package_id": "housing-element-annual-progress-report-apr-data-by-jurisdiction-and-year",
+  "resource_id": "fe505d9b-8c36-42ba-ba30-08bc4f34e022",
+  "counties": ["Los Angeles", "Orange"],
+  "start_year": 2018,
+  "max_release_bytes": 1000000,
+  "max_result_rows": 20000,
+  "data_page": "https://data.ca.gov/dataset/housing-element-annual-progress-report-apr-data-by-jurisdiction-and-year"
+}
