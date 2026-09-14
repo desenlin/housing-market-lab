@@ -90,7 +90,8 @@ export function HcdPanel() {
     <p className="text-sm text-muted-foreground">The rate uses the fixed {region.housing_stock_vintage} ACS five-year housing stock ({number(region.housing_stock)} units). It measures production intensity, not annual stock growth.</p>
     {!cell && <p role="status">No Table A2 records were found for this jurisdiction and year. This does not establish zero construction or a missing APR submission.</p>}
     {issues.some(([key]) => key !== "outside_year") && <p className="text-sm">Some source records need interpretation: missing dates retain reported units, while inconsistent totals or affordability detail are withheld. See observation checks below.</p>}
-    <Card><CardHeader><CardTitle>Housing authorizations and delivery</CardTitle></CardHeader><CardContent>
+    <div className="grid items-start gap-4 lg:grid-cols-2">
+    <Card className="min-w-0"><CardHeader><CardTitle>Housing authorizations and delivery</CardTitle></CardHeader><CardContent>
       <label className="flex items-center gap-2 mb-4"><input type="checkbox" checked={average} onChange={e => setAverage(e.target.checked)} /> Show three-year annual averages</label>
       <div className="h-80" role="img" aria-label={`HCD permits and completions over time for ${region.name}`}>
         <ResponsiveContainer width="100%" height="100%"><LineChart data={chart} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
@@ -104,7 +105,7 @@ export function HcdPanel() {
       <FigureAttribution sources={["hcd"]} />
       <details className="mt-3"><summary>View annual values</summary><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="text-left p-2">Year</th><th className="text-right p-2">Permitted units</th><th className="text-right p-2">Completed units</th></tr></thead><tbody>{chart.map(row => <tr key={row.year} className="border-t"><td className="p-2">{row.year}</td><td className="text-right p-2">{number(row.permits, average ? 1 : 0)}</td><td className="text-right p-2">{number(row.completions, average ? 1 : 0)}</td></tr>)}</tbody></table></div></details>
     </CardContent></Card>
-    <Card><CardHeader><CardTitle>What types of housing are being delivered?</CardTitle></CardHeader><CardContent>
+    <Card className="min-w-0"><CardHeader><CardTitle>What types of housing are being delivered?</CardTitle></CardHeader><CardContent>
       {total == null ? <p>Completion composition is unavailable for this jurisdiction-year.</p> : <>
         <p className="mb-3">{region.name} · {year} · {number(total)} completed units</p>
         <div className="h-80" role="img" aria-label="Completed housing units by structure type"><ResponsiveContainer width="100%" height="100%"><BarChart data={composition} layout="vertical" margin={{ right: 25 }}>
@@ -118,6 +119,7 @@ export function HcdPanel() {
         {income ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="text-left p-2">Income category</th><th className="text-right p-2">Deed restricted</th><th className="text-right p-2">Not deed restricted</th></tr></thead><tbody>{incomeGroups.map(g => <tr key={g.label} className="border-t"><td className="p-2">{g.label}</td><td className="text-right p-2">{number(g.dr.reduce((s, i) => s + income[i], 0))}</td><td className="text-right p-2">{number(g.ndr.reduce((s, i) => s + income[i], 0))}</td></tr>)}<tr className="border-t"><td className="p-2">Above moderate</td><td colSpan={2} className="text-right p-2">{number(income[10])} total</td></tr></tbody></table></div> : <p>Affordability detail is unavailable or does not reconcile with reported completion totals.</p>}
       </details>
     </CardContent></Card>
+    </div>
     <Card><CardHeader><CardTitle>Sources, coverage and interpretation</CardTitle></CardHeader><CardContent className="method-copy">
       <p>BPS measures privately owned new residential construction authorizations. HCD APR reporting also covers categories such as conversions and manufactured housing. HCD permits are shown with HCD completions; they do not replace the separate Census series.</p>
       <p>Only reported annual activity is aggregated. No-row years remain unavailable, and observed zeroes are zeroes in the available records, not an independent certification of reporting completeness. Published values may be revised. The latest year remains subject to local reporting delays.</p>
