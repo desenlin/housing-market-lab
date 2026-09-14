@@ -85,3 +85,20 @@ class BpsQuestionGuardTests(unittest.TestCase):
         item["period"] = "2026 YTD through 2026-08"
         with self.assertRaisesRegex(ValueError, "same year-to-date window"):
             question_sections(packet)
+
+    def test_metro_answer_uses_combined_counts(self):
+        from pipeline.prepare_market_brief import question_sections
+        root = Path(__file__).resolve().parents[1]
+        packet = json.loads((root / "public/data/facts/latest.json").read_text())
+        counties = [f for f in packet["facts"] if f["metric"] == "permits_ytd"]
+        metro = next(f for f in packet["facts"] if f["metric"] == "permits_metro_ytd")
+        self.assertEqual(metro["value"], sum(f["value"] for f in counties))
+        self.assertEqual(metro["prior_value"], sum(f["prior_value"] for f in counties))
+        self.assertAlmostEqual(metro["change"], metro["value"] / metro["prior_value"] - 1)
+        section = question_sections(packet)[1]
+        self.assertIn(f"{abs(metro['change']):.1%}", section["answer"])
+        self.assertEqual(len(section["evidence"]), 1)
+        self.assertNotIn("%", section["evidence"][0])
+        for change, expected in [(0.1, "Yes. LA metro YTD permits rose 10.0%."), (-0.1, "No. LA metro YTD permits fell 10.0%."), (0, "No. LA metro YTD permits changed 0.0%.")]:
+            metro["change"] = change
+            self.assertEqual(question_sections(packet)[1]["answer"], expected)

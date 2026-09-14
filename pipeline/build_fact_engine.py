@@ -235,7 +235,7 @@ def permit_facts(provisional_release: str, provisional_dir: Path, history_dir: P
         if not jurisdictions or prior == 0:
             continue
         change = now / prior - 1
-        output.append(fact(
+        county_fact = fact(
             fact_id=f"permits-{county.lower().replace(' ', '-')}-ytd", provider="U.S. Census Bureau Building Permits Survey",
             release=provisional_release, metric="permits_ytd", geography=county,
             period=f"{months[0]} through {months[-1]}", value=float(now), change=change,
@@ -244,7 +244,24 @@ def permit_facts(provisional_release: str, provisional_dir: Path, history_dir: P
             evidence=f"{now:,.0f} units were authorized, compared with {prior:,.0f} in the same months one year earlier.",
             caveat="Current-year observations are preliminary and may be revised or imputed; permits are authorizations, not starts or completions.",
             provisional=True
-        ))
+        )
+        county_fact["prior_value"] = float(prior)
+        output.append(county_fact)
+    if len(output) == 2:
+        now = sum(item["value"] for item in output)
+        prior = sum(item["prior_value"] for item in output)
+        metro = fact(
+            fact_id="permits-los-angeles-metro-ytd", provider="U.S. Census Bureau Building Permits Survey",
+            release=provisional_release, metric="permits_metro_ytd", geography="Los Angeles metro",
+            period=output[0]["period"], value=now, change=now / prior - 1,
+            comparison=output[0]["comparison"], breadth=1,
+            coverage="Matched permit jurisdictions in Los Angeles and Orange counties; sum of county counts, not an official BPS metro series",
+            evidence=f"{now:,.0f} units authorized YTD vs. {prior:,.0f} in the same months last year.",
+            caveat=output[0]["caveat"], provisional=True,
+        )
+        metro["prior_value"] = prior
+        metro["component_fact_ids"] = [item["id"] for item in output]
+        output.append(metro)
     return output
 
 

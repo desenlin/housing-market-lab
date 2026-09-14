@@ -63,14 +63,14 @@ def question_sections(packet: dict[str, Any]) -> list[dict[str, Any]]:
         f"{real_price['inflation_change_display']} over the same period. The implied inflation-adjusted change was "
         f"{real_price['change_display']}."
     )
-    if all(item["change"] > 0 for item in permits):
-        permit_lead = "Yes. Permitting rose in both counties."
-    elif all(item["change"] < 0 for item in permits):
-        permit_lead = "No. Permitting fell in both counties."
-    elif all(item["change"] == 0 for item in permits):
-        permit_lead = "No. Permitting was unchanged."
-    else:
-        permit_lead = "Permitting trends differ by county."
+    metro_permits = fact_by_metric(packet, "permits_metro_ytd")
+    if metro_permits["period"] != permits[0]["period"] or metro_permits["value"] != sum(item["value"] for item in permits):
+        raise ValueError("Metro permits must match the county counts and comparison window")
+    if metro_permits["provider"] != permits[0]["provider"] or not metro_permits["provisional"] or metro_permits["prior_value"] != sum(item["prior_value"] for item in permits):
+        raise ValueError("Metro permits must retain the BPS source and matched prior counts")
+    change = metro_permits["change"]
+    direction = "rose" if change > 0 else "fell" if change < 0 else "changed"
+    permit_answer = f"{'Yes' if change > 0 else 'No'}. LA metro YTD permits {direction} {abs(change):.1%}."
     inventory_answer = (
         f"{'Yes' if inventory['material'] else 'Not under the Lab’s 5% reporting threshold'}. "
         f"Los Angeles metro for-sale inventory changed {inventory['change_display']} from one year earlier."
@@ -95,12 +95,12 @@ def question_sections(packet: dict[str, Any]) -> list[dict[str, Any]]:
         },
         {
             "question": "Is residential permitting increasing?",
-            "answer": permit_lead,
-            "fact_ids": [item["id"] for item in permits],
+            "answer": permit_answer,
+            "fact_ids": [metro_permits["id"], *[item["id"] for item in permits]],
             "period_end": max(month_end(item["period"]) for item in permits),
             "observation_period": permits[0]["period"],
             "status": "preliminary",
-            "evidence": [f"{item['evidence']} Year-to-date change: {item['change_display']}." for item in permits],
+            "evidence": [f"Los Angeles metro: {metro_permits['evidence']}"],
             "sources": "U.S. Census Bureau Building Permits Survey",
             "caveat": permits[0]["caveat"],
         },

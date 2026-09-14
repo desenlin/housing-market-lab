@@ -18,7 +18,7 @@ Created by **[Desen Lin](https://desenlin.com/)**, California State University, 
 - Redfin months of supply, median days on market, sales above original list, price-drop share, and median sale price per square foot
 - Realtor.com monthly ZIP-level active and new listings, pending ratio, listing viewers relative to the U.S., and Market Hotness
 - Census Building Permits Survey annual history from 1980 and monthly place-level observations from 2022, with explicit preliminary and imputation status
-- Housing Supply adds a separate California HCD annual housing-delivery view: permitted and completed units, completions per 1,000 existing units, ADU contribution, housing types, and secondary affordability detail. A shared metric controls the trend, city ranking and map, with up to three selected jurisdictions.
+- California HCD annual housing-delivery measures: permitted and completed units, completions per 1,000 existing units, ADU contribution, housing types, and secondary affordability detail. A shared metric controls the trend, city ranking and map, with up to three selected jurisdictions.
 - A focused ACS five-year housing-context layer covering median household income, tenure, rent burden, household size, median age, and multifamily housing, with 90% margins of error
 - City/community structural comparisons between non-overlapping ACS five-year periods; overlapping annual vintages are intentionally omitted
 - Explicit source and reporting-window labels, with hover/focus definitions for market concepts
@@ -52,53 +52,55 @@ Definitions, transformations, boundary vintages, coverage rules, and provider ca
 
 ```mermaid
 flowchart TD
-  A[Zillow Research] --> C[Zillow pipeline]
-  B[Redfin Data Center] --> D[Redfin pipeline]
-  L[Realtor.com Research] --> M[Inventory pipeline]
-  L --> N[Hotness pipeline]
-  I[BLS CPI-U] --> J[CPI pipeline]
-  U[Census ACS] --> V[Annual context pipeline]
-  Q[Census BPS] --> R[Permit pipeline]
-  C --> E[Zillow release pointer]
-  D --> F[Redfin release pointer]
-  M --> O[Inventory release pointer]
-  N --> P[Hotness release pointer]
-  J --> K[CPI release pointer]
-  V --> W[ACS release pointer]
-  R --> S[Final history pointer]
-  R --> T[Open-year pointer]
-  E --> G[Static interactive site]
-  F --> G
-  O --> G
-  P --> G
-  K --> G
-  W --> G
-  S --> G
-  T --> G
-  G --> H[GitHub Pages and Sites]
+  M["Zillow, Redfin, Realtor.com, BLS CPI"] --> MP["Monthly pipelines and validation"]
+  MP --> MR["Independent market release pointers"]
+  B["Census BPS"] --> BP["Permit pipeline and validation"]
+  BP --> BR["Final history and open-year pointers"]
+  A["Census ACS"] --> AP["Annual context pipeline and validation"]
+  AP --> AR["ACS release pointer"]
+  H["California HCD APR"] --> HP["Annual delivery pipeline and validation"]
+  HP --> HR["HCD release pointer"]
+  MR --> UI["Static interactive site"]
+  BR --> UI
+  AR --> UI
+  HR --> UI
+  MR --> F["Deterministic market fact packet"]
+  BR --> F
+  F --> UI
+  F --> D["Monthly brief eligibility and draft review"]
+  HR --> HC["Annual supply review context"]
+  HC --> D
+  D --> R["Maintainer approval and archived brief"]
+  R --> UI
+  UI --> P["GitHub Pages"]
 ```
+
 
 Raw source files are temporary. Zillow releases live in `public/data/releases/<release-id>/`; Redfin and BLS CPI releases live independently in `public/data/redfin/releases/<release-id>/` and `public/data/cpi/releases/<release-id>/`. Realtor.com Inventory and Hotness use separate directories and pointers under `public/data/realtor/` because they can be published at different times. Census boundary geometry has its own pointer under `public/data/maps/`, so unchanged maps are not copied into every Zillow release. Building permits use `history` and `provisional` pointers under `public/data/permits/`, allowing final annual history and open monthly years to advance independently. Each pointer changes only after that source's schema, date, coverage, quality, and size checks succeed. The CPI pipeline reads BLS's official bulk time-series file first and uses the Public Data API only as a fallback, avoiding routine dependence on the API's unregistered daily quota.
 
 ACS follows a separate annual release-window review in December, January, and February. Processing stops after a lightweight vintage check when the published vintage remains current. When a new five-year vintage appears, the keyed Census API retrieves only 42 required estimate/MOE fields for California places and ZCTAs; the pipeline then retains only mapped Los Angeles and Orange County records. It publishes roughly 270 KB, reuses existing map geometry, keeps one rollback, and advances the non-overlapping comparison endpoint by five years. A free Census API key is stored only as the repository secret `CENSUS_API_KEY` and is never published.
 
+HCD also uses an independent annual release-window check, in July and October, with manual runs available. The updater checks source metadata and calculation/reference fingerprints before retrieving changed APR data, then publishes only selected Los Angeles and Orange County jurisdiction-year aggregates under `public/data/hcd/`. It reuses existing map geometry and retains one rollback release. Metadata-only changes do not trigger deployment; a validated content release requests a deployment-only Pages build. HCD rebuilds from the current APR snapshot and checks historical coverage loss before publishing. See [HCD methods](DATA_SOURCES.md#california-hcd-housing-delivery).
+
 Permit updates use only the latest cumulative West-region monthly file, publish roughly 80 KB of local observations when it changes, and leave the final-history bundle untouched. The 1980–present annual archive and fixed ACS housing-stock denominator are rebuilt only after a new final annual BPS file appears. This keeps the monthly review lightweight while preserving a complete auditable history.
 
 The Realtor.com pipeline first compares the upstream ETag or modification metadata with the last validated release. It streams the large national history only when the source changes, never saves that national file, and publishes only compact chart-ready observations for the two-county ZIP reference. Reported observations are retained when Realtor.com assigns its row-level quality flag; compact month-index lists carry those flags into charts, rankings, and maps without duplicating the series. Every provider keeps the current validated release and one rollback release.
 
-All local chart releases use a merge-forward history policy. If a provider later replaces a full-history download with a rolling window, dates absent from the new file are carried forward from the last validated compact extract. Dates still present in the provider file—including revisions and explicit missing values—follow the new release. County sharding keeps generated JSON objects below 1 MB, and a 25 MB working-tree budget prevents silent storage growth. See [Storage and historical continuity](STORAGE_DESIGN.md).
+Monthly market-series releases use a merge-forward history policy. If a provider later replaces a full-history download with a rolling window, dates absent from the new file are carried forward from the last validated compact extract. Dates still present in the provider file—including revisions and explicit missing values—follow the new release. County sharding keeps generated JSON objects below 1 MB, and a 25 MB working-tree budget prevents silent storage growth. See [Storage and historical continuity](STORAGE_DESIGN.md).
 
 Provider source families follow independent release-window checks so each validated release can advance when available. A failed provider download or validation does not replace that provider's prior working release or prevent another provider from updating.
 
 After a successful site and data validation, the separate **Prepare market brief for review** process evaluates the four recurring questions. It recommends a new edition only when at least two questions have newer observation periods than the latest approved archive, or when one newer question contains a material change, and the fact packet is not already represented there. When those gates pass, the process writes a deterministic candidate to a dedicated branch and opens or updates a draft pull request. It cannot merge the pull request or publish the edition; the maintainer's review and merge are the publication gate. It can also be started manually with an optional issue month. Its force option bypasses only the advancement rule—not duplicate-edition, reused-packet, or future-period safeguards.
+
+Housing Supply review rules: the brief's recurring construction question uses Census BPS monthly/YTD authorizations and opens the Permit activity lens. A separate HCD check verifies the annual payload against its release fingerprints, records city reporting coverage, and distinguishes first review, a new reporting year, revisions, and unchanged evidence. Its status appears in the workflow summary even when no monthly draft is recommended. HCD changes do not advance the monthly questions or publish an annual finding automatically. A candidate retains the HCD review context for comparison with the next approved edition; reviewers must separately verify and cite any HCD finding they add. Snapshots validated after the issue cutoff are ineligible for that issue. Historical briefs remain unchanged.
+
+The permitting brief reports a derived Los Angeles metro aggregate: matched-jurisdiction counts from Los Angeles and Orange counties are summed for the same year-to-date months in both years. Growth is computed from those sums, not averaged from county growth rates. This is not a separately published Census BPS metro series. The headline gives the percentage change; one evidence line gives current and prior counts, with the reporting window, coverage, and revision caveat retained in the evidence details. County facts remain available for auditing; historical editions retain their original wording.
 
 Repository settings must permit GitHub Actions to create pull requests. Reviewers should verify the evidence lines, observation periods, preliminary labels, source releases, and fact-packet fingerprint before merging. If the readiness gates do not pass, the workflow records “no draft recommended” in its run summary and makes no repository change.
 
 Provider releases do not need to arrive in the same order. If BLS CPI arrives before Zillow, the CPI pointer advances and waits for the next housing observation. If Zillow arrives first, nominal housing data advance immediately while real series stop at the latest month with an observation in both datasets. A later validated update extends the real series. CPI is never carried forward; the only derived exception is the documented October 2025 geometric interpolation between the adjacent official months.
 
 ## Local development
-
-HCD maintenance is independent of monthly providers. `python pipeline/update_hcd.py --pilot` validates county-filtered aggregates without publishing. `python pipeline/update_hcd.py` checks source metadata before retrieving changed data; `--force` rechecks unchanged metadata without bypassing validation. The **Check annual HCD housing delivery** workflow runs in July and October, or manually. After a validated release it explicitly requests a deployment-only Pages build: bot-token commits do not trigger push workflows. Metadata-only changes do not request deployment. See [HCD methods](DATA_SOURCES.md#california-hcd-housing-delivery).
 
 Requirements: Node 24+, Python 3.11+, and npm.
 
@@ -111,10 +113,13 @@ python pipeline/update_realtor.py
 python pipeline/update_cpi.py
 python pipeline/update_permits.py
 python pipeline/update_acs.py
+python pipeline/update_hcd.py
 npm run dev
 ```
 
 For repeated Zillow pipeline development, `--cache-dir .cache/zillow` reuses local downloads. The Redfin and Realtor.com pipelines stream national CSVs and retain only configured dates and two-county geographies; they never store full raw downloads. Routine ACS updates require `CENSUS_API_KEY`. The maintainer-only `--bootstrap-bulk` option can seed a release by streaming selected Census table files without retaining them, while routine ACS processing uses the much smaller API requests.
+
+For HCD development, `python pipeline/update_hcd.py --pilot` validates county-filtered aggregates without publishing. `--force` rechecks unchanged metadata without bypassing validation.
 
 Build and test:
 
@@ -145,5 +150,3 @@ The application's intended use is instruction and academic research. This purpos
 The original software code in this repository is licensed under the [MIT License](LICENSE). Original educational prose and project-authored explanatory material are licensed under [Creative Commons Attribution 4.0 International](LICENSE-CONTENT.md), unless otherwise noted. When reusing or adapting original project materials, credit Desen Lin and link to this repository. The [licensing map](LICENSES.md) explains which terms apply to each category of material.
 
 Third-party data, cartographic boundaries, map tiles, institutional names, and trademarks are excluded from both licenses. No rights to those materials are granted by this repository. Data provided by Zillow Group, Redfin, and Realtor.com® Economic Research. Map data © OpenStreetMap contributors. See [Third-party data, licensing, and attribution](THIRD_PARTY_DATA.md) before reusing any data files.
-
-Housing Supply review rules: the brief's recurring construction question uses Census BPS monthly/YTD authorizations and opens the Permit activity lens. A separate HCD check verifies the annual payload against its release fingerprints, records city reporting coverage, and distinguishes first review, a new reporting year, revisions, and unchanged evidence. Its status appears in the workflow summary even when no monthly draft is recommended. HCD changes do not advance the monthly questions or publish an annual finding automatically. A candidate retains the HCD review context for comparison with the next approved edition; reviewers must separately verify and cite any HCD finding they add. Snapshots validated after the issue cutoff are ineligible for that issue. Historical briefs remain unchanged.

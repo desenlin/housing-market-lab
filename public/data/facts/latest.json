@@ -31,10 +31,10 @@
     }
   },
   "summary": {
-    "candidates": 26,
-    "material": 5,
+    "candidates": 27,
+    "material": 6,
     "high_confidence": 10,
-    "review_required": 16
+    "review_required": 17
   },
   "facts": [
     {
@@ -58,7 +58,36 @@
       "coverage": "89 matched permit jurisdictions",
       "evidence": "17,045 units were authorized, compared with 11,384 in the same months one year earlier.",
       "caveat": "Current-year observations are preliminary and may be revised or imputed; permits are authorizations, not starts or completions.",
-      "provisional": true
+      "provisional": true,
+      "prior_value": 11384.0
+    },
+    {
+      "id": "permits-los-angeles-metro-ytd",
+      "domain": "Construction",
+      "provider": "U.S. Census Bureau Building Permits Survey",
+      "release": "2026-09-07-r170136",
+      "metric": "permits_metro_ytd",
+      "metric_label": "Housing units authorized",
+      "geography": "Los Angeles metro",
+      "period": "2026-01 through 2026-07",
+      "value": 21092.0,
+      "value_display": "21,092",
+      "change": 0.42754653130287656,
+      "change_display": "+42.8%",
+      "comparison": "Same months of 2025",
+      "direction": "increased",
+      "material": true,
+      "score": 96.0,
+      "confidence": "review",
+      "coverage": "Matched permit jurisdictions in Los Angeles and Orange counties; sum of county counts, not an official BPS metro series",
+      "evidence": "21,092 units authorized YTD vs. 14,775 in the same months last year.",
+      "caveat": "Current-year observations are preliminary and may be revised or imputed; permits are authorizations, not starts or completions.",
+      "provisional": true,
+      "prior_value": 14775.0,
+      "component_fact_ids": [
+        "permits-los-angeles-county-ytd",
+        "permits-orange-county-ytd"
+      ]
     },
     {
       "id": "derived-la-real-zhvi",
@@ -131,7 +160,8 @@
       "coverage": "35 matched permit jurisdictions",
       "evidence": "4,047 units were authorized, compared with 3,391 in the same months one year earlier.",
       "caveat": "Current-year observations are preliminary and may be revised or imputed; permits are authorizations, not starts or completions.",
-      "provisional": true
+      "provisional": true,
+      "prior_value": 3391.0
     },
     {
       "id": "redfin-los-angeles-county-median_sale_ppsf",
@@ -640,5 +670,5 @@
       "provisional": false
     }
   ],
-  "packet_sha256": "388c0332f33bb832266a4f9ae50f9bba1645e81891a1d41f831f5b7b08edc254"
+  "packet_sha256": "05c9fde93d8f84d89e795dcb90d19becb790c53d676c9d02ea0ce7bb4699086d"
 }

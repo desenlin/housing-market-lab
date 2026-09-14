@@ -88,12 +88,6 @@ function findFact(packet: FactPacket, metric: string) {
   return packet.facts.find((item) => item.metric === metric);
 }
 
-function permittingAnswer(facts: Fact[]) {
-  if (facts.every((fact) => fact.change > 0)) return "Yes. Permitting rose in both counties.";
-  if (facts.every((fact) => fact.change < 0)) return "No. Permitting fell in both counties.";
-  if (facts.every((fact) => fact.change === 0)) return "No. Permitting was unchanged.";
-  return "Permitting trends differ by county.";
-}
 
 function Standard({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return <div className="brief-standard"><span>{icon}</span><div><strong>{title}</strong><p>{children}</p></div></div>;
@@ -132,7 +126,7 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
     const realPrice = findFact(packet, "real_zhvi");
     const rent = findFact(packet, "zori");
     const inventory = findFact(packet, "inventory");
-    const permits = packet.facts.filter((item) => item.metric === "permits_ytd");
+    const permits = findFact(packet, "permits_metro_ytd");
     const output: BriefQuestion[] = [];
 
     if (realPrice) output.push({
@@ -141,11 +135,11 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
       answer: `No. Los Angeles metro home values changed ${realPrice.change_display} after adjusting for LA-area CPI-U.`,
       facts: [realPrice], destination: "local", linkLabel: "Explore prices and rents",
     });
-    if (permits.length) output.push({
+    if (permits) output.push({
       kicker: "Construction pipeline",
       question: "Is residential permitting increasing?",
-      answer: permittingAnswer(permits),
-      facts: permits, destination: "permits", linkLabel: "Explore Census permit activity",
+      answer: `${permits.change > 0 ? "Yes" : "No"}. LA metro YTD permits ${permits.change > 0 ? "rose" : permits.change < 0 ? "fell" : "changed"} ${permits.change_display.replace(/^[+-]/, "")}.`,
+      facts: [permits], destination: "permits", linkLabel: "Explore Census permit activity",
     });
     if (inventory) output.push({
       kicker: "Homes available for sale",
@@ -191,12 +185,12 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
               <p className="brief-answer">{item.answer}</p>
               <div className="brief-source-row"><span>{[...new Set(item.facts.map((fact) => fact.provider))].join(" · ")}</span></div>
               <div className="brief-evidence">
-                {item.facts.map((fact) => <p key={fact.id}><strong>{fact.geography}:</strong> {fact.evidence}{fact.metric === "permits_ytd" && ` Year-to-date change: ${fact.change_display}.`}</p>)}
+                {item.facts.map((fact) => <p key={fact.id}><strong>{fact.geography}:</strong> {fact.evidence}</p>)}
               </div>
               {[...new Set(item.facts.filter((fact) => fact.provisional && fact.caveat).map((fact) => fact.caveat))].map((caveat) => <p className="brief-archive-caveat" key={caveat}>{caveat}</p>)}
               <div className="brief-card-footer">
                 <Button variant="outline" onClick={() => onNavigate(item.destination)}>{item.linkLabel} <ArrowRight /></Button>
-                <details className="brief-audit"><summary>Evidence and limitations</summary>{item.facts.map((fact) => <div key={fact.id}><p>{fact.caveat}</p><span>{fact.period} · {fact.coverage}</span><code>{fact.release}</code></div>)}</details>
+                <details className="brief-audit"><summary>Evidence and limitations</summary>{item.facts.map((fact) => <div key={fact.id}>{fact.metric === "permits_ytd" && <p><strong>{fact.geography}:</strong> {fact.evidence} {fact.comparison}.</p>}<p>{fact.caveat}</p><span>{fact.period} · {fact.coverage}</span><code>{fact.release}</code></div>)}</details>
               </div>
             </CardContent>
           </Card>

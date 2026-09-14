@@ -23,6 +23,7 @@
     "pending_ratio": {"domain": "Liquidity", "label": "Pending-to-active ratio", "unit": "share", "change_mode": "percentage_point", "materiality": 0.08, "preferred_comparison": "yoy_absolute"},
     "cpi_la": {"domain": "Inflation", "label": "Los Angeles-area inflation", "unit": "index", "change_mode": "percent", "materiality": 0.02, "preferred_comparison": "yoy"},
     "real_zhvi": {"domain": "Prices", "label": "Inflation-adjusted home value", "unit": "usd", "change_mode": "percent", "materiality": 0.01, "preferred_comparison": "yoy"},
-    "permits_ytd": {"domain": "Construction", "label": "Housing units authorized", "unit": "units", "change_mode": "percent", "materiality": 0.1, "preferred_comparison": "ytd_yoy"}
+    "permits_ytd": {"domain": "Construction", "label": "Housing units authorized", "unit": "units", "change_mode": "percent", "materiality": 0.1, "preferred_comparison": "ytd_yoy"},
+    "permits_metro_ytd": {"domain": "Construction", "label": "Housing units authorized", "unit": "units", "change_mode": "percent", "materiality": 0.1, "preferred_comparison": "ytd_yoy"}
   }
 }
