@@ -319,6 +319,10 @@ function expandedSeries(series: Value[] | { o: number; v: Value[] } | undefined,
 
 function mergeDatasets(datasets: Dataset[]): Dataset | null {
   if (!datasets.length) return null;
+  const geography = datasets[0].geography;
+  if (datasets.some((dataset) => dataset.geography !== geography)) {
+    throw new Error("Dataset shards use incompatible geographies.");
+  }
   const metrics: Record<string, Metric> = {};
   const regions = new Map<string, Region>();
   datasets.forEach((dataset) => {
@@ -335,7 +339,7 @@ function mergeDatasets(datasets: Dataset[]): Dataset | null {
     });
   });
   return {
-    geography: "zip",
+    geography,
     metrics,
     regions: [...regions.values()].sort((a, b) =>
       `${a.county}-${a.name}`.localeCompare(`${b.county}-${b.name}`)),

@@ -77,6 +77,8 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /https:\/\/tile\.openstreetmap\.org/);
   assert.match(source, /Map color gradient/);
   assert.match(source, /useState<MapPaletteKey>\("orange"\)/);
+  assert.match(source, /const geography = datasets\[0\]\.geography;/);
+  assert.match(source, /datasets\.some\(\(dataset\) => dataset\.geography !== geography\)/);
   assert.match(source, /Orange and Los Angeles Counties/);
   assert.match(source, /Prices &amp; Rents/);
   assert.match(source, /Market Conditions/);
