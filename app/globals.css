@@ -651,12 +651,22 @@ footer p { margin: 0; }
 
 /* Delivery follows the shared controls, KPI, chart/ranking and map hierarchy. */
 .hcd-controls { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, .9fr); }
-.hcd-analysis-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(250px, .72fr); align-items: stretch; }
+.hcd-analysis-grid { grid-template-columns: minmax(0, 1.4fr) minmax(420px, 1fr); align-items: stretch; }
 .hcd-chart-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
 .hcd-chart-header [data-slot="card-title"] { font-size: 16px; }
 .hcd-ranking .ranking-list { max-height: 410px; }
-.hcd-ranking .permit-rank-row:disabled { opacity: .55; cursor: not-allowed; }
+.hcd-ranking .rank-row:disabled { opacity: 1; cursor: not-allowed; }
 .chips .chip > button { display: inline-flex; align-items: center; gap: 5px; }
-@media (max-width: 1200px) { .hcd-analysis-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .hcd-ranking { grid-column: 1 / -1; } }
+@media (max-width: 1000px) { .hcd-analysis-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 1000px) { .hcd-controls { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 640px) { .hcd-controls, .hcd-analysis-grid { grid-template-columns: minmax(0,1fr); } }
+
+.hcd-figure-control { flex-basis: 100%; max-width: 300px; margin-bottom: 4px; }
+.hcd-city-legend { display: flex; flex-wrap: wrap; list-style: none; gap: 8px 18px; padding: 0; margin: 0 0 12px; color: var(--detail-copy); font-size: 12px; }
+.hcd-city-legend li { display: inline-flex; gap: 6px; align-items: center; }
+.hcd-city-legend i { display: inline-block; width: 12px; height: 4px; flex-shrink: 0; }
+.hcd-ranking .rank-columns, .hcd-ranking .rank-row { grid-template-columns: 22px minmax(90px, 1fr) minmax(65px, .65fr) 86px; }
+.hcd-ranking .rank-columns { padding: 0 15px; margin-left: -24px; margin-right: -24px; }
+.hcd-ranking .rank-row > span:last-child { text-align: right; font-size: 11px; }
+.hcd-ranking .ranking-title { align-items: start; flex-wrap: wrap; }
+.hcd-rank-note { margin: 0 18px; color: var(--detail-copy); font-size: 12px; line-height: 1.5; }
