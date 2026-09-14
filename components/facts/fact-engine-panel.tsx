@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { AlertCircle, ArrowRight, CheckCircle2, Database, FlaskConical, Link2, ListChecks, ShieldCheck } from "lucide-react";
+import { AlertCircle, ArrowRight, Database, FlaskConical, Link2, ListChecks, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,16 +85,6 @@ function issueMonth(value: string) {
 
 function findFact(packet: FactPacket, metric: string) {
   return packet.facts.find((item) => item.metric === metric);
-}
-
-function EvidenceStatus({ facts }: { facts: Fact[] }) {
-  const requiresReview = facts.some((item) => item.confidence === "review");
-  return (
-    <span className={`brief-status ${requiresReview ? "review" : "checked"}`}>
-      {requiresReview ? <AlertCircle /> : <CheckCircle2 />}
-      {requiresReview ? "Preliminary—review required" : "Validated evidence"}
-    </span>
-  );
 }
 
 function Standard({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
@@ -191,10 +181,11 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
             </CardHeader>
             <CardContent>
               <p className="brief-answer">{item.answer}</p>
-              <div className="brief-source-row"><EvidenceStatus facts={item.facts} /><span>{[...new Set(item.facts.map((fact) => fact.provider))].join(" · ")}</span></div>
+              <div className="brief-source-row"><span>{[...new Set(item.facts.map((fact) => fact.provider))].join(" · ")}</span></div>
               <div className="brief-evidence">
                 {item.facts.map((fact) => <p key={fact.id}><strong>{fact.geography}:</strong> {fact.evidence}</p>)}
               </div>
+              {[...new Set(item.facts.filter((fact) => fact.provisional && fact.caveat).map((fact) => fact.caveat))].map((caveat) => <p className="brief-archive-caveat" key={caveat}>{caveat}</p>)}
               <div className="brief-card-footer">
                 <Button variant="outline" onClick={() => onNavigate(item.destination)}>{item.linkLabel} <ArrowRight /></Button>
                 <details className="brief-audit"><summary>Evidence and limitations</summary>{item.facts.map((fact) => <div key={fact.id}><p>{fact.caveat}</p><span>{fact.period} · {fact.coverage}</span><code>{fact.release}</code></div>)}</details>
@@ -238,7 +229,7 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
                   <div className="brief-archive-sections">
                     {brief.sections.map((section) => (
                       <article key={section.question}>
-                        <div className="brief-archive-question"><h3>{section.question}</h3><span className={`brief-status ${section.status === "preliminary" ? "review" : "checked"}`}>{section.status === "preliminary" ? "Preliminary" : "Validated"}</span></div>
+                        <div className="brief-archive-question"><h3>{section.question}</h3></div>
                         <p className="brief-answer">{section.answer}</p>
                         <div className="brief-evidence">{section.evidence.map((item) => <p key={item}>{item}</p>)}</div>
                         <p className="brief-archive-source">{section.observation_period} · {section.sources}</p>
