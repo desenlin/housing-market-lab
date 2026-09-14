@@ -400,11 +400,6 @@ export function PermitPanel({ mapData, onManifest }: { mapData: MapData; onManif
   const chartEndDate = dataset.dates.at(-1)!;
   return (
     <div className="permit-stack">
-      <section className="regional-intro permit-intro">
-        <div><p className="section-kicker">Housing production pipeline</p><h2>Where new homes are being authorized.</h2></div>
-        <p>Building permits are an early indicator of intended construction, not completed homes. Compare the structure mix and permitting intensity across 122 incorporated cities and two county unincorporated aggregates.</p>
-      </section>
-
       <section className="control-deck" aria-label="Building permit controls">
         <div className="source-strip">
           <span className="source-badge census">Source: U.S. Census Bureau BPS · {frequency === "annual" ? "Annual" : "Monthly"}</span>

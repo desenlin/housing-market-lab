@@ -624,3 +624,11 @@ footer p { margin: 0; }
   .fingerprint-list > div { grid-template-columns: 1fr; gap: 4px; }
   footer { padding: 20px 17px; }
 }
+
+/* Housing Supply uses the shared control styling and a clear view selector. */
+.hcd-controls { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, .7fr); }
+.hcd-controls .control-label, .comparison-row .control-label { min-width: 0; }
+.supply-view-tabs { border: 1px solid var(--border); padding: 5px; }
+.supply-view-tabs [role="tab"] { padding: 10px 20px; font-size: 14px; }
+.supply-view-tabs [data-state="active"] { background: var(--foreground); color: var(--background); }
+@media (max-width: 640px) { .hcd-controls { grid-template-columns: minmax(0, 1fr); } }
