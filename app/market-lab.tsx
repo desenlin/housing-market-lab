@@ -2689,7 +2689,7 @@ export default function MarketLab() {
         <TabsContent value="permits" className="space-y-5">
           <section className="regional-intro activity-intro">
             <div><p className="section-kicker">Housing production pipeline</p><h2>{supplyView === "activity" ? "Where new homes are being authorized." : "How much housing is reaching completion?"}</h2></div>
-            <p>{supplyView === "activity" ? "Building permits are an early indicator of intended construction, not completed homes. Compare permitting across cities and county unincorporated areas." : "Explore annual housing delivery in Los Angeles and Orange Counties. Compare up to two jurisdictions, including their housing types and ADU contribution."}</p>
+            <p>{supplyView === "activity" ? "Building permits are an early indicator of intended construction, not completed homes. Compare permitting across cities and county unincorporated areas." : "Explore annual housing delivery in Los Angeles and Orange Counties. Compare up to three jurisdictions, including their housing types and ADU contribution."}</p>
           </section>
           {supplyView === "activity" ? <PermitPanel
             mapData={maps.city}
@@ -2872,7 +2872,7 @@ export default function MarketLab() {
                 <div><dt>ACS housing context</dt><dd>{acsManifest ? `${acsManifest.periods[1]} five-year estimates` : "Unavailable"}<small>{acsManifest ? `Validated ${validationDate(acsManifest.created_at)}` : ""}</small></dd></div>
                 <div><dt>Final permit history</dt><dd>{permitManifests ? `Annual and monthly through ${shortDate(permitManifests.history.latest_final_month ?? `${permitManifests.history.latest_final_year}-12`)}` : "Loading…"}<small>{permitManifests ? `Validated ${validationDate(permitManifests.history.created_at)}` : ""}</small></dd></div>
                 <div><dt>Preliminary permits</dt><dd>{permitManifests?.provisional.latest_observation ? `Through ${shortDate(permitManifests.provisional.latest_observation)}` : "Loading…"}<small>{permitManifests ? `Validated ${validationDate(permitManifests.provisional.created_at)}` : ""}</small></dd></div>
-                <div><dt>HCD housing delivery</dt><dd>{hcdManifest ? `Annual through ${hcdManifest.latest_year}` : hcdManifestError ? "Unavailable" : "Loading…"}<small>{hcdManifest ? `Validated ${validationDate(hcdManifest.created_at)} · Source updated ${validationDate(hcdManifest.source.last_modified)}` : ""}</small></dd></div>
+                <div><dt>HCD housing delivery</dt><dd>{hcdManifest ? `Annual through ${hcdManifest.latest_year}` : hcdManifestError ? "Unavailable" : "Loading…"}<small>{hcdManifest ? `Validated ${validationDate(hcdManifest.created_at)}` : ""}</small></dd></div>
                 <div><dt>Geographic coverage</dt><dd>{manifest.counts.city} city/community · {manifest.counts.zip} ZIP · {manifest.counts.metro} metro · {permitManifests?.history.counts.jurisdictions ?? 124} permit jurisdictions</dd></div>
               </dl>
               <details className="provenance-technical">

@@ -648,3 +648,15 @@ footer p { margin: 0; }
 .hcd-controls .control-label > span, .permit-controls .control-label > span { display: flex; align-items: center; gap: 4px; }
 .hcd-figures > [data-slot="card"] { height: 100%; }
 .hcd-map-select { max-width: 440px; }
+
+/* Delivery follows the shared controls, KPI, chart/ranking and map hierarchy. */
+.hcd-controls { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, .9fr); }
+.hcd-analysis-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(250px, .72fr); align-items: stretch; }
+.hcd-chart-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.hcd-chart-header [data-slot="card-title"] { font-size: 16px; }
+.hcd-ranking .ranking-list { max-height: 410px; }
+.hcd-ranking .permit-rank-row:disabled { opacity: .55; cursor: not-allowed; }
+.chips .chip > button { display: inline-flex; align-items: center; gap: 5px; }
+@media (max-width: 1200px) { .hcd-analysis-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .hcd-ranking { grid-column: 1 / -1; } }
+@media (max-width: 1000px) { .hcd-controls { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 640px) { .hcd-controls, .hcd-analysis-grid { grid-template-columns: minmax(0,1fr); } }

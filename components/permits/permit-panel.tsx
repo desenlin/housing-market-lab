@@ -180,7 +180,7 @@ function LabelledSelect({ label, value, onChange, children }: {
 }) {
   return (
     <label className="control-label">
-      <span>{label}{CONTROL_DEFINITIONS[label] && <DefinitionHelp label={label} definition={CONTROL_DEFINITIONS[label]} />}</span>
+      <span>{label}{label !== "County" && CONTROL_DEFINITIONS[label] && <DefinitionHelp label={label} definition={CONTROL_DEFINITIONS[label]} />}</span>
       <NativeSelect value={value} onChange={(event) => onChange(event.target.value)}>{children}</NativeSelect>
     </label>
   );
@@ -190,7 +190,7 @@ export function PermitMap({ mapData, dataset, county, metric, dateIndex, selecte
   source?: "census-bps" | "hcd";
   title?: string;
   mapData: MapData;
-  dataset: { dates: string[]; metrics: Record<string, PermitMetric>; regions: Array<{ id: string; series: Record<string, Value[]> }> };
+  dataset: { dates: string[]; metrics: Record<string, PermitMetric>; regions: Array<{ id: string; name?: string; county?: string; series: Record<string, Value[]> }> };
   county: string;
   metric: string;
   dateIndex: number;
@@ -301,6 +301,9 @@ export function PermitMap({ mapData, dataset, county, metric, dateIndex, selecte
     if (L && mapRef.current) mapRef.current.fitBounds(L.latLngBounds(focusedMapBounds(county, shapes.bounds)), DEFAULT_MAP_FIT_OPTIONS);
   }
 
+  const selectedRegion = dataset.regions.find(r => r.id === selectedId);
+  const selectedValue = selectedRegion?.series[metric][dateIndex] ?? null;
+  const previousValue = dateIndex > 0 ? selectedRegion?.series[metric][dateIndex - 1] ?? null : null;
   const reported = values.filter((item) => item.region && item.value != null).length;
   const cdpCount = values.filter((item) => !item.region).length;
   return (
@@ -312,15 +315,17 @@ export function PermitMap({ mapData, dataset, county, metric, dateIndex, selecte
           <p><strong>{metricInfo.label}</strong><DefinitionHelp label={metricInfo.label} definition={metricInfo.definition} /> · {formatDate(dataset.dates[dateIndex])}</p>
         </div>
         <div className="map-tools">
-          <div className="map-palette" role="group" aria-label="Map color gradient"><span>Color</span>{(["navy", "orange"] as const).map(option => <button key={option} type="button" aria-pressed={palette === option} className={palette === option ? "active" : ""} onClick={() => setPalette(option)}>{option === "navy" ? "Navy" : "Orange"}</button>)}</div>
-          <button type="button" className="map-reset" onClick={resetMap}><RotateCcw /> Reset map</button>
-          <div className="map-legend">
-            <span className="map-legend-item map-legend-scale">{formatValue(low, metricInfo)}<i className="map-gradient" style={{ background: `linear-gradient(90deg, ${MAP_COLORS.join(",")})` }} />{formatValue(high, metricInfo)}</span>
-            <span className="map-legend-item"><i className="map-swatch" style={{ background: "var(--map-no-data)" }} />Not reported</span>
-            <span className="map-legend-item"><i className="map-swatch permit-cdp" />CDP · in unincorporated total</span>
+          <div className="map-actions"><div className="map-palette" role="group" aria-label="Map color gradient"><span>Color</span>{(["navy", "orange"] as const).map(option => <button key={option} type="button" aria-pressed={palette === option} className={palette === option ? "active" : ""} onClick={() => setPalette(option)}>{option === "navy" ? "Navy" : "Orange"}</button>)}</div>
+          <button type="button" className="map-reset" onClick={resetMap}><RotateCcw /> Reset map</button></div>
+          <div className="map-legend" role="list" aria-label="Map legend">
+            <span className="map-legend-item map-legend-scale" role="listitem"><span className="map-legend-label">{source === "hcd" ? "HCD" : "Census BPS"} data</span>{formatValue(low, metricInfo)}<i className="map-gradient" style={{ background: `linear-gradient(90deg, ${MAP_COLORS.join(",")})` }} />{formatValue(high, metricInfo)}</span>
+            <span className="map-legend-item"><i className="map-swatch" style={{ background: "var(--map-no-data)" }} />No {source === "hcd" ? "HCD" : "BPS"} data</span>
+            <span className="map-legend-item"><i className="map-swatch permit-cdp" />CDP · geographic context</span>
+            <span className="map-legend-item" role="listitem"><i className="map-swatch outside" />Outside place boundaries</span>
           </div>
         </div>
       </div>
+      {selectedRegion && <div className="map-selection" aria-live="polite"><strong>{selectedRegion.name ?? "Selected jurisdiction"}</strong><span>Housing jurisdiction · {selectedRegion.county}</span><span>{metricInfo.label}: {formatValue(selectedValue,metricInfo)}</span>{source === "hcd" && <span>Change from one year earlier: {selectedValue == null || previousValue == null ? "Not reported" : metricInfo.unit === "share" ? `${((selectedValue-previousValue)*100).toFixed(1)} pp` : metricInfo.unit === "rate" ? (selectedValue-previousValue).toFixed(1) : previousValue === 0 ? "Not available from a zero base" : `${((selectedValue/previousValue-1)*100).toFixed(1)}%`}</span>}</div>}
       <div ref={containerRef} className="leaflet-map" role="region" aria-label={`${source === "hcd" ? "Housing delivery" : "Building permits"} map for ${county}`} />
       <p className="map-coverage">{reported} incorporated-city boundaries report this observation. {cdpCount} Census-designated place boundaries are geographic context only and belong to the county unincorporated aggregate. Unshaded land outside place boundaries may also be part of that aggregate.</p>
       <FigureAttribution sources={metric === "units_per_1000_stock" ? [source, "census-acs"] : [source]} boundaries basemap />

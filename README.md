@@ -18,7 +18,7 @@ Created by **[Desen Lin](https://desenlin.com/)**, California State University, 
 - Redfin months of supply, median days on market, sales above original list, price-drop share, and median sale price per square foot
 - Realtor.com monthly ZIP-level active and new listings, pending ratio, listing viewers relative to the U.S., and Market Hotness
 - Census Building Permits Survey annual history from 1980 and monthly place-level observations from 2022, with explicit preliminary and imputation status
-- Housing Supply adds a separate California HCD annual housing-delivery view: permitted and completed units, three-year averages, completions per 1,000 existing units, ADU contribution, housing types, and secondary affordability detail.
+- Housing Supply adds a separate California HCD annual housing-delivery view: permitted and completed units, completions per 1,000 existing units, ADU contribution, housing types, and secondary affordability detail. A shared metric controls the trend, city ranking and map, with up to three selected jurisdictions.
 - A focused ACS five-year housing-context layer covering median household income, tenure, rent burden, household size, median age, and multifamily housing, with 90% margins of error
 - City/community structural comparisons between non-overlapping ACS five-year periods; overlapping annual vintages are intentionally omitted
 - Explicit source and reporting-window labels, with hover/focus definitions for market concepts
