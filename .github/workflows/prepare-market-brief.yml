@@ -17,6 +17,7 @@ on:
     types: [completed]
 
 permissions:
+  actions: read
   contents: write
   pull-requests: write
 
@@ -30,11 +31,30 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Check out the current main branch
+      - name: Check out repository history
         uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
+
+      - name: Download the validated Pages revision
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v8
+        with:
+          name: validated-site-ref
+          path: ${{ runner.temp }}/validated-site-ref
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Use the exact validated site state
+        if: github.event_name == 'workflow_run'
+        run: |
+          validated_sha="$(tr -d '[:space:]' < "$RUNNER_TEMP/validated-site-ref/validated-site-sha.txt")"
+          if ! [[ "$validated_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "The Pages revision artifact did not contain a valid commit SHA." >&2
+            exit 1
+          fi
+          git checkout --detach "$validated_sha"
 
       - name: Set up Python
         uses: actions/setup-python@v6

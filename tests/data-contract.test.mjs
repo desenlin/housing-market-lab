@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -243,4 +244,59 @@ test("ACS pointer resolves to compact current and non-overlapping context data",
   assert.ok(zip92831);
   assert.equal(zip92831.series.median_household_income[0], null);
   assert.ok(Number.isFinite(zip92831.series.median_household_income[1]));
+});
+
+test("HCD pointer resolves to a complete, internally consistent annual release", async () => {
+  const pointer = await readJson("hcd/latest.json");
+  const prefix = `hcd/releases/${pointer.release}/`;
+  const payload = await readFile(new URL(`${prefix}annual.json`, root));
+  const [manifest, annual] = await Promise.all([
+    readJson(`${prefix}manifest.json`),
+    JSON.parse(payload.toString("utf8")),
+  ]);
+  const digest = createHash("sha256").update(payload).digest("hex");
+
+  assert.equal(manifest.provider, "California HCD");
+  assert.equal(manifest.release, pointer.release);
+  assert.equal(digest, pointer.bundle_sha256);
+  assert.equal(digest, manifest.bundle_sha256);
+  assert.deepEqual(manifest.files.annual, ["annual.json"]);
+  assert.ok(payload.byteLength < 1_000_000);
+  assert.equal(annual.schema_version, 1);
+  assert.equal(annual.years.at(-1), manifest.latest_year);
+  assert.deepEqual(
+    annual.years,
+    Array.from({ length: manifest.latest_year - 2017 }, (_, index) => 2018 + index),
+  );
+  assert.equal(annual.regions.length, 124);
+  assert.equal(new Set(annual.regions.map((region) => region.id)).size, 124);
+  assert.deepEqual([...new Set(annual.regions.map((region) => region.county))].sort(), [
+    "Los Angeles County",
+    "Orange County",
+  ]);
+  assert.deepEqual([...new Set(annual.regions.map((region) => region.jurisdiction_type))].sort(), [
+    "county_unincorporated",
+    "incorporated_city",
+  ]);
+  assert.deepEqual(Object.keys(annual.types).sort(), ["2-4", "5+", "ADU", "MH", "Other", "SFA", "SFD"]);
+  assert.equal(annual.income_fields.length, 11);
+  assert.deepEqual(annual.audit, manifest.audit);
+
+  for (const region of annual.regions) {
+    assert.equal(region.annual.length, annual.years.length);
+    assert.ok(Number.isFinite(region.housing_stock) && region.housing_stock > 0);
+    for (const cell of region.annual) {
+      if (cell == null) continue;
+      assert.ok(Number.isInteger(cell.records) && cell.records >= 0);
+      for (const stage of [cell.permits, cell.completions]) {
+        assert.ok(stage.total == null || (Number.isInteger(stage.total) && stage.total >= 0));
+        assert.deepEqual(Object.keys(stage.types).sort(), Object.keys(annual.types).sort());
+        assert.ok(Object.values(stage.types).every((value) => Number.isInteger(value) && value >= 0));
+        assert.ok(stage.income == null || (
+          stage.income.length === annual.income_fields.length
+          && stage.income.every((value) => Number.isInteger(value) && value >= 0)
+        ));
+      }
+    }
+  }
 });

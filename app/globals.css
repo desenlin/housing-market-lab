@@ -368,7 +368,7 @@ button, select { font: inherit; }
 .brief-archive-question h3 { margin: 0; color: var(--detail-heading); font-family: Georgia, serif; font-size: 17px; line-height: 1.3; }
 .brief-archive-question .brief-status { flex: 0 0 auto; }
 .brief-archive-sections .brief-answer { min-height: 0; font-size: 14px; }
-.brief-archive-source, .brief-archive-caveat { margin: 0; color: var(--detail-copy); font-size: 10px; line-height: 1.5; }
+.brief-archive-source, .brief-archive-coverage, .brief-archive-caveat { margin: 0; color: var(--detail-copy); font-size: 10px; line-height: 1.5; }
 .brief-archive-source { font-weight: 750; }
 .brief-archive-audit { justify-self: start; }
 .brief-archive-audit > code { display: block; margin-top: 10px; overflow-wrap: anywhere; }

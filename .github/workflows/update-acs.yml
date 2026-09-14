@@ -9,9 +9,11 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
-  group: acs-release
+  # Serialize with Pages and HCD, which can also commit public data.
+  group: pages
   cancel-in-progress: false
 
 jobs:
@@ -37,8 +39,14 @@ jobs:
           python -m unittest tests.test_acs_pipeline
           python scripts/check_storage.py
 
-      - name: Commit a new validated ACS release
+      - name: Commit a new validated ACS release and deploy it
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          release_changed=false
+          if ! git diff --quiet -- public/data/acs/latest.json; then
+            release_changed=true
+          fi
           if git status --porcelain -- public/data/acs config/acs_sources.json | grep -q .; then
             git config user.name "housing-market-lab[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -47,4 +55,11 @@ jobs:
             git push
           else
             echo "The published ACS vintage is still current; nothing was rebuilt."
+          fi
+          if [ "$release_changed" = "true" ]; then
+            # GITHUB_TOKEN pushes do not trigger push workflows. Dispatch explicitly.
+            gh workflow run pages.yml --ref main -f deploy_only=true
+            echo "Published a new ACS release and requested deployment." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No ACS release change; no deployment requested." >> "$GITHUB_STEP_SUMMARY"
           fi

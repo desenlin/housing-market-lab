@@ -16,6 +16,15 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATA_ROOT = ROOT / "public" / "data"
 CONFIG = json.loads((ROOT / "config" / "fact_engine.json").read_text())
+QUESTION_ALIASES = {
+    "Are asking rents accelerating?": "How fast are asking rents changing?",
+}
+QUESTION_TOPICS = {
+    "Are home values keeping pace with local inflation?": "inflation-adjusted home values",
+    "Is residential permitting increasing?": "residential permitting",
+    "Has metropolitan inventory shifted materially?": "for-sale inventory",
+    "How fast are asking rents changing?": "asking rents",
+}
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -36,6 +45,34 @@ def fact_by_metric(packet: dict[str, Any], metric: str) -> dict[str, Any]:
     if len(matches) != 1:
         raise ValueError(f"Expected one {metric} fact; found {len(matches)}")
     return matches[0]
+
+
+def question_key(question: str) -> str:
+    """Map retired wording to the continuing recurring question."""
+    return QUESTION_ALIASES.get(question, question)
+
+
+def natural_join(items: list[str]) -> str:
+    if len(items) < 2:
+        return items[0] if items else "the latest housing indicators"
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+    return f"{', '.join(items[:-1])}, and {items[-1]}"
+
+
+def brief_headline_and_summary(
+    sections: list[dict[str, Any]], advanced_questions: list[str]
+) -> tuple[str, str]:
+    """Describe only the evidence that qualified this edition for review."""
+    if not advanced_questions:
+        return (
+            "Review of recurring Los Angeles housing indicators",
+            "A maintainer-requested review of inflation-adjusted home values, residential permitting, "
+            "for-sale inventory, and asking rents.",
+        )
+    selected = [item for item in sections if item["question"] in advanced_questions]
+    topics = [QUESTION_TOPICS[item["question"]] for item in selected]
+    return f"New evidence on {natural_join(topics)}", " ".join(item["answer"] for item in selected)
 
 
 def question_sections(packet: dict[str, Any]) -> list[dict[str, Any]]:
@@ -69,61 +106,73 @@ def question_sections(packet: dict[str, Any]) -> list[dict[str, Any]]:
     if metro_permits["provider"] != permits[0]["provider"] or not metro_permits["provisional"] or metro_permits["prior_value"] != sum(item["prior_value"] for item in permits):
         raise ValueError("Metro permits must retain the BPS source and matched prior counts")
     change = metro_permits["change"]
-    direction = "rose" if change > 0 else "fell" if change < 0 else "changed"
-    permit_answer = f"{'Yes' if change > 0 else 'No'}. LA metro YTD permits {direction} {abs(change):.1%}."
+    if change > 0:
+        permit_answer = f"Yes. Los Angeles metro YTD permits rose {change:.1%}."
+    elif change < 0:
+        permit_answer = f"No. Los Angeles metro YTD permits fell {abs(change):.1%}."
+    else:
+        permit_answer = "No. Los Angeles metro YTD permits were unchanged at 0.0%."
     inventory_answer = (
         f"{'Yes' if inventory['material'] else 'Not under the Lab’s 5% reporting threshold'}. "
         f"Los Angeles metro for-sale inventory changed {inventory['change_display']} from one year earlier."
     )
     rent_answer = (
-        f"Typical asking rent changed {rent['change_display']} from one year earlier."
+        f"Los Angeles metro typical asking rent changed {rent['change_display']} from one year earlier."
         if rent["material"]
-        else f"No material acceleration was detected. Typical asking rent changed {rent['change_display']} from one year earlier."
+        else f"Below the Lab’s 1.5% reporting threshold. Los Angeles metro typical asking rent changed {rent['change_display']} from one year earlier."
     )
 
     return [
         {
             "question": "Are home values keeping pace with local inflation?",
             "answer": price_answer,
-            "fact_ids": [real_price["id"], nominal_price["id"]],
+            "trigger_fact_id": real_price["id"],
+            "fact_ids": [real_price["id"], nominal_price["id"], inflation["id"]],
             "period_end": month_end(real_price["period"]),
             "observation_period": datetime.fromisoformat(month_end(real_price["period"])).strftime("%B %Y"),
             "status": "validated",
             "evidence": [real_price["evidence"], nominal_price["evidence"]],
             "sources": "Zillow Research + U.S. Bureau of Labor Statistics",
+            "coverage": real_price["coverage"],
             "caveat": f"{real_price['caveat']} {inflation['caveat']}",
         },
         {
             "question": "Is residential permitting increasing?",
             "answer": permit_answer,
+            "trigger_fact_id": metro_permits["id"],
             "fact_ids": [metro_permits["id"], *[item["id"] for item in permits]],
             "period_end": max(month_end(item["period"]) for item in permits),
             "observation_period": permits[0]["period"],
             "status": "preliminary",
             "evidence": [f"Los Angeles metro: {metro_permits['evidence']}"],
             "sources": "U.S. Census Bureau Building Permits Survey",
+            "coverage": metro_permits["coverage"],
             "caveat": permits[0]["caveat"],
         },
         {
             "question": "Has metropolitan inventory shifted materially?",
             "answer": inventory_answer,
+            "trigger_fact_id": inventory["id"],
             "fact_ids": [inventory["id"]],
             "period_end": month_end(inventory["period"]),
             "observation_period": datetime.fromisoformat(month_end(inventory["period"])).strftime("%B %Y"),
             "status": "validated",
             "evidence": [inventory["evidence"]],
             "sources": "Zillow Research",
+            "coverage": inventory["coverage"],
             "caveat": inventory["caveat"],
         },
         {
-            "question": "Are asking rents accelerating?",
+            "question": "How fast are asking rents changing?",
             "answer": rent_answer,
+            "trigger_fact_id": rent["id"],
             "fact_ids": [rent["id"]],
             "period_end": month_end(rent["period"]),
             "observation_period": datetime.fromisoformat(month_end(rent["period"])).strftime("%B %Y"),
             "status": "validated",
             "evidence": [rent["evidence"]],
             "sources": "Zillow Research",
+            "coverage": rent["coverage"],
             "caveat": rent["caveat"],
         },
     ]
@@ -230,16 +279,19 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
     latest = read_json(archive_dir / latest_entry["path"]) if latest_entry else None
     sections = question_sections(packet)
     supply_review = housing_supply_review(data_root, latest, issue_month)
-    prior_periods = {item["question"]: item["period_end"] for item in latest["sections"]} if latest else {}
+    prior_periods = {
+        question_key(item["question"]): item["period_end"]
+        for item in latest["sections"]
+    } if latest else {}
     advanced = [
         item["question"] for item in sections
-        if item["period_end"] > prior_periods.get(item["question"], "0000-00-00")
+        if item["period_end"] > prior_periods.get(question_key(item["question"]), "0000-00-00")
     ]
     facts_by_id = {item["id"]: item for item in packet["facts"]}
     advanced_material = [
         item["question"] for item in sections
         if item["question"] in advanced
-        and any(facts_by_id[fact_id]["material"] for fact_id in item["fact_ids"])
+        and facts_by_id[item["trigger_fact_id"]]["material"]
     ]
     minimum = int(CONFIG["brief_archive"]["minimum_advanced_questions"])
     single_material_allowed = bool(CONFIG["brief_archive"]["allow_single_material_question"])
@@ -273,17 +325,16 @@ def prepare(args: argparse.Namespace) -> dict[str, Any]:
 
     archive_dir.mkdir(parents=True, exist_ok=True)
     issue_label = datetime.strptime(issue_month, "%Y-%m").strftime("%B %Y")
-    price = sections[0]
-    permits = sections[1]
+    headline, summary = brief_headline_and_summary(sections, advanced)
     brief = {
-        "schema_version": 1,
+        "schema_version": 2,
         "status": "published",
         "issue_month": issue_month,
         "observation_cutoff": max(item["period_end"] for item in sections),
         "prepared_at": today.isoformat(),
         "title": f"{issue_label} Housing Market Brief",
-        "headline": "Home values after inflation and the residential construction pipeline",
-        "summary": f"The latest eligible observations show that {price['answer'][0].lower() + price['answer'][1:]} {permits['answer']}",
+        "headline": headline,
+        "summary": summary,
         "reconstruction_note": "Prepared from the Lab’s validated fact packet. Each finding retains its observation period and source release; later provider revisions do not silently alter this archived edition.",
         "source_packet_sha256": packet["packet_sha256"],
         "source_releases": source_releases(packet),

@@ -30,6 +30,10 @@ test("routine release checks include Zillow and keep provider results in the run
   assert.match(workflow, /--summary "\$GITHUB_STEP_SUMMARY"/);
   assert.doesNotMatch(workflow, /gh issue comment/);
   assert.doesNotMatch(workflow, /data_report_ready|data_report_b64|report_b64/);
+  assert.match(workflow, /name: validated-site-ref/);
+  assert.match(workflow, /git rev-parse HEAD > "\$RUNNER_TEMP\/validated-site-sha\.txt"/);
+  assert.match(workflow, /actions\/configure-pages@v6/);
+  assert.match(workflow, /--site-url "https:\/\/desenlin\.com\/housing-market-lab\/"/);
 });
 
 test("ACS uses a separate low-frequency change-detecting workflow", async () => {
@@ -41,6 +45,30 @@ test("ACS uses a separate low-frequency change-detecting workflow", async () => 
   assert.match(workflow, /python pipeline\/update_acs\.py/);
   assert.match(workflow, /CENSUS_API_KEY/);
   assert.match(workflow, /public\/data\/acs config\/acs_sources\.json/);
+  assert.match(workflow, /group: pages/);
+  assert.match(workflow, /actions: write/);
+  assert.match(workflow, /gh workflow run pages\.yml --ref main -f deploy_only=true/);
   assert.doesNotMatch(workflow, /update_data\.py/);
   assert.doesNotMatch(workflow, /update_redfin\.py/);
+});
+
+test("annual data workflows serialize commits and explicitly deploy changed releases", async () => {
+  const workflow = await readFile(
+    new URL("../.github/workflows/update-hcd.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(workflow, /group: pages/);
+  assert.match(workflow, /actions: write/);
+  assert.match(workflow, /gh workflow run pages\.yml --ref main -f deploy_only=true/);
+});
+
+test("market brief automation evaluates the exact successful Pages revision", async () => {
+  const workflow = await readFile(
+    new URL("../.github/workflows/prepare-market-brief.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(workflow, /actions: read/);
+  assert.match(workflow, /actions\/download-artifact@v8/);
+  assert.match(workflow, /run-id: \$\{\{ github\.event\.workflow_run\.id \}\}/);
+  assert.match(workflow, /git checkout --detach "\$validated_sha"/);
 });

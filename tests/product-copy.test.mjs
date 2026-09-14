@@ -1,9 +1,24 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
 const readProjectFile = (path) =>
   readFile(new URL(`../${path}`, import.meta.url), "utf8");
+
+test("keeps generated client JavaScript chunks below the review threshold", async () => {
+  const manifest = JSON.parse(await readProjectFile("dist/client/.vite/manifest.json"));
+  const chunks = [...new Set(
+    Object.values(manifest)
+      .map((entry) => entry.file)
+      .filter((file) => file?.endsWith(".js")),
+  )];
+  const sizes = await Promise.all(chunks.map(async (file) => ({
+    file,
+    bytes: (await stat(new URL(`../dist/client/${file}`, import.meta.url))).size,
+  })));
+  const largest = sizes.sort((left, right) => right.bytes - left.bytes)[0];
+  assert.ok(largest.bytes < 500_000, `${largest.file} is ${largest.bytes.toLocaleString()} bytes`);
+});
 
 test("provides a persistent light and dark theme control", async () => {
   const layout = await readProjectFile("app/layout.tsx");
@@ -181,7 +196,10 @@ test("market brief prioritizes questions, quality controls, and direct evidence"
   assert.match(source, /Are home values keeping pace with local inflation\?/);
   assert.match(source, /Is residential permitting increasing\?/);
   assert.match(source, /Has metropolitan inventory shifted materially\?/);
-  assert.match(source, /Are asking rents accelerating\?/);
+  assert.match(source, /How fast are asking rents changing\?/);
+  assert.match(source, /Current evidence snapshot/);
+  assert.match(source, /becomes an approved market brief only after maintainer review/i);
+  assert.match(source, /yesNo\(realPrice\.change\)/);
   assert.match(source, /Release-aware quality control/);
   assert.match(source, /Questions before variables/);
   assert.match(source, /Direct evidentiary support/);
@@ -203,13 +221,34 @@ test("market brief prioritizes questions, quality controls, and direct evidence"
 
 test("market brief automation remains review gated", async () => {
   const workflow = await readProjectFile(".github/workflows/prepare-market-brief.yml");
+  const pages = await readProjectFile(".github/workflows/pages.yml");
+  const acs = await readProjectFile(".github/workflows/update-acs.yml");
   const generator = await readProjectFile("pipeline/prepare_market_brief.py");
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /workflow_run:/);
   assert.match(workflow, /gh pr create --draft/);
   assert.doesNotMatch(workflow, /gh pr merge/);
+  assert.match(workflow, /actions\/download-artifact@v8/);
+  assert.match(workflow, /validated-site-sha\.txt/);
+  assert.match(pages, /actions\/upload-artifact@v7/);
+  assert.match(pages, /actions\/configure-pages@v6/);
+  assert.match(acs, /group: pages/);
+  assert.match(acs, /gh workflow run pages\.yml --ref main -f deploy_only=true/);
   assert.match(generator, /minimum_advanced_questions/);
+  assert.match(generator, /trigger_fact_id/);
   assert.match(generator, /No causal claim or forecast has been introduced/);
+});
+
+test("methods distinguish coverage families and disclose editorial thresholds", async () => {
+  const source = await readProjectFile("app/market-lab.tsx");
+  assert.match(source, /<dt>Mapped geography<\/dt>/);
+  assert.match(source, /<dt>Zillow observation coverage<\/dt>/);
+  assert.match(source, /<dt>ACS observation coverage<\/dt>/);
+  assert.match(source, /<dt>Permit-jurisdiction coverage<\/dt>/);
+  assert.match(source, /<MethodCard title="Market-brief reporting rules">/);
+  assert.match(source, /fixed thresholds are editorial filters/i);
+  assert.match(source, /not confidence intervals, hypothesis tests, or evidence of causality/i);
+  assert.ok(source.indexOf('<MethodCard title="Building permits">') < source.indexOf("<HcdMethods />"));
 });
 
 test("repository front page separates project licenses from third-party terms", async () => {

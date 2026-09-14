@@ -64,7 +64,7 @@ class DataUpdateReportTests(unittest.TestCase):
                 "release": "release-1",
             }],
             "https://github.com/desenlin/housing-market-lab/actions/runs/1",
-            "https://desenlin.github.io/housing-market-lab/",
+            "https://desenlin.com/housing-market-lab/",
         )
         self.assertIn("Data update summary", report)
         self.assertIn("completed successfully", report)

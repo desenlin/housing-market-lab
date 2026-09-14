@@ -131,7 +131,7 @@ def breadth_facts(family: str, provider: str, release: str, release_dir: Path,
             dates = data["metrics"][key]["dates"]
             changes: list[float] = []
             current: list[float] = []
-            eligible = 0
+            paired = 0
             for region in data["regions"]:
                 values = region["series"].get(key, [])
                 if len(values) < 13:
@@ -142,7 +142,7 @@ def breadth_facts(family: str, provider: str, release: str, release_dir: Path,
                 # Realtor quality arrays contain provider-flagged observation indexes.
                 if family.startswith("realtor") and i in region.get("quality", {}).get("inventory", []):
                     continue
-                eligible += 1
+                paired += 1
                 delta = metric_change(float(values[i]), float(values[i - 12]), spec["change_mode"])
                 if delta is not None and math.isfinite(delta):
                     changes.append(delta)
@@ -152,8 +152,15 @@ def breadth_facts(family: str, provider: str, release: str, release_dir: Path,
                 continue
             med = median(changes)
             positive = sum(change > 0 for change in changes)
-            breadth = max(positive, len(changes) - positive) / len(changes)
-            direction_word = "increases" if positive >= len(changes) / 2 else "decreases"
+            negative = sum(change < 0 for change in changes)
+            unchanged = len(changes) - positive - negative
+            breadth = max(positive, negative, unchanged) / len(changes)
+            coverage = f"{len(changes)} of {total} local markets had calculable year-over-year changes"
+            uncalculable = paired - len(changes)
+            if uncalculable:
+                market_word = "market" if uncalculable == 1 else "markets"
+                coverage += f"; {uncalculable} additional {market_word} had paired observations but no calculable change"
+            unchanged_verb = "was" if unchanged == 1 else "were"
             caveat = "Unweighted median across covered local markets; it is not a county aggregate."
             if family.startswith("redfin"):
                 caveat = "Unweighted median across covered cities using Redfin rolling three-month estimates; it is not a county aggregate."
@@ -161,8 +168,10 @@ def breadth_facts(family: str, provider: str, release: str, release_dir: Path,
                 fact_id=f"{prefix}-{county.lower().replace(' ', '-')}-{key}", provider=provider,
                 release=release, metric=key, geography=county, period=dates[-1],
                 value=median(current), change=med, comparison="Median local change from one year earlier",
-                breadth=breadth, coverage=f"{eligible} of {total} local markets eligible",
-                evidence=f"The median local change was {fmt(med, spec['unit'], True, spec['change_mode'])}; {max(positive, len(changes)-positive)} of {len(changes)} eligible markets recorded {direction_word}.",
+                breadth=breadth, coverage=coverage,
+                evidence=(f"The median local change was {fmt(med, spec['unit'], True, spec['change_mode'])}; "
+                          f"among {len(changes)} markets with calculable changes, {positive} increased, "
+                          f"{negative} decreased, and {unchanged} {unchanged_verb} unchanged."),
                 caveat=caveat
             ))
     return output

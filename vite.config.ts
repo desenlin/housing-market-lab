@@ -52,6 +52,22 @@ export default defineConfig(async () => {
         ? { watch: { useFsEvents: false, usePolling: true } }
         : {}),
     },
+    build: {
+      rolldownOptions: {
+        output: {
+          strictExecutionOrder: true,
+          codeSplitting: {
+            minSize: 20_000,
+            maxSize: 350_000,
+            groups: [
+              { name: "charts", test: /node_modules[\\/]recharts/, priority: 20 },
+              { name: "charts-vendor", test: /node_modules[\\/](d3-|internmap|victory-vendor)/, priority: 15 },
+              { name: "icons", test: /node_modules[\\/]lucide-react/, priority: 10 },
+            ],
+          },
+        },
+      },
+    },
     plugins: [
       vinext(),
       sites(),

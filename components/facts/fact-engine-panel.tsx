@@ -66,12 +66,14 @@ type ArchivedBrief = Omit<ArchiveEntry, "path"> & {
   sections: Array<{
     question: string;
     answer: string;
+    trigger_fact_id?: string;
     fact_ids: string[];
     period_end: string;
     observation_period: string;
     status: "validated" | "preliminary";
     evidence: string[];
     sources: string;
+    coverage?: string;
     caveat: string;
   }>;
 };
@@ -88,6 +90,9 @@ function findFact(packet: FactPacket, metric: string) {
   return packet.facts.find((item) => item.metric === metric);
 }
 
+function yesNo(change: number) {
+  return change >= 0 ? "Yes" : "No";
+}
 
 function Standard({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return <div className="brief-standard"><span>{icon}</span><div><strong>{title}</strong><p>{children}</p></div></div>;
@@ -132,13 +137,13 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
     if (realPrice) output.push({
       kicker: "Prices after inflation",
       question: "Are home values keeping pace with local inflation?",
-      answer: `No. Los Angeles metro home values changed ${realPrice.change_display} after adjusting for LA-area CPI-U.`,
+      answer: `${yesNo(realPrice.change)}. Los Angeles metro home values changed ${realPrice.change_display} after adjusting for LA-area CPI-U.`,
       facts: [realPrice], destination: "local", linkLabel: "Explore prices and rents",
     });
     if (permits) output.push({
       kicker: "Construction pipeline",
       question: "Is residential permitting increasing?",
-      answer: `${permits.change > 0 ? "Yes" : "No"}. LA metro YTD permits ${permits.change > 0 ? "rose" : permits.change < 0 ? "fell" : "changed"} ${permits.change_display.replace(/^[+-]/, "")}.`,
+      answer: `${permits.change > 0 ? "Yes" : "No"}. Los Angeles metro YTD permits ${permits.change > 0 ? "rose" : permits.change < 0 ? "fell" : "were unchanged at"} ${permits.change_display.replace(/^[+-]/, "")}.`,
       facts: [permits], destination: "permits", linkLabel: "Explore Census permit activity",
     });
     if (inventory) output.push({
@@ -151,10 +156,10 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
     });
     if (rent) output.push({
       kicker: "Asking rents",
-      question: "Are asking rents accelerating?",
+      question: "How fast are asking rents changing?",
       answer: rent.material
-        ? `Typical asking rent changed ${rent.change_display} from one year earlier.`
-        : `No material acceleration is detected. Typical asking rent changed ${rent.change_display} from one year earlier.`,
+        ? `Los Angeles metro typical asking rent changed ${rent.change_display} from one year earlier.`
+        : `Below the Lab’s 1.5% reporting threshold. Los Angeles metro typical asking rent changed ${rent.change_display} from one year earlier.`,
       facts: [rent], destination: "local", linkLabel: "Explore rent trends",
     });
     return output;
@@ -167,11 +172,11 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
     <div className="market-brief-stack">
       <section className="market-brief-header">
         <div>
-          <p className="section-kicker">Latest market brief</p>
+          <p className="section-kicker">Current evidence snapshot</p>
           <h2>What do the newest releases say about the market?</h2>
           <p className="brief-date">Evidence available as of {generatedDate(packet.generated_at)}</p>
         </div>
-        <p>This brief answers a small set of recurring market questions. It reports material changes, identifies when the evidence is preliminary, and links every conclusion to the underlying data.</p>
+        <p>This automatic, deterministic snapshot answers a small set of recurring market questions. It reports current changes, flags movements that cross the Lab’s editorial thresholds, identifies preliminary evidence, and links every conclusion to the underlying data. It becomes an approved market brief only after maintainer review and archival publication.</p>
       </section>
 
       <section className="brief-question-grid" aria-label="Current market questions">
@@ -200,7 +205,7 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
         <CardHeader><p className="section-kicker">Why this brief is different</p><CardTitle>Evidence is checked before prose is written.</CardTitle></CardHeader>
         <CardContent className="brief-standards">
           <Standard icon={<ShieldCheck />} title="Release-aware quality control">Only validated provider releases enter the brief. Missing coverage, preliminary observations, incompatible periods, and provider flags alter or block conclusions.</Standard>
-          <Standard icon={<ListChecks />} title="Questions before variables">The brief answers recurring questions about prices, rents, availability, liquidity, and construction instead of describing every series simply because it exists.</Standard>
+          <Standard icon={<ListChecks />} title="Questions before variables">The brief asks about inflation-adjusted home values, residential permitting, for-sale inventory, and asking-rent change instead of describing every series simply because it exists.</Standard>
           <Standard icon={<Link2 />} title="Direct evidentiary support">Every claim retains its observation period, calculation, source release, coverage, and limitations. An unconstrained AI summary cannot provide this assurance from prose alone.</Standard>
         </CardContent>
       </Card>
@@ -234,6 +239,7 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
                         <p className="brief-answer">{section.answer}</p>
                         <div className="brief-evidence">{section.evidence.map((item) => <p key={item}>{item}</p>)}</div>
                         <p className="brief-archive-source">{section.observation_period} · {section.sources}</p>
+                        {section.coverage && <p className="brief-archive-coverage"><strong>Coverage:</strong> {section.coverage}</p>}
                         <p className="brief-archive-caveat">{section.caveat}</p>
                       </article>
                     ))}

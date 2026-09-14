@@ -72,6 +72,42 @@ class FactEngineTests(unittest.TestCase):
         if latest_inflation["period"] != real_price["period"]:
             self.assertNotIn(latest_inflation["change_display"], price_section["answer"])
 
+    def test_price_brief_answer_follows_the_real_change_sign(self):
+        from pipeline.prepare_market_brief import question_sections
+
+        packet = json.loads((ROOT / "public" / "data" / "facts" / "latest.json").read_text())
+        real_price = next(item for item in packet["facts"] if item["metric"] == "real_zhvi")
+        for change, expected in [(0.01, "Yes."), (-0.01, "No."), (0, "Yes.")]:
+            real_price["change"] = change
+            self.assertTrue(question_sections(packet)[0]["answer"].startswith(expected))
+
+    def test_breadth_distinguishes_increases_decreases_and_unchanged_markets(self):
+        from pipeline.build_fact_engine import breadth_facts
+
+        with tempfile.TemporaryDirectory() as directory:
+            release_dir = Path(directory)
+            dates = [f"2025-{month:02d}" for month in range(1, 13)] + ["2026-01"]
+            def series(prior, current):
+                return [prior, *([None] * 11), current]
+            payload = {
+                "metrics": {"new_listing_count": {"dates": dates}},
+                "regions": [
+                    {"series": {"new_listing_count": series(1, 2)}},
+                    {"series": {"new_listing_count": series(2, 1)}},
+                    {"series": {"new_listing_count": series(1, 1)}},
+                    {"series": {"new_listing_count": series(0, 1)}},
+                    {"series": {"new_listing_count": series(1, None)}},
+                ],
+            }
+            (release_dir / "orange.json").write_text(json.dumps(payload))
+            result = breadth_facts(
+                "fixture", "Fixture provider", "fixture-release", release_dir,
+                ["orange.json"], ["new_listing_count"], "fixture",
+            )[0]
+            self.assertIn("1 increased, 1 decreased, and 1 was unchanged", result["evidence"])
+            self.assertIn("3 of 5 local markets had calculable", result["coverage"])
+            self.assertIn("1 additional market had paired observations", result["coverage"])
+
     def test_archive_draft_is_skipped_without_new_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             data_root = Path(directory) / "data"
@@ -131,8 +167,54 @@ class FactEngineTests(unittest.TestCase):
             self.assertEqual(status["advanced_questions"], status["advanced_material_questions"])
             self.assertEqual(index["briefs"][0]["issue_month"], "2026-09")
             self.assertEqual(brief["status"], "published")
+            self.assertEqual(brief["schema_version"], 2)
             self.assertEqual(brief["source_packet_sha256"], "a" * 64)
+            self.assertEqual(brief["headline"], "New evidence on inflation-adjusted home values")
+            self.assertNotIn("permit", brief["summary"].lower())
+            self.assertTrue(all(section["trigger_fact_id"] in section["fact_ids"] for section in brief["sections"]))
+            permit_section = next(section for section in brief["sections"] if "permitting" in section["question"])
+            self.assertIn("not an official BPS metro series", permit_section["coverage"])
             self.assertIn("Merging this draft pull request is the publication approval step", review.read_text())
+
+    def test_supporting_fact_cannot_trigger_a_single_question_archive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            data_root = Path(directory) / "data"
+            shutil.copytree(ROOT / "public" / "data" / "facts", data_root / "facts")
+            shutil.copytree(ROOT / "public" / "data" / "briefs", data_root / "briefs")
+            packet_path = data_root / "facts" / "latest.json"
+            packet = json.loads(packet_path.read_text())
+            for fact in packet["facts"]:
+                if fact["metric"] in {"real_zhvi", "zhvi", "cpi_la"}:
+                    fact["period"] = "2026-08-31"
+                if fact["metric"] == "real_zhvi":
+                    fact["material"] = False
+                if fact["metric"] == "zhvi":
+                    fact["material"] = True
+            packet["packet_sha256"] = "b" * 64
+            packet_path.write_text(json.dumps(packet))
+            result = subprocess.run(
+                [
+                    "python", "pipeline/prepare_market_brief.py",
+                    "--data-root", str(data_root),
+                    "--issue-month", "2026-09",
+                    "--today", "2026-09-24",
+                ],
+                cwd=ROOT,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            status = json.loads(result.stdout)
+            self.assertFalse(status["ready"])
+            self.assertEqual(status["advanced_material_questions"], [])
+
+    def test_forced_review_without_new_periods_uses_a_neutral_headline(self):
+        from pipeline.prepare_market_brief import brief_headline_and_summary
+
+        headline, summary = brief_headline_and_summary([], [])
+        self.assertEqual(headline, "Review of recurring Los Angeles housing indicators")
+        self.assertIn("maintainer-requested review", summary)
+        self.assertNotIn("New evidence", headline)
 
 
 if __name__ == "__main__":

@@ -99,6 +99,6 @@ class BpsQuestionGuardTests(unittest.TestCase):
         self.assertIn(f"{abs(metro['change']):.1%}", section["answer"])
         self.assertEqual(len(section["evidence"]), 1)
         self.assertNotIn("%", section["evidence"][0])
-        for change, expected in [(0.1, "Yes. LA metro YTD permits rose 10.0%."), (-0.1, "No. LA metro YTD permits fell 10.0%."), (0, "No. LA metro YTD permits changed 0.0%.")]:
+        for change, expected in [(0.1, "Yes. Los Angeles metro YTD permits rose 10.0%."), (-0.1, "No. Los Angeles metro YTD permits fell 10.0%."), (0, "No. Los Angeles metro YTD permits were unchanged at 0.0%.")]:
             metro["change"] = change
             self.assertEqual(question_sections(packet)[1]["answer"], expected)
