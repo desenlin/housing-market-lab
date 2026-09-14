@@ -63,6 +63,14 @@ def question_sections(packet: dict[str, Any]) -> list[dict[str, Any]]:
         f"{real_price['inflation_change_display']} over the same period. The implied inflation-adjusted change was "
         f"{real_price['change_display']}."
     )
+    if all(item["change"] > 0 for item in permits):
+        permit_lead = "Yes. Residential permitting is increasing in both counties."
+    elif all(item["change"] < 0 for item in permits):
+        permit_lead = "No. Residential permitting is declining in both counties."
+    elif all(item["change"] == 0 for item in permits):
+        permit_lead = "No. Residential permitting is unchanged in both counties."
+    else:
+        permit_lead = "The counties differ in whether residential permitting is increasing."
     permit_changes = " and ".join(
         f"{item['change_display']} in {item['geography']}" for item in permits
     )
@@ -90,7 +98,7 @@ def question_sections(packet: dict[str, Any]) -> list[dict[str, Any]]:
         },
         {
             "question": "Is residential permitting increasing?",
-            "answer": f"Preliminary year-to-date authorizations changed {permit_changes}.",
+            "answer": f"{permit_lead} Year-to-date authorizations changed {permit_changes} compared with the same months one year earlier.",
             "fact_ids": [item["id"] for item in permits],
             "period_end": max(month_end(item["period"]) for item in permits),
             "observation_period": permits[0]["period"],

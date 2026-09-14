@@ -17,6 +17,7 @@ type Fact = {
   period: string;
   value_display: string;
   change_display: string;
+  change: number;
   comparison: string;
   direction: string;
   material: boolean;
@@ -87,6 +88,18 @@ function findFact(packet: FactPacket, metric: string) {
   return packet.facts.find((item) => item.metric === metric);
 }
 
+function permittingAnswer(facts: Fact[]) {
+  const lead = facts.every((fact) => fact.change > 0)
+    ? "Yes. Residential permitting is increasing in both counties."
+    : facts.every((fact) => fact.change < 0)
+      ? "No. Residential permitting is declining in both counties."
+      : facts.every((fact) => fact.change === 0)
+        ? "No. Residential permitting is unchanged in both counties."
+        : "The counties differ in whether residential permitting is increasing.";
+  const changes = facts.map((fact) => `${fact.change_display} in ${fact.geography}`).join(" and ");
+  return `${lead} Year-to-date authorizations changed ${changes} compared with the same months one year earlier.`;
+}
+
 function Standard({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return <div className="brief-standard"><span>{icon}</span><div><strong>{title}</strong><p>{children}</p></div></div>;
 }
@@ -136,7 +149,7 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
     if (permits.length) output.push({
       kicker: "Construction pipeline",
       question: "Is residential permitting increasing?",
-      answer: permits.map((item) => `${item.geography.replace(" County", "")}: ${item.change_display}`).join(" · "),
+      answer: permittingAnswer(permits),
       facts: permits, destination: "permits", linkLabel: "Explore Census permit activity",
     });
     if (inventory) output.push({
