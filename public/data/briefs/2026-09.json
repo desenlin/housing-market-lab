@@ -1,0 +1,185 @@
+{
+  "schema_version": 3,
+  "status": "published",
+  "issue_month": "2026-09",
+  "observation_cutoff": "2026-08-31",
+  "prepared_at": "2026-09-14",
+  "title": "September 2026 Housing Market Brief",
+  "headline": "New evidence on local sale prices in Los Angeles County and market speed in Orange County",
+  "summary": "Los Angeles County median sale price per square foot decreased by 2.1%; 90 of 138 covered local markets decreased. Orange County median days on market decreased by 4.0 days; 32 of 41 covered local markets decreased.",
+  "reconstruction_note": "Prepared from the Lab’s validated fact packet. Each finding retains its observation period and source release; later provider revisions do not silently alter this archived edition.",
+  "source_packet_sha256": "6dfac7d2cc3c79c391b1d4e5745821498130e4fc9e877405821362ea3537f4ed",
+  "source_releases": [
+    {
+      "provider": "Zillow Research",
+      "release": "2026-09-12-r170123",
+      "sha256": "5a717579168532746ef32208a234a74b912411d77bcceead8f34a7b383e9ac15"
+    },
+    {
+      "provider": "Redfin",
+      "release": "2026-09-12-r170408",
+      "sha256": "268b5c628f8b042b7de75bab90c860dddf25abddc5278a218803da7f5da71423"
+    },
+    {
+      "provider": "Realtor.com® Economic Research — Inventory",
+      "release": "2026-09-08-r003529",
+      "sha256": "2b48b0eb596d5f72b506c08ee9b762a27f11cc0c67570bcb74f8f172a819197c"
+    },
+    {
+      "provider": "U.S. Bureau of Labor Statistics",
+      "release": "2026-09-12-r170422",
+      "sha256": "a32f7988cda75f5c65f33a6ababa4332a568d5fc97f3b52177020c3102b6a827"
+    },
+    {
+      "provider": "Census BPS — preliminary current-year observations",
+      "release": "2026-09-07-r170136",
+      "sha256": "345bd05738fa513a52792d018e87c38b957ee7012ea187be0be13153ae2a3244"
+    },
+    {
+      "provider": "Census BPS — final comparison history",
+      "release": "2026-09-07-r170319",
+      "sha256": "9a3aeb453c4968c833fb0586db71809b93c1bf131e2f6a45cc370d1df0706cb2"
+    }
+  ],
+  "selection_method": {
+    "question_pool": 27,
+    "qualification_paths": {
+      "material_movement": "The primary measure crossed its fixed editorial threshold.",
+      "broad_local_shift": "At least 65% of covered local markets moved in one direction and the median change reached half of its editorial threshold.",
+      "direction_change": "The year-over-year comparison changed sign, with the current and preceding changes each reaching at least half of the editorial threshold.",
+      "indicator_divergence": "Two pre-specified related indicators moved in meaningfully different directions or separated by a pre-specified gap."
+    },
+    "maximum_findings": 4,
+    "maximum_per_theme": 1
+  },
+  "sections": [
+    {
+      "question_id": "median_sale_ppsf-los-angeles-county",
+      "theme": "prices",
+      "kicker": "Local transaction prices",
+      "question": "Are sale-price-per-square-foot changes broad-based in Los Angeles County?",
+      "topic": "local sale prices in Los Angeles County",
+      "answer": "Los Angeles County median sale price per square foot decreased by 2.1%; 90 of 138 covered local markets decreased.",
+      "trigger_fact_id": "redfin-los-angeles-county-median_sale_ppsf",
+      "trigger_fact_ids": [
+        "redfin-los-angeles-county-median_sale_ppsf"
+      ],
+      "fact_ids": [
+        "redfin-los-angeles-county-median_sale_ppsf"
+      ],
+      "period_end": "2026-08-31",
+      "observation_period": "August 2026",
+      "status": "validated",
+      "evidence": [
+        "Los Angeles County: The median local change was -2.1%; among 138 markets with calculable changes, 47 increased, 90 decreased, and 1 was unchanged."
+      ],
+      "sources": "Redfin",
+      "source_releases": [
+        {
+          "provider": "Redfin",
+          "release": "2026-09-12-r170408"
+        }
+      ],
+      "coverage": "138 of 140 local markets had calculable year-over-year changes",
+      "caveat": "Unweighted median across covered cities using Redfin rolling three-month estimates; it is not a county aggregate.",
+      "destination": "activity",
+      "link_label": "Explore Redfin market conditions",
+      "qualifications": [
+        {
+          "id": "material_movement",
+          "label": "Material movement",
+          "explanation": "The primary measure crossed its fixed editorial threshold."
+        },
+        {
+          "id": "broad_local_shift",
+          "label": "Broad local shift",
+          "explanation": "90 of 138 covered local markets decreased; the median change also reached at least half of its editorial threshold."
+        }
+      ],
+      "selection_score": 66.8
+    },
+    {
+      "question_id": "median_dom-orange-county",
+      "theme": "market_speed",
+      "kicker": "Local market speed",
+      "question": "Are homes moving faster or slower across Orange County?",
+      "topic": "market speed in Orange County",
+      "answer": "Orange County median days on market decreased by 4.0 days; 32 of 41 covered local markets decreased.",
+      "trigger_fact_id": "redfin-orange-county-median_dom",
+      "trigger_fact_ids": [
+        "redfin-orange-county-median_dom"
+      ],
+      "fact_ids": [
+        "redfin-orange-county-median_dom"
+      ],
+      "period_end": "2026-08-31",
+      "observation_period": "August 2026",
+      "status": "validated",
+      "evidence": [
+        "Orange County: The median local change was -4.0 days; among 41 markets with calculable changes, 8 increased, 32 decreased, and 1 was unchanged."
+      ],
+      "sources": "Redfin",
+      "source_releases": [
+        {
+          "provider": "Redfin",
+          "release": "2026-09-12-r170408"
+        }
+      ],
+      "coverage": "41 of 42 local markets had calculable year-over-year changes",
+      "caveat": "Unweighted median across covered cities using Redfin rolling three-month estimates; it is not a county aggregate.",
+      "destination": "activity",
+      "link_label": "Explore Redfin market conditions",
+      "qualifications": [
+        {
+          "id": "broad_local_shift",
+          "label": "Broad local shift",
+          "explanation": "32 of 41 covered local markets decreased; the median change also reached at least half of its editorial threshold."
+        }
+      ],
+      "selection_score": 58.5
+    }
+  ],
+  "housing_supply_review": {
+    "status": "first_review",
+    "review_required": true,
+    "provider": "California HCD APR",
+    "release": "2026-09-14-ab3bd5659d98",
+    "sha256": "ab3bd5659d98bba41d07dbf78f1209599d618e5a50a723a08a9170537625aee6",
+    "latest_year": 2025,
+    "validated_at": "2026-09-14T02:37:40.449286+00:00",
+    "coverage": [
+      {
+        "county": "Los Angeles County",
+        "reporting_cities": 79,
+        "reference_cities": 88
+      },
+      {
+        "county": "Orange County",
+        "reporting_cities": 33,
+        "reference_cities": 34
+      }
+    ],
+    "reason": "Annual context only; this does not advance a monthly question or certify complete reporting."
+  },
+  "housing_context_review": {
+    "status": "first_review",
+    "review_required": true,
+    "provider": "U.S. Census Bureau ACS five-year estimates",
+    "release": "2026-09-08-r094930",
+    "sha256": "57cfe49837fe1c0679727061696c64788cd6ec608f9af1478a0f596d75f198fd",
+    "latest_year": 2024,
+    "comparison_year": 2019,
+    "validated_at": "2026-09-08T09:49:30Z",
+    "coverage": [
+      {
+        "geography": "city",
+        "regions": 189
+      },
+      {
+        "geography": "zip",
+        "regions": 360
+      }
+    ],
+    "reason": "Structural context only; this does not advance a monthly question or imply a current market change."
+  }
+}

@@ -87,6 +87,7 @@ jobs:
       - name: Enforce bounded storage policy
         run: |
           python pipeline/build_fact_engine.py
+          python pipeline/prepare_market_brief.py --snapshot-only
           python scripts/check_storage.py
 
       - name: Commit a successful data release

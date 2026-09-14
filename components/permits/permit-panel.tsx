@@ -26,6 +26,7 @@ type PermitMetricKey =
   | "large_multifamily_share"
   | "units_per_1000_stock";
 type Frequency = "annual" | "monthly";
+type MonthlySeriesView = "observations" | "three_month_average";
 type AnnualChartRange = "10y" | "20y" | "30y" | "max";
 type MonthlyChartRange = "1y" | "3y" | "max";
 type Value = number | null;
@@ -118,7 +119,15 @@ const CONTROL_DEFINITIONS: Record<string, string> = {
   Metric: "Choose the number, building-size mix, or housing-stock-normalized intensity of units authorized by permits.",
   "Map & ranking date": "Observation period used for the map, ranking, and summary cards.",
   "Chart range": "Limits the visible history without changing the observation selected for the map and ranking.",
+  "Monthly series": "Switch between reported monthly observations and a trailing three-month arithmetic average. The map, ranking, and summary cards continue to use the selected monthly observation.",
 };
+
+function trailingAverage(values: Value[], index: number, window = 3): Value {
+  if (index < window - 1) return null;
+  const observations = values.slice(index - window + 1, index + 1);
+  if (observations.length !== window || observations.some((value) => value == null || !Number.isFinite(value))) return null;
+  return observations.reduce<number>((sum, value) => sum + (value as number), 0) / window;
+}
 
 function formatDate(value: string) {
   if (/^\d{4}$/.test(value)) return value;
@@ -347,6 +356,7 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
   const [date, setDate] = useState("");
   const [annualChartRange, setAnnualChartRange] = useState<AnnualChartRange>("max");
   const [monthlyChartRange, setMonthlyChartRange] = useState<MonthlyChartRange>("max");
+  const [monthlySeriesView, setMonthlySeriesView] = useState<MonthlySeriesView>("observations");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [addId, setAddId] = useState("");
   const onManifestRef = useRef(onManifest);
@@ -409,7 +419,12 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
   const chartStartIndex = dataset ? Math.max(0, dataset.dates.length - chartPointLimit) : 0;
   const chartData = dataset?.dates.slice(chartStartIndex).map((chartDate, offset) => Object.fromEntries([
     ["date", chartDate],
-    ...selected.map((region) => [region.id, region.series[metric][chartStartIndex + offset]]),
+    ...selected.map((region) => [
+      region.id,
+      frequency === "monthly" && monthlySeriesView === "three_month_average"
+        ? trailingAverage(region.series[metric], chartStartIndex + offset)
+        : region.series[metric][chartStartIndex + offset],
+    ]),
   ])) ?? [];
 
   if (error) return <div className="permit-status permit-error">{lensControl}<strong>Building permits are temporarily unavailable.</strong><span>{error}</span></div>;
@@ -479,10 +494,17 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
                   </>
                 )}
               </LabelledSelect>
+              {frequency === "monthly" && <LabelledSelect label="Monthly series" value={monthlySeriesView} onChange={(value) => setMonthlySeriesView(value as MonthlySeriesView)}>
+                <NativeSelectOption value="observations">Monthly observations</NativeSelectOption>
+                <NativeSelectOption value="three_month_average">3-month moving average</NativeSelectOption>
+              </LabelledSelect>}
             </div>
           </CardHeader>
           <CardContent className="permit-chart-wrap">
-            <p className="permit-chart-window">Showing {formatDate(chartStartDate)}–{formatDate(chartEndDate)}</p>
+            <p className="permit-chart-window">Showing {formatDate(chartStartDate)}–{formatDate(chartEndDate)}{frequency === "monthly" && monthlySeriesView === "three_month_average" ? " · trailing 3-month moving average" : ""}</p>
+            <ul className="permit-chart-legend" aria-label="Permit activity figure legend">
+              {selected.map((region, index) => <li key={region.id}><i style={{ background: chartColors[index] }} aria-hidden="true" />{region.name}</li>)}
+            </ul>
             <div className="permit-chart" aria-label={`${metricInfo.label} trend`}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 14, right: 16, bottom: 5, left: 4 }}>
@@ -504,7 +526,7 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
               </ResponsiveContainer>
             </div>
             <FigureAttribution sources={metric === "units_per_1000_stock" ? ["census-bps", "census-acs"] : ["census-bps"]} />
-            <p className="data-note">Annual data are final after the Census Bureau’s yearly revision cycle. Current-year monthly observations are preliminary; observations identified as imputed remain included and are disclosed in the status card.</p>
+            <p className="data-note">Annual data are final after the Census Bureau’s yearly revision cycle. Current-year monthly observations are preliminary; observations identified as imputed remain included and are disclosed in the status card. The optional trailing three-month average is calculated only when all three monthly observations are reported and affects this trend figure only.</p>
           </CardContent>
         </Card>
         <Card className="ranking-card permit-ranking">

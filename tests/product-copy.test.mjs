@@ -47,7 +47,9 @@ test("provides a persistent light and dark theme control", async () => {
   assert.match(styles, /\.dark \.rank-row\.selected \{[^}]+color: var\(--foreground\)/);
   assert.match(styles, /\.dark \.rank-name small[^}]+color: var\(--detail-muted\)/);
   assert.match(styles, /\.dark \.brief-evidence p \{[^}]+color: var\(--detail-copy\)/);
-  assert.match(styles, /\.dark \.map-selection strong,[\s\S]*\.dark \.leaflet-tooltip strong \{ color: #e7edf2; \}/);
+  assert.match(styles, /\.dark \.map-selection \{[^}]+background: #202b33[^}]+color: #edf3f7/);
+  assert.match(styles, /\.dark \.map-selection strong \{ color: #ffffff; \}/);
+  assert.match(styles, /\.dark \.leaflet-tooltip strong \{ color: #ffffff; \}/);
   assert.match(styles, /--permit-status-bg: #30251f/);
   assert.match(styles, /--acs-moe-bg: #202b33/);
   assert.match(styles, /--acs-change-bg: #1d303a/);
@@ -73,6 +75,8 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(styles, /\.header-link[^}]+color: inherit; font: inherit; text-decoration: none;/);
   assert.match(source, /Index starting month/);
   assert.match(source, /12-month growth/);
+  assert.match(source, /fetch\(url, \{ cache: "no-store" \}\)/);
+  assert.match(source, /Try loading again/);
   assert.match(source, /Change from one year earlier/);
   assert.match(source, /https:\/\/tile\.openstreetmap\.org/);
   assert.match(source, /Map color gradient/);
@@ -198,20 +202,17 @@ test("places linked provider attribution beside charts and maps", async () => {
 test("market brief prioritizes questions, quality controls, and direct evidence", async () => {
   const source = await readProjectFile("components/facts/fact-engine-panel.tsx");
   const styles = await readProjectFile("app/globals.css");
-  assert.match(source, /Are home values keeping pace with local inflation\?/);
-  assert.match(source, /Is residential permitting increasing\?/);
-  assert.match(source, /Has metropolitan inventory shifted materially\?/);
-  assert.match(source, /How fast are asking rents changing\?/);
+  assert.match(source, /data\/briefs\/current\.json/);
   assert.match(source, /Current evidence snapshot/);
-  assert.match(source, /becomes an approved market brief only after maintainer review/i);
-  assert.match(source, /yesNo\(realPrice\.change\)/);
-  assert.match(source, /Release-aware quality control/);
-  assert.match(source, /Questions before variables/);
+  assert.match(source, /archived brief still requires maintainer review/i);
+  assert.match(source, /Multiple ways to qualify/);
+  assert.match(source, /Expandable internal registry/);
   assert.match(source, /Direct evidentiary support/);
-  assert.match(source, /unconstrained AI summary cannot provide this assurance/i);
-  assert.match(source, /Previous market briefs/);
+  assert.match(source, /not tail probabilities, hypothesis tests, causal claims, or forecasts/i);
+  assert.match(source, /Reviewed market briefs/);
   assert.match(source, /Historical reconstruction/);
-  assert.match(source, /correction is labeled rather than silently replacing the original record/);
+  assert.match(source, /corrections are labeled instead of silently replacing the record/);
+  assert.match(source, /Try again/);
   assert.match(styles, /--brief-action: #b9def4/);
   assert.match(styles, /--brief-archive-bg: #202b33/);
   assert.match(styles, /--brief-reconstruction-fg: #edc5a8/);
@@ -222,6 +223,7 @@ test("market brief prioritizes questions, quality controls, and direct evidence"
   assert.match(styles, /\.brief-archive-heading h2 \{[^}]+color: var\(--section-heading\)/);
   assert.match(styles, /\.brief-archive-sections article \{[^}]+background: var\(--card\)/);
   assert.match(styles, /\.brief-reconstruction-note \{[^}]+background: var\(--brief-reconstruction-bg\)[^}]+color: var\(--brief-reconstruction-fg\)/);
+  assert.match(styles, /\.brief-qualifications span \{[^}]+background: var\(--brief-checked-bg\)/);
 });
 
 test("market brief automation remains review gated", async () => {
@@ -239,7 +241,9 @@ test("market brief automation remains review gated", async () => {
   assert.match(pages, /actions\/configure-pages@v6/);
   assert.match(acs, /group: pages/);
   assert.match(acs, /gh workflow run pages\.yml --ref main -f deploy_only=true/);
-  assert.match(generator, /minimum_advanced_questions/);
+  assert.match(pages, /prepare_market_brief\.py --snapshot-only/);
+  assert.match(generator, /broad_local_shift/);
+  assert.match(generator, /indicator_divergence/);
   assert.match(generator, /trigger_fact_id/);
   assert.match(generator, /No causal claim or forecast has been introduced/);
 });
@@ -251,8 +255,8 @@ test("methods distinguish coverage families and disclose editorial thresholds", 
   assert.match(source, /<dt>ACS observation coverage<\/dt>/);
   assert.match(source, /<dt>Permit-jurisdiction coverage<\/dt>/);
   assert.match(source, /<MethodCard title="Market-brief reporting rules">/);
-  assert.match(source, /fixed thresholds are editorial filters/i);
-  assert.match(source, /not confidence intervals, hypothesis tests, or evidence of causality/i);
+  assert.match(source, /fixed metric thresholds remain editorial filters/i);
+  assert.match(source, /not confidence intervals, hypothesis tests, causal evidence, or forecasts/i);
   assert.ok(source.indexOf('<MethodCard title="Building permits">') < source.indexOf("<HcdMethods />"));
 });
 
@@ -289,6 +293,8 @@ test("uses the academic website Google Analytics property", async () => {
 
 test("building permits chart offers frequency-appropriate history windows", async () => {
   const source = await readProjectFile("components/permits/permit-panel.tsx");
+  const hcd = await readProjectFile("components/permits/hcd-panel.tsx");
+  const page = await readProjectFile("app/market-lab.tsx");
   assert.match(source, /label="Chart range"/);
   assert.match(source, /Last 10 years/);
   assert.match(source, /Last 20 years/);
@@ -296,6 +302,14 @@ test("building permits chart offers frequency-appropriate history windows", asyn
   assert.match(source, /Full series · since 1980/);
   assert.match(source, /Last 12 months/);
   assert.match(source, /Full series · since 2022/);
+  assert.match(source, /label="Monthly series"/);
+  assert.match(source, /3-month moving average/);
+  assert.match(source, /Permit activity figure legend/);
+  assert.match(source, /trailingAverage/);
+  assert.match(hcd, /Add a comparison \(up to five\)/);
+  assert.match(hcd, /current\.length < 5/);
+  assert.match(hcd, /chosen\.length >= 5/);
+  assert.match(page, /Compare up to five jurisdictions/);
 });
 
 test("housing context stays curated and communicates ACS uncertainty", async () => {

@@ -347,7 +347,7 @@ function mergeDatasets(datasets: Dataset[]): Dataset | null {
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) throw new Error(`Data request failed: ${response.status}`);
   return response.json() as Promise<T>;
 }
@@ -1694,6 +1694,7 @@ export default function MarketLab() {
   const [activityError, setActivityError] = useState("");
   const [realtorError, setRealtorError] = useState("");
   const [error, setError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [geography, setGeography] = useState<"city" | "zip">("city");
   const [county, setCounty] = useState("Orange County");
   const [metric, setMetric] = useState<MetricKey>("zhvi");
@@ -1747,10 +1748,7 @@ export default function MarketLab() {
     }
     async function load() {
       try {
-        const pointer = await fetch(`${base}/data/latest.json`).then((response) => {
-          if (!response.ok) throw new Error("No published data release was found.");
-          return response.json() as Promise<{ release: string }>;
-        });
+        const pointer = await fetchJson<{ release: string }>(`${base}/data/latest.json`);
         const releaseBase = `${base}/data/releases/${pointer.release}`;
         const releaseManifest = await fetchJson<Manifest>(`${releaseBase}/manifest.json`);
         const [city, zip, metro] = await Promise.all([
@@ -1778,10 +1776,7 @@ export default function MarketLab() {
         setMaps({ city: mapCity, zip: mapZip });
         setManifest(releaseManifest);
         try {
-          const cpiPointer = await fetch(`${base}/data/cpi/latest.json`).then((response) => {
-            if (!response.ok) throw new Error("No validated BLS CPI release was found.");
-            return response.json() as Promise<{ release: string }>;
-          });
+          const cpiPointer = await fetchJson<{ release: string }>(`${base}/data/cpi/latest.json`);
           const cpiBase = `${base}/data/cpi/releases/${cpiPointer.release}`;
           const [cpiDataset, cpiReleaseManifest] = await Promise.all([
             fetch(`${cpiBase}/cpi.json`).then((response) => response.json()),
@@ -1793,10 +1788,7 @@ export default function MarketLab() {
           setCpiError(caught instanceof Error ? caught.message : "The BLS CPI release could not be loaded.");
         }
         try {
-          const redfinPointer = await fetch(`${base}/data/redfin/latest.json`).then((response) => {
-            if (!response.ok) throw new Error("No validated Redfin release was found.");
-            return response.json() as Promise<{ release: string }>;
-          });
+          const redfinPointer = await fetchJson<{ release: string }>(`${base}/data/redfin/latest.json`);
           const redfinBase = `${base}/data/redfin/releases/${redfinPointer.release}`;
           const redfinReleaseManifest = await fetchJson<RedfinManifest>(`${redfinBase}/manifest.json`);
           const [redfinCity, redfinZip] = await Promise.all([
@@ -1822,10 +1814,7 @@ export default function MarketLab() {
         try {
           const products = ["inventory", "hotness"] as const;
           const results = await Promise.allSettled(products.map(async (product) => {
-            const pointer = await fetch(`${base}/data/realtor/${product}/latest.json`).then((response) => {
-              if (!response.ok) throw new Error(`No validated Realtor.com ${product} release was found.`);
-              return response.json() as Promise<{ release: string }>;
-            });
+            const pointer = await fetchJson<{ release: string }>(`${base}/data/realtor/${product}/latest.json`);
             const productBase = `${base}/data/realtor/${product}/releases/${pointer.release}`;
             const productManifest = await fetchJson<RealtorManifest>(`${productBase}/manifest.json`);
             const productDataset = await loadDatasetFiles(
@@ -1927,7 +1916,7 @@ export default function MarketLab() {
     }
     void loadAcsProvenance();
     load();
-  }, []);
+  }, [loadAttempt]);
 
   const dataset = datasets?.[geography];
   const localDates = dataset ? metricDates(dataset, metric) : [];
@@ -2248,7 +2237,7 @@ export default function MarketLab() {
   }
 
   if (error) {
-    return <main className="status-screen"><Info /><h1>Housing Market Lab</h1><p>{error}</p></main>;
+    return <main className="status-screen"><Info /><h1>Housing Market Lab</h1><p>{error}</p><Button variant="outline" onClick={() => { setError(""); setLoadAttempt((attempt) => attempt + 1); }}>Try loading again</Button></main>;
   }
   if (!datasets || !maps || !manifest || !dataset) {
     return <main className="status-screen"><div className="loader" /><h1>Housing Market Lab</h1><p>Loading the latest validated release…</p></main>;
@@ -2697,7 +2686,7 @@ export default function MarketLab() {
         <TabsContent value="permits" className="space-y-5">
           <section className="regional-intro activity-intro">
             <div><p className="section-kicker">Housing production pipeline</p><h2>{supplyView === "activity" ? "Where new homes are being authorized." : "How much housing is reaching completion?"}</h2></div>
-            <p>{supplyView === "activity" ? "Building permits are an early indicator of intended construction, not completed homes. Compare permitting across cities and county unincorporated areas." : "Explore annual housing delivery in Los Angeles and Orange Counties. Compare up to three jurisdictions, including their housing types and ADU contribution."}</p>
+            <p>{supplyView === "activity" ? "Building permits are an early indicator of intended construction, not completed homes. Compare permitting across cities and county unincorporated areas." : "Explore annual housing delivery in Los Angeles and Orange Counties. Compare up to five jurisdictions, including their housing types and ADU contribution."}</p>
           </section>
           {supplyView === "activity" ? <PermitPanel
             mapData={maps.city}
@@ -2855,10 +2844,10 @@ export default function MarketLab() {
             <MethodCard title="Building permits"><p>The U.S. Census Bureau Building Permits Survey reports new privately owned housing units authorized by permit-issuing jurisdictions. The lab groups units into single-unit, 2–4-unit, and 5+-unit structures and shows annual history from 1980 and comparable local monthly history from 2022.</p><p>Current-year monthly observations are preliminary and may be revised or imputed. Annual data become final after the Census Bureau’s revision cycle. Permit authorization is an early production indicator, not a housing start or completion.</p></MethodCard>
             <HcdMethods />
             <MethodCard title="ACS housing context"><p>The housing-context layer retains six selected ACS five-year measures and their 90% margins of error. The latest cross-section covers every mapped city, Census-designated place, and ZCTA in the two counties; it does not expose a general ACS variable catalog.</p><p>Structural change compares non-overlapping five-year periods for cities and communities. Consecutive overlapping vintages are not treated as annual observations. Prior-period household income is converted to the latest vintage’s dollars using annual-average U.S. CPI-U.</p></MethodCard>
-            <MethodCard title="Market-brief reporting rules"><p>The current evidence snapshot answers four stable questions using one designated primary fact per question. Supporting facts document calculations and provenance but do not independently trigger a new archived edition.</p><ul><li><strong>Inflation-adjusted home values:</strong> a 1% absolute year-over-year change.</li><li><strong>Typical asking rent:</strong> a 1.5% absolute year-over-year change.</li><li><strong>For-sale inventory:</strong> a 5% absolute year-over-year change.</li><li><strong>Residential permits:</strong> a 10% absolute change in matched Los Angeles and Orange County year-to-date counts.</li></ul><p>These fixed thresholds are editorial filters intended to avoid elevating small movements into headlines. They are not confidence intervals, hypothesis tests, or evidence of causality. Exact unrounded changes determine whether a threshold is met; displayed values may round to the threshold.</p></MethodCard>
+            <MethodCard title="Market-brief reporting rules"><p>An expandable internal registry asks about prices, rents, availability, market speed, seller adjustment, competition, listing flows, construction, and pre-specified relationships between indicators. It currently creates 27 data-release questions, plus separate annual HCD and ACS review checks; the public snapshot shows at most four findings and no more than one per theme.</p><p>A finding can qualify in four ways: its primary measure crosses a fixed editorial threshold; at least 65% of covered local markets move together and the median reaches half its threshold; the year-over-year direction changes with meaningful values on both sides; or a pre-specified pair of indicators diverges. At least 70% calculable coverage is required for a breadth finding.</p><p>The fixed metric thresholds remain editorial filters, not definitions of tail events. The rules are not confidence intervals, hypothesis tests, causal evidence, or forecasts. Exact unrounded values determine qualification, and every archived edition still requires maintainer review.</p></MethodCard>
             <MethodCard title="Geographies"><p>City/community maps retain every Census incorporated place and Census-designated place (CDP) assigned to Orange or Los Angeles County, whether or not a provider reports data. Zillow and Redfin observations are matched independently, and an unincorporated CDP is never reassigned to a neighboring city.</p><p>ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs. Census places and ZCTAs do not necessarily cover or classify land in the same way.</p></MethodCard>
             <MethodCard title="Reading the maps"><p>The legend distinguishes three states: <strong>colored</strong> means the selected provider reports a current observation; <strong>gray</strong> means an official city/CDP or mapped ZCTA boundary exists but the selected observation is unavailable; <strong>unshaded</strong> means the land falls outside the displayed place geography. Maps open on a focused mainland view; offshore boundaries remain in the map geometry and can be reached by panning.</p><p>Unshaded county remainder, wilderness, and open space should not be interpreted as a missing housing market. For example, unshaded portions of Laguna Coast Wilderness Park are not a separate Census place. OpenStreetMap supplies the underlying geographic context.</p></MethodCard>
-            <MethodCard title="Release design"><p>Zillow, Redfin, Realtor.com, BLS CPI, ACS, Census building permits, HCD housing delivery, and Census map geometry use independent versioned releases. Provider-published files are processed into the selected measures and local geographies used by the lab. Each family keeps the current validated release and one rollback.</p><p>Providers use source-specific revision rules. Where a history-preserving pipeline carries older dates forward, overlapping dates use the newest release, including revisions and explicit missing values. HCD is rebuilt from the current APR snapshot; missing jurisdiction-years are not filled from earlier snapshots. A failed update leaves the prior validated release available and does not block another source.</p><p>The public brief archive contains approved editions, not every generated fact packet. When enough recurring questions receive newer evidence, a review process prepares a draft pull request; it cannot publish or merge the edition. Each approved edition preserves its publication or reconstruction status, observation cutoff, source releases, and evidence fingerprint. Corrections are labeled rather than silently rewriting the record.</p></MethodCard>
+            <MethodCard title="Release design"><p>Zillow, Redfin, Realtor.com, BLS CPI, ACS, Census building permits, HCD housing delivery, and Census map geometry use independent versioned releases. Provider-published files are processed into the selected measures and local geographies used by the lab. Each family keeps the current validated release and one rollback.</p><p>Providers use source-specific revision rules. Where a history-preserving pipeline carries older dates forward, overlapping dates use the newest release, including revisions and explicit missing values. HCD is rebuilt from the current APR snapshot; missing jurisdiction-years are not filled from earlier snapshots. A failed update leaves the prior validated release available and does not block another source.</p><p>The automatic current snapshot is rebuilt with every validated site release. A separate process prepares a draft archive candidate only when newer evidence qualifies under the reporting rules; it cannot publish or merge the edition. Each approved edition preserves its publication or reconstruction status, observation cutoff, exact selected findings, source releases, and evidence fingerprint. Corrections are labeled rather than silently rewriting the record.</p></MethodCard>
             <MethodCard title="Technical design"><p>The site is a static export with no database, application server, paid API, or paid map service. Provider updates pass validation before release, and GitHub Pages serves the resulting files.</p><p>ACS follows its annual release cycle and stops after a lightweight vintage check when no new release exists. New ACS vintages request only selected variables, publish only local estimates and margins of error, and reuse the shared map geometry. HCD checks for source changes in July and October and supports manual refreshes. It retrieves county-filtered aggregates, validates annual stages, and retains a rollback release. Published JSON files remain below 1 MB, and a total storage limit prevents unbounded growth.</p></MethodCard>
           </section>
           <Card className="disclaimer-card">

@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "selection": {
+    "maximum_findings": 4,
+    "maximum_per_theme": 1,
+    "minimum_coverage_ratio": 0.7,
+    "breadth_minimum_share": 0.65,
+    "breadth_minimum_threshold_fraction": 0.5,
+    "turn_minimum_threshold_fraction": 0.5,
+    "divergence_minimum_threshold_fraction": 0.5
+  },
+  "qualification_paths": {
+    "material_movement": "The primary measure crossed its fixed editorial threshold.",
+    "broad_local_shift": "At least 65% of covered local markets moved in one direction and the median change reached half of its editorial threshold.",
+    "direction_change": "The year-over-year comparison changed sign, with the current and preceding changes each reaching at least half of the editorial threshold.",
+    "indicator_divergence": "Two pre-specified related indicators moved in meaningfully different directions or separated by a pre-specified gap."
+  },
+  "questions_by_metric": {
+    "real_zhvi": {"theme": "prices", "kicker": "Prices after inflation", "question": "Are home values keeping pace with local inflation?", "topic": "inflation-adjusted home values", "destination": "local", "link_label": "Explore prices and rents", "answer_style": "real_price"},
+    "zori": {"theme": "rents", "kicker": "Asking rents", "question": "How fast are asking rents changing?", "topic": "asking rents", "destination": "local", "link_label": "Explore rent trends", "answer_style": "generic"},
+    "inventory": {"theme": "availability", "kicker": "Homes available for sale", "question": "Has metropolitan inventory shifted meaningfully?", "topic": "for-sale inventory", "destination": "activity", "link_label": "Explore market conditions", "answer_style": "generic"},
+    "days_pending": {"theme": "market_speed", "kicker": "Time to contract", "question": "Is the metropolitan market moving faster or slower?", "topic": "time to pending", "destination": "activity", "link_label": "Explore market conditions", "answer_style": "generic"},
+    "price_cut_share": {"theme": "seller_adjustment", "kicker": "Seller adjustment", "question": "Is the share of listings with price cuts changing?", "topic": "listing price cuts", "destination": "activity", "link_label": "Explore market conditions", "answer_style": "generic"},
+    "sale_to_list": {"theme": "competition", "kicker": "Sale-to-list relationship", "question": "Is sale-price competitiveness changing?", "topic": "sale-to-list competitiveness", "destination": "activity", "link_label": "Explore market conditions", "answer_style": "generic"},
+    "permits_metro_ytd": {"theme": "construction", "kicker": "Construction pipeline", "question": "Is residential permitting increasing?", "topic": "residential permitting", "destination": "permits", "link_label": "Explore Census permit activity", "answer_style": "permits"},
+    "median_sale_ppsf": {"theme": "prices", "kicker": "Local transaction prices", "question": "Are sale-price-per-square-foot changes broad-based in {geography}?", "topic": "local sale prices in {geography}", "destination": "activity", "link_label": "Explore Redfin market conditions", "answer_style": "generic"},
+    "median_dom": {"theme": "market_speed", "kicker": "Local market speed", "question": "Are homes moving faster or slower across {geography}?", "topic": "market speed in {geography}", "destination": "activity", "link_label": "Explore Redfin market conditions", "answer_style": "generic"},
+    "months_supply": {"theme": "availability", "kicker": "Local supply", "question": "Is months of supply shifting broadly across {geography}?", "topic": "months of supply in {geography}", "destination": "activity", "link_label": "Explore Redfin market conditions", "answer_style": "generic"},
+    "sold_above_original_share": {"theme": "competition", "kicker": "Local bidding conditions", "question": "Is bidding competitiveness shifting across {geography}?", "topic": "bidding conditions in {geography}", "destination": "activity", "link_label": "Explore Redfin market conditions", "answer_style": "generic"},
+    "price_drop_share": {"theme": "seller_adjustment", "kicker": "Local repricing", "question": "Are sellers changing prices more often across {geography}?", "topic": "seller repricing in {geography}", "destination": "activity", "link_label": "Explore Redfin market conditions", "answer_style": "generic"},
+    "active_listing_count": {"theme": "availability", "kicker": "Local active inventory", "question": "Is active inventory changing broadly across {geography}?", "topic": "active listings in {geography}", "destination": "activity", "link_label": "Explore Realtor.com inventory", "answer_style": "generic"},
+    "new_listing_count": {"theme": "listing_flow", "kicker": "New listing flow", "question": "Is the flow of new listings changing across {geography}?", "topic": "new listings in {geography}", "destination": "activity", "link_label": "Explore Realtor.com inventory", "answer_style": "generic"},
+    "pending_ratio": {"theme": "market_speed", "kicker": "Pending activity", "question": "Is pending activity changing relative to active inventory in {geography}?", "topic": "pending activity in {geography}", "destination": "activity", "link_label": "Explore Realtor.com demand", "answer_style": "generic"}
+  },
+  "relationships": [
+    {"id": "inventory_price_cuts", "theme": "market_tension", "kicker": "Supply and seller behavior", "question": "Are inventory and seller price adjustments sending different signals?", "topic": "inventory and seller-signal divergence", "fact_ids": ["zillow-la-metro-inventory", "zillow-la-metro-price_cut_share"], "mode": "opposite_direction", "destination": "activity", "link_label": "Compare market conditions"},
+    {"id": "inventory_market_speed", "theme": "market_tension", "kicker": "Supply and market speed", "question": "Are inventory and time to pending sending different signals?", "topic": "inventory and market-speed divergence", "fact_ids": ["zillow-la-metro-inventory", "zillow-la-metro-days_pending"], "mode": "opposite_direction", "destination": "activity", "link_label": "Compare market conditions"},
+    {"id": "home_values_rents", "theme": "price_rent_balance", "kicker": "Prices and rents", "question": "Are home-value and asking-rent growth moving apart?", "topic": "home-value and rent-growth divergence", "fact_ids": ["zillow-la-metro-zhvi", "zillow-la-metro-zori"], "mode": "growth_gap", "minimum_gap": 0.025, "destination": "local", "link_label": "Compare prices and rents"},
+    {"id": "county_sale_prices", "theme": "county_divergence", "kicker": "County price signals", "question": "Are local sale-price directions diverging between Los Angeles and Orange Counties?", "topic": "county sale-price divergence", "fact_ids": ["redfin-los-angeles-county-median_sale_ppsf", "redfin-orange-county-median_sale_ppsf"], "mode": "opposite_direction", "destination": "activity", "link_label": "Compare Redfin market conditions"}
+  ],
+  "structural_review_questions": [
+    {"id": "hcd_delivery", "question": "Has annual housing delivery or composition changed enough to merit interpretation?", "source": "California HCD APR", "cadence": "annual"},
+    {"id": "acs_context", "question": "Has the non-overlapping ACS housing context changed enough to merit interpretation?", "source": "U.S. Census Bureau ACS five-year estimates", "cadence": "annual"}
+  ]
+}

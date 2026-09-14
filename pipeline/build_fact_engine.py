@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build an auditable prototype fact packet from current validated releases."""
+"""Build an auditable fact packet from current validated releases."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ def priority(change: float, threshold: float, breadth: float = 1.0, quality: flo
 def fact(*, fact_id: str, provider: str, release: str, metric: str, geography: str,
          period: str, value: float, change: float, comparison: str, breadth: float,
          coverage: str, evidence: str, caveat: str | None = None,
-         provisional: bool = False) -> dict[str, Any]:
+         provisional: bool = False, previous_change: float | None = None) -> dict[str, Any]:
     spec = CONFIG["metrics"][metric]
     material = abs(change) >= spec["materiality"]
     direction = "increased" if change > 0 else "decreased" if change < 0 else "was unchanged"
@@ -77,6 +77,11 @@ def fact(*, fact_id: str, provider: str, release: str, metric: str, geography: s
         "value_display": fmt(value, spec["unit"]),
         "change": change,
         "change_display": fmt(change, spec["unit"], True, spec["change_mode"]),
+        "previous_change": previous_change,
+        "previous_change_display": (
+            fmt(previous_change, spec["unit"], True, spec["change_mode"])
+            if previous_change is not None else None
+        ),
         "comparison": comparison,
         "direction": direction,
         "material": material,
@@ -105,6 +110,11 @@ def metro_facts(release: str, release_dir: Path) -> tuple[list[dict[str, Any]], 
         change = metric_change(value, float(values[i - 12]), spec["change_mode"])
         if change is None:
             continue
+        previous_change = None
+        if i >= 13 and values[i - 1] is not None and values[i - 13] is not None:
+            previous_change = metric_change(
+                float(values[i - 1]), float(values[i - 13]), spec["change_mode"]
+            )
         period = meta["dates"][i]
         current_values[key] = {"value": value, "period": period, "prior": float(values[i - 12])}
         facts.append(fact(
@@ -113,7 +123,8 @@ def metro_facts(release: str, release_dir: Path) -> tuple[list[dict[str, Any]], 
             change=change, comparison="Same month one year earlier", breadth=1,
             coverage="One focus metropolitan series",
             evidence=f"{fmt(value, spec['unit'])} compared with {fmt(float(values[i - 12]), spec['unit'])} one year earlier.",
-            caveat="Descriptive metropolitan estimate; not a causal or predictive measure."
+            caveat="Descriptive metropolitan estimate; not a causal or predictive measure.",
+            previous_change=previous_change,
         ))
     return facts, current_values
 
@@ -130,6 +141,7 @@ def breadth_facts(family: str, provider: str, release: str, release_dir: Path,
             spec = CONFIG["metrics"][key]
             dates = data["metrics"][key]["dates"]
             changes: list[float] = []
+            previous_changes: list[float] = []
             current: list[float] = []
             paired = 0
             for region in data["regions"]:
@@ -147,6 +159,12 @@ def breadth_facts(family: str, provider: str, release: str, release_dir: Path,
                 if delta is not None and math.isfinite(delta):
                     changes.append(delta)
                     current.append(float(values[i]))
+                if i >= 13 and values[i - 1] is not None and values[i - 13] is not None:
+                    prior_delta = metric_change(
+                        float(values[i - 1]), float(values[i - 13]), spec["change_mode"]
+                    )
+                    if prior_delta is not None and math.isfinite(prior_delta):
+                        previous_changes.append(prior_delta)
             total = len(data["regions"])
             if not changes or total == 0:
                 continue
@@ -164,7 +182,7 @@ def breadth_facts(family: str, provider: str, release: str, release_dir: Path,
             caveat = "Unweighted median across covered local markets; it is not a county aggregate."
             if family.startswith("redfin"):
                 caveat = "Unweighted median across covered cities using Redfin rolling three-month estimates; it is not a county aggregate."
-            output.append(fact(
+            result = fact(
                 fact_id=f"{prefix}-{county.lower().replace(' ', '-')}-{key}", provider=provider,
                 release=release, metric=key, geography=county, period=dates[-1],
                 value=median(current), change=med, comparison="Median local change from one year earlier",
@@ -172,8 +190,20 @@ def breadth_facts(family: str, provider: str, release: str, release_dir: Path,
                 evidence=(f"The median local change was {fmt(med, spec['unit'], True, spec['change_mode'])}; "
                           f"among {len(changes)} markets with calculable changes, {positive} increased, "
                           f"{negative} decreased, and {unchanged} {unchanged_verb} unchanged."),
-                caveat=caveat
-            ))
+                caveat=caveat,
+                previous_change=median(previous_changes) if previous_changes else None,
+            )
+            direction_counts = {"increased": positive, "decreased": negative, "unchanged": unchanged}
+            dominant_direction = max(direction_counts, key=direction_counts.get)
+            result.update({
+                "coverage_ratio": len(changes) / total,
+                "breadth_share": breadth,
+                "breadth_direction": dominant_direction,
+                "breadth_count": direction_counts[dominant_direction],
+                "calculable_count": len(changes),
+                "reference_count": total,
+            })
+            output.append(result)
     return output
 
 
@@ -304,8 +334,8 @@ def main() -> None:
         for manifest in (z_manifest, r_manifest, ri_manifest, c_manifest, p_manifest, ph_manifest)
     )
     packet = {
-        "schema_version": 1,
-        "status": "prototype",
+        "schema_version": 2,
+        "status": "operational",
         "generated_at": generated_at,
         "data_cutoff": max(item["period"].split(" through ")[-1] for item in facts),
         "method": "Deterministic calculations only; no language model generated these facts.",
