@@ -8,13 +8,13 @@ import { PermitMap, type MapData } from "@/components/permits/permit-panel";
 import { MethodCard } from "@/components/method-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import type { HcdManifest } from "@/components/permits/use-hcd-manifest";
 
 
 type Stage = { total: number | null; types: Record<string, number>; income: number[] | null; quality: Record<string, number> };
 type Cell = { records: number; permits: Stage; completions: Stage };
 type Region = { id: string; name: string; county: string; jurisdiction_type: string; housing_stock: number; housing_stock_vintage: number; annual: (Cell | null)[] };
 type Dataset = { years: number[]; types: Record<string, string>; income_fields: string[]; regions: Region[] };
-export type HcdManifest = { release: string; created_at: string; latest_year: number; bundle_sha256: string; data_page: string; source: { last_modified: string } };
 const colors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--muted-foreground)", "var(--foreground)"];
 const number = (value: number | null | undefined, decimals = 0) => value == null ? "Unavailable" : value.toLocaleString("en-US", { maximumFractionDigits: decimals });
 const tooltipStyle = { background: "var(--popover)", color: "var(--popover-foreground)", border: "1px solid var(--border)", borderRadius: 8 };
@@ -148,19 +148,6 @@ export function HcdPanel({ mapData, lensControl }: { mapData: MapData; lensContr
     </section>
     <PermitMap mapData={mapData} dataset={mapDataset} county={county} metric={metric} dateIndex={index} selectedId={primary?.id ?? ""} source="hcd" title="Map · Housing jurisdictions" onSelect={focusCity}/>
   </div>;
-}
-
-export function useHcdManifest() {
-  const [manifest, setManifest] = useState<HcdManifest | null>(null);
-  const [error, setError] = useState(false);
-  useEffect(() => {
-    const controller = new AbortController();
-    const base = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/data/hcd`;
-    const get = async (url: string) => { const response = await fetch(url, { signal: controller.signal }); if (!response.ok) throw new Error("Unavailable"); return response.json(); };
-    void (async () => { const pointer = await get(`${base}/latest.json`); setManifest(await get(`${base}/releases/${pointer.release}/manifest.json`)); })().catch(() => { if (!controller.signal.aborted) setError(true); });
-    return () => controller.abort();
-  }, []);
-  return { manifest, error };
 }
 
 export function HcdMethods() {

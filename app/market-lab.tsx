@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   CartesianGrid,
   Cell,
@@ -34,15 +34,24 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { PermitPanel, type PermitManifest } from "@/components/permits/permit-panel";
+import type { PermitManifest } from "@/components/permits/permit-panel";
 import { SupplyLens } from "@/components/permits/supply-lens";
 import { MethodCard } from "@/components/method-card";
-import { HcdPanel, HcdMethods, useHcdManifest } from "@/components/permits/hcd-panel";
-import { AcsPanel, type AcsManifestSummary } from "@/components/acs/acs-panel";
-import { FactEnginePanel } from "@/components/facts/fact-engine-panel";
+import { useHcdManifest } from "@/components/permits/use-hcd-manifest";
+import type { AcsManifestSummary } from "@/components/acs/acs-panel";
 import { FigureAttribution, type FigureSource } from "@/components/figure-attribution";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { DEFAULT_MAP_FIT_OPTIONS, focusedMapBounds } from "@/lib/map-view";
+
+const PermitPanel = lazy(() => import("@/components/permits/permit-panel").then((module) => ({ default: module.PermitPanel })));
+const HcdPanel = lazy(() => import("@/components/permits/hcd-panel").then((module) => ({ default: module.HcdPanel })));
+const HcdMethods = lazy(() => import("@/components/permits/hcd-panel").then((module) => ({ default: module.HcdMethods })));
+const AcsPanel = lazy(() => import("@/components/acs/acs-panel").then((module) => ({ default: module.AcsPanel })));
+const FactEnginePanel = lazy(() => import("@/components/facts/fact-engine-panel").then((module) => ({ default: module.FactEnginePanel })));
+
+function PanelFallback({ label }: { label: string }) {
+  return <section className="fact-status" role="status"><span className="loader" aria-hidden="true" /> Loading {label}…</section>;
+}
 
 type Value = number | null;
 type MetricKey =
@@ -2688,20 +2697,24 @@ export default function MarketLab() {
             <div><p className="section-kicker">Housing production pipeline</p><h2>{supplyView === "activity" ? "Where new homes are being authorized." : "How much housing is reaching completion?"}</h2></div>
             <p>{supplyView === "activity" ? "Building permits are an early indicator of intended construction, not completed homes. Compare permitting across cities and county unincorporated areas." : "Explore annual housing delivery in Los Angeles and Orange Counties. Compare up to five jurisdictions, including their housing types and ADU contribution."}</p>
           </section>
-          {supplyView === "activity" ? <PermitPanel
-            mapData={maps.city}
-            lensControl={<SupplyLens value={supplyView} onChange={setSupplyView} />}
-            onManifest={(history, provisional) => setPermitManifests({ history, provisional })}
-          /> : <HcdPanel mapData={maps.city} lensControl={<SupplyLens value={supplyView} onChange={setSupplyView} />} />}
+          <Suspense fallback={<PanelFallback label="housing-supply data" />}>
+            {supplyView === "activity" ? <PermitPanel
+              mapData={maps.city}
+              lensControl={<SupplyLens value={supplyView} onChange={setSupplyView} />}
+              onManifest={(history, provisional) => setPermitManifests({ history, provisional })}
+            /> : <HcdPanel mapData={maps.city} lensControl={<SupplyLens value={supplyView} onChange={setSupplyView} />} />}
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="context" className="space-y-5">
-          <AcsPanel
-            basePath={process.env.NEXT_PUBLIC_BASE_PATH ?? ""}
-            maps={maps}
-            marketDatasets={datasets}
-            onManifest={setAcsManifest}
-          />
+          <Suspense fallback={<PanelFallback label="housing-context data" />}>
+            <AcsPanel
+              basePath={process.env.NEXT_PUBLIC_BASE_PATH ?? ""}
+              maps={maps}
+              marketDatasets={datasets}
+              onManifest={setAcsManifest}
+            />
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="regional" className="space-y-5">
@@ -2827,7 +2840,9 @@ export default function MarketLab() {
         </TabsContent>
 
         <TabsContent value="facts" className="space-y-5">
-          <FactEnginePanel basePath={process.env.NEXT_PUBLIC_BASE_PATH ?? ""} onNavigate={(tab) => { if (tab === "permits") setSupplyView("activity"); setMainTab(tab); }} />
+          <Suspense fallback={<PanelFallback label="market-brief evidence" />}>
+            <FactEnginePanel basePath={process.env.NEXT_PUBLIC_BASE_PATH ?? ""} onNavigate={(tab) => { if (tab === "permits") setSupplyView("activity"); setMainTab(tab); }} />
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="methods" className="space-y-5">
@@ -2842,7 +2857,7 @@ export default function MarketLab() {
             <MethodCard title="Redfin activity measures"><p>Redfin supplies months of supply, median days on market, the share sold above original list, the share of active listings with price reductions, and median sale price per square foot.</p><p>City and ZIP observations are rolling three-month windows. Share changes are shown in percentage points; days and months use absolute differences; price per square foot uses percent change.</p></MethodCard>
             <MethodCard title="Realtor.com inventory and demand"><p>Realtor.com® Economic Research supplies monthly ZIP-level active and new listings, the pending-to-active ratio, listing viewers relative to the U.S., and its Market Hotness score.</p><p>Hotness equally weights relative demand and supply scores based on listing attention and market speed. It is a comparative index, not a probability of sale. Provider-flagged ZIP-months remain visible and are explicitly marked for review.</p></MethodCard>
             <MethodCard title="Building permits"><p>The U.S. Census Bureau Building Permits Survey reports new privately owned housing units authorized by permit-issuing jurisdictions. The lab groups units into single-unit, 2–4-unit, and 5+-unit structures and shows annual history from 1980 and comparable local monthly history from 2022.</p><p>Current-year monthly observations are preliminary and may be revised or imputed. Annual data become final after the Census Bureau’s revision cycle. Permit authorization is an early production indicator, not a housing start or completion.</p></MethodCard>
-            <HcdMethods />
+            <Suspense fallback={<PanelFallback label="HCD methods" />}><HcdMethods /></Suspense>
             <MethodCard title="ACS housing context"><p>The housing-context layer retains six selected ACS five-year measures and their 90% margins of error. The latest cross-section covers every mapped city, Census-designated place, and ZCTA in the two counties; it does not expose a general ACS variable catalog.</p><p>Structural change compares non-overlapping five-year periods for cities and communities. Consecutive overlapping vintages are not treated as annual observations. Prior-period household income is converted to the latest vintage’s dollars using annual-average U.S. CPI-U.</p></MethodCard>
             <MethodCard title="Market-brief reporting rules"><p>An expandable internal registry asks about prices, rents, availability, market speed, seller adjustment, competition, listing flows, construction, and pre-specified relationships between indicators. It currently creates 27 data-release questions, plus separate annual HCD and ACS review checks; the public snapshot shows at most four findings and no more than one per theme.</p><p>A finding can qualify in four ways: its primary measure crosses a fixed editorial threshold; at least 65% of covered local markets move together and the median reaches half its threshold; the year-over-year direction changes with meaningful values on both sides; or a pre-specified pair of indicators diverges. At least 70% calculable coverage is required for a breadth finding.</p><p>The fixed metric thresholds remain editorial filters, not definitions of tail events. The rules are not confidence intervals, hypothesis tests, causal evidence, or forecasts. Exact unrounded values determine qualification, and every archived edition still requires maintainer review.</p></MethodCard>
             <MethodCard title="Geographies"><p>City/community maps retain every Census incorporated place and Census-designated place (CDP) assigned to Orange or Los Angeles County, whether or not a provider reports data. Zillow and Redfin observations are matched independently, and an unincorporated CDP is never reassigned to a neighboring city.</p><p>ZIP map boundaries are Census ZCTAs: useful approximations, but not identical to USPS delivery ZIPs. Census places and ZCTAs do not necessarily cover or classify land in the same way.</p></MethodCard>

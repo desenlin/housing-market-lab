@@ -5,7 +5,7 @@ import test from "node:test";
 const readProjectFile = (path) =>
   readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("keeps the largest client chunk within the temporary runtime-safe ceiling", async () => {
+test("keeps generated client JavaScript chunks below the runtime-safe ceiling", async () => {
   const manifest = JSON.parse(await readProjectFile("dist/client/.vite/manifest.json"));
   const chunks = [...new Set(
     Object.values(manifest)
@@ -17,9 +17,23 @@ test("keeps the largest client chunk within the temporary runtime-safe ceiling",
     bytes: (await stat(new URL(`../dist/client/${file}`, import.meta.url))).size,
   })));
   const largest = sizes.sort((left, right) => right.bytes - left.bytes)[0];
-  assert.ok(largest.bytes < 750_000, `${largest.file} is ${largest.bytes.toLocaleString()} bytes`);
+  assert.ok(largest.bytes < 500_000, `${largest.file} is ${largest.bytes.toLocaleString()} bytes`);
   const viteConfig = await readProjectFile("vite.config.ts");
   assert.doesNotMatch(viteConfig, /codeSplitting/, "manual chart splitting breaks the Recharts runtime");
+});
+
+test("loads secondary evidence panels only when their tabs need them", async () => {
+  const source = await readProjectFile("app/market-lab.tsx");
+  for (const component of ["PermitPanel", "HcdPanel", "AcsPanel", "FactEnginePanel"]) {
+    assert.match(source, new RegExp(`const ${component} = lazy\\(`));
+  }
+  assert.match(source, /<Suspense fallback={<PanelFallback/);
+});
+
+test("documents the five-jurisdiction HCD comparison limit", async () => {
+  const sources = await readProjectFile("DATA_SOURCES.md");
+  assert.match(sources, /HCD[\s\S]*up to five jurisdictions selected/i);
+  assert.doesNotMatch(sources, /HCD[\s\S]*up to three jurisdictions selected/i);
 });
 
 test("provides a persistent light and dark theme control", async () => {
