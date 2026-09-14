@@ -187,7 +187,6 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
               <div className="brief-evidence">
                 {item.facts.map((fact) => <p key={fact.id}><strong>{fact.geography}:</strong> {fact.evidence}</p>)}
               </div>
-              {[...new Set(item.facts.filter((fact) => fact.provisional && fact.caveat).map((fact) => fact.caveat))].map((caveat) => <p className="brief-archive-caveat" key={caveat}>{caveat}</p>)}
               <div className="brief-card-footer">
                 <Button variant="outline" onClick={() => onNavigate(item.destination)}>{item.linkLabel} <ArrowRight /></Button>
                 <details className="brief-audit"><summary>Evidence and limitations</summary>{item.facts.map((fact) => <div key={fact.id}>{fact.metric === "permits_ytd" && <p><strong>{fact.geography}:</strong> {fact.evidence} {fact.comparison}.</p>}<p>{fact.caveat}</p><span>{fact.period} · {fact.coverage}</span><code>{fact.release}</code></div>)}</details>
