@@ -83,6 +83,7 @@ test("provides a persistent light and dark theme control", async () => {
 test("publishes the requested authorship, controls, and map attribution", async () => {
   const source = await readProjectFile("app/market-lab.tsx");
   const styles = await readProjectFile("app/globals.css");
+  const buildScript = await readProjectFile("scripts/build-verified.sh");
   assert.match(source, /href="\.\/" aria-label="Housing Market Lab home">Housing Market Lab<\/a>/);
   assert.match(source, /href="https:\/\/desenlin\.com\/">Desen Lin<\/a>/);
   assert.match(source, /href="https:\/\/www\.fullerton\.edu\/">California State University, Fullerton<\/a>/);
@@ -172,9 +173,12 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /className="footer-emphasis" href="https:\/\/business\.fullerton\.edu\/academics\/finance"/);
   assert.match(source, /className="footer-emphasis" href="https:\/\/www\.fullerton\.edu\/"/);
   assert.match(source, /About &amp; contact/);
-  assert.match(source, /<span>Data freshness<\/span>/);
-  assert.match(source, /<strong>Multiple sources<\/strong>/);
-  assert.match(source, /<small>View source-specific dates<\/small>/);
+  assert.match(source, /<span>Latest site update<\/span>/);
+  assert.match(source, /validationDate\(process\.env\.NEXT_PUBLIC_SITE_UPDATED_AT\)/);
+  assert.match(source, /<small>Data vintages vary by source<\/small>/);
+  assert.match(source, /aria-label="View source-specific data dates"/);
+  assert.match(buildScript, /NEXT_PUBLIC_SITE_UPDATED_AT/);
+  assert.match(buildScript, /TZ=America\/Los_Angeles/);
   assert.doesNotMatch(source, /<span>Latest validated release<\/span>/);
   assert.match(source, /function togglePlaceSelection/);
   assert.match(source, /function toggleActivityPlaceSelection/);

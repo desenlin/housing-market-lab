@@ -2320,10 +2320,10 @@ export default function MarketLab() {
           </div>
           <div className="header-tools">
             <ThemeToggle />
-            <a className="release-stamp release-stamp-link" href="#current-release-provenance" onClick={openReleaseProvenance}>
-              <span>Data freshness</span>
-              <strong>Multiple sources</strong>
-              <small>View source-specific dates</small>
+            <a className="release-stamp release-stamp-link" href="#current-release-provenance" onClick={openReleaseProvenance} aria-label="View source-specific data dates">
+              <span>Latest site update</span>
+              <strong>{validationDate(process.env.NEXT_PUBLIC_SITE_UPDATED_AT)}</strong>
+              <small>Data vintages vary by source</small>
             </a>
           </div>
         </div>

@@ -18,6 +18,13 @@ if [[ ! -x "${vinext}" ]]; then
   exit 69
 fi
 
+# Stamp the deployed site with the date of the commit being built. The lab is
+# California-focused, so use Pacific time rather than the runner's UTC date.
+if [[ -z "${NEXT_PUBLIC_SITE_UPDATED_AT:-}" ]] && command -v git >/dev/null 2>&1; then
+  NEXT_PUBLIC_SITE_UPDATED_AT="$(TZ=America/Los_Angeles git -C "${SITES_PROJECT_ROOT}" show -s --format=%cd --date=format-local:%Y-%m-%d HEAD 2>/dev/null || true)"
+  export NEXT_PUBLIC_SITE_UPDATED_AT
+fi
+
 echo "Running bounded vinext build..."
 timeout \
   --signal=TERM \
