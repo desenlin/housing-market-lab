@@ -172,6 +172,10 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /className="footer-emphasis" href="https:\/\/business\.fullerton\.edu\/academics\/finance"/);
   assert.match(source, /className="footer-emphasis" href="https:\/\/www\.fullerton\.edu\/"/);
   assert.match(source, /About &amp; contact/);
+  assert.match(source, /<span>Data freshness<\/span>/);
+  assert.match(source, /<strong>Multiple sources<\/strong>/);
+  assert.match(source, /<small>View source-specific dates<\/small>/);
+  assert.doesNotMatch(source, /<span>Latest validated release<\/span>/);
   assert.match(source, /function togglePlaceSelection/);
   assert.match(source, /function toggleActivityPlaceSelection/);
   assert.match(source, /aria-pressed=\{selectedIds\.includes\(item\.region\.id\)\}/);
@@ -324,6 +328,29 @@ test("building permits chart offers frequency-appropriate history windows", asyn
   assert.match(hcd, /current\.length < 5/);
   assert.match(hcd, /chosen\.length >= 5/);
   assert.match(page, /Compare up to five jurisdictions/);
+});
+
+test("ranking rows consistently support click-to-deselect", async () => {
+  const page = await readProjectFile("app/market-lab.tsx");
+  const permits = await readProjectFile("components/permits/permit-panel.tsx");
+  const hcd = await readProjectFile("components/permits/hcd-panel.tsx");
+  const acs = await readProjectFile("components/acs/acs-panel.tsx");
+
+  assert.match(page, /function togglePlaceSelection/);
+  assert.match(page, /function toggleActivityPlaceSelection/);
+  assert.match(page, /onClick=\{\(\) => togglePlaceSelection\(item\.region\.id\)\}/);
+  assert.match(page, /onClick=\{\(\) => toggleActivityPlaceSelection\(item\.region\.id\)\}/);
+  assert.match(permits, /function togglePermitPlaceSelection/);
+  assert.match(permits, /if \(current\.includes\(id\)\) return current\.filter/);
+  assert.match(permits, /onClick=\{\(\) => togglePermitPlaceSelection\(region\.id\)\}/);
+  assert.match(permits, /aria-pressed=\{selectedIds\.includes\(region\.id\)\}/);
+  assert.match(hcd, /function toggleCity\(id: string\)/);
+  assert.match(hcd, /onClick=\{\(\) => toggleCity\(r\.id\)\}/);
+  assert.match(acs, /function toggleContextPlaceSelection/);
+  assert.match(acs, /current === id \? "" : id/);
+  assert.match(acs, /onClick=\{\(\) => toggleContextPlaceSelection\(item\.region\.id\)\}/);
+  assert.match(acs, /aria-pressed=\{item\.region\.id === selected\?\.id\}/);
+  assert.doesNotMatch(acs, /eligible\.find\(\(region\) => region\.id === selectedId\) \?\? eligible\[0\]/);
 });
 
 test("housing context stays curated and communicates ACS uncertainty", async () => {

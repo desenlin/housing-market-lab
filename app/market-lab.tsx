@@ -2321,9 +2321,9 @@ export default function MarketLab() {
           <div className="header-tools">
             <ThemeToggle />
             <a className="release-stamp release-stamp-link" href="#current-release-provenance" onClick={openReleaseProvenance}>
-              <span>Latest validated release</span>
-              <strong>{manifest.release}</strong>
-              <small>Data through {shortDate(Object.values(manifest.latest_observations).sort().at(-1) ?? manifest.release)}</small>
+              <span>Data freshness</span>
+              <strong>Multiple sources</strong>
+              <small>View source-specific dates</small>
             </a>
           </div>
         </div>

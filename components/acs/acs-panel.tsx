@@ -447,7 +447,7 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
   const dataset = datasets?.[geography];
   const metric = dataset?.metrics[metricKey];
   const eligible = useMemo(() => dataset?.regions.filter((region) => county === "Both" || region.county === county) ?? [], [county, dataset]);
-  const selected = eligible.find((region) => region.id === selectedId) ?? eligible[0];
+  const selected = eligible.find((region) => region.id === selectedId);
 
   const ranked = useMemo(() => {
     if (!metric) return [];
@@ -522,6 +522,17 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
     setSelectedId(nextEligible.find((region) => region.name === preferred)?.id ?? nextEligible[0]?.id ?? "");
   }
 
+  function changeCounty(next: string) {
+    const value = next as County;
+    const nextEligible = dataset?.regions.filter((region) => value === "Both" || region.county === value) ?? [];
+    setCounty(value);
+    setSelectedId((current) => nextEligible.some((region) => region.id === current) ? current : nextEligible[0]?.id ?? "");
+  }
+
+  function toggleContextPlaceSelection(id: string) {
+    setSelectedId((current) => current === id ? "" : id);
+  }
+
   return (
     <div className="acs-stack">
       <section className="regional-intro acs-intro">
@@ -536,7 +547,7 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
           <span>90% margins of error retained</span>
         </div>
         <div className="control-grid acs-controls">
-          <LabelledSelect label="County" value={county} onChange={(next) => setCounty(next as County)}>
+          <LabelledSelect label="County" value={county} onChange={changeCounty}>
             {COUNTY_OPTIONS.map((option) => <NativeSelectOption key={option} value={option}>{option}</NativeSelectOption>)}
           </LabelledSelect>
           <LabelledSelect label="Geography" value={geography} onChange={changeGeography}>
@@ -576,7 +587,7 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
               const moe = item.region.moe[metricKey]?.[1] ?? null;
               const uncertain = relativeUncertainty(item.level, moe);
               return (
-                <button key={item.region.id} type="button" onClick={() => setSelectedId(item.region.id)} className={`acs-rank-row${item.region.id === selected?.id ? " active" : ""}`}>
+                <button key={item.region.id} type="button" aria-pressed={item.region.id === selected?.id} onClick={() => toggleContextPlaceSelection(item.region.id)} className={`acs-rank-row${item.region.id === selected?.id ? " active" : ""}`}>
                   <span className="rank-number">{index + 1}</span>
                   <span className="rank-name">{item.region.name}<small>{item.region.county}{uncertain != null && uncertain > 0.3 ? " · high uncertainty" : ""}</small></span>
                   <strong>{formatEstimate(value, metric, view === "change")}</strong>
@@ -589,7 +600,7 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
       </section>
 
       <section className="acs-profile-section">
-        <div className="acs-section-heading"><div><p className="section-kicker">Selected community</p><h3>{selected?.name} housing context</h3></div><p>Each figure is an estimate for {dataset.periods[1]}, not a single-year observation.</p></div>
+        <div className="acs-section-heading"><div><p className="section-kicker">Selected community</p><h3>{selected ? `${selected.name} housing context` : "Select a place to view its housing context"}</h3></div><p>Each figure is an estimate for {dataset.periods[1]}, not a single-year observation.</p></div>
         <div className="acs-profile-grid">
           {METRIC_ORDER.map((key) => {
             const item = dataset.metrics[key];

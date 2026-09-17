@@ -122,7 +122,7 @@ button, select { font: inherit; }
 .release-stamp-link, .release-stamp-link:hover { color: inherit; text-decoration: none; }
 .release-stamp-link:focus-visible { border-radius: 3px; outline: 2px solid #ffb47b; outline-offset: 5px; text-decoration: none; }
 .release-stamp span { color: #aabfce; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
-.release-stamp strong { font-family: var(--font-mono); color: #ffd0ad; font-size: 18px; }
+.release-stamp strong { font-family: var(--font-sans); color: #ffd0ad; font-size: 18px; }
 .release-stamp small { color: #c9d7e2; }
 .page-shell { max-width: 1240px; margin: 0 auto; padding: 0 24px 48px; }
 .main-tabs { width: 100%; height: auto !important; justify-content: flex-start; gap: 24px !important; margin: 0 0 23px; padding: 0 !important; border-bottom: 1px solid #bdcbd2; }
@@ -282,6 +282,8 @@ button, select { font: inherit; }
 .permit-rank-columns span:last-child { text-align: right; }
 .permit-rank-row { width: 100%; border: 0; border-bottom: 1px solid #edf1f3; background: white; padding: 9px 15px; color: #173752; text-align: left; cursor: pointer; }
 .permit-rank-row:hover, .permit-rank-row.active { background: #fff5ed; }
+.permit-rank-row.selected { background: #f3f7fa; box-shadow: inset 3px 0 #6d879a; }
+.permit-rank-row:disabled { opacity: 1; cursor: not-allowed; }
 .permit-rank-row strong { font-size: 11px; text-align: right; white-space: nowrap; }
 .permit-county-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .permit-county-summary > div { border-color: #ccd7dd; box-shadow: none; }
@@ -517,6 +519,7 @@ footer p { margin: 0; }
 .dark .rank-row:hover, .dark .rank-row.active,
 .dark .permit-rank-row:hover, .dark .permit-rank-row.active { border-color: #735039; background: #34271f; color: #ffc49a; }
 .dark .rank-row.selected { background: #243440; color: var(--foreground); box-shadow: inset 3px 0 #86a4b8; }
+.dark .permit-rank-row.selected { background: #243440; color: var(--foreground); box-shadow: inset 3px 0 #86a4b8; }
 .dark .acs-rank-row:hover, .dark .acs-rank-row.active { background: #213542; color: var(--foreground); }
 .dark .rank-name small, .dark .acs-rank-row > span:last-child { color: var(--detail-muted); }
 .dark :where(.definition-help, .acs-chart-tooltip, .hotness-tooltip, .cycle-tooltip, .leaflet-tooltip) { border-color: #53636e; background: #202a32; color: #c4d0d8; box-shadow: 0 10px 25px rgb(0 0 0 / .35); }

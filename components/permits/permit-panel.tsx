@@ -427,6 +427,22 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
     ]),
   ])) ?? [];
 
+  function changeCounty(next: string) {
+    setCounty(next);
+    setAddId("");
+    setSelectedIds((current) => current.filter((id) => (
+      next === "Both" || dataset?.regions.some((region) => region.id === id && region.county === next)
+    )));
+  }
+
+  function togglePermitPlaceSelection(id: string) {
+    setSelectedIds((current) => {
+      if (current.includes(id)) return current.filter((item) => item !== id);
+      if (current.length >= 5) return current;
+      return [id, ...current];
+    });
+  }
+
   if (error) return <div className="permit-status permit-error">{lensControl}<strong>Building permits are temporarily unavailable.</strong><span>{error}</span></div>;
   if (!dataset || !metricInfo || !historyManifest || !provisionalManifest) return <div className="permit-status">{lensControl}<span className="loader" />Loading building permits…</div>;
 
@@ -444,7 +460,7 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
         </div>
         <div className="control-grid permit-controls">
           {lensControl}
-          <LabelledSelect label="County" value={county} onChange={setCounty}>{COUNTY_OPTIONS.map((option) => <NativeSelectOption key={option} value={option}>{option}</NativeSelectOption>)}</LabelledSelect>
+          <LabelledSelect label="County" value={county} onChange={changeCounty}>{COUNTY_OPTIONS.map((option) => <NativeSelectOption key={option} value={option}>{option}</NativeSelectOption>)}</LabelledSelect>
           <LabelledSelect label="Frequency" value={frequency} onChange={(value) => setFrequency(value as Frequency)}><NativeSelectOption value="monthly">Monthly · 2022–present</NativeSelectOption><NativeSelectOption value="annual">Annual · 1980–present</NativeSelectOption></LabelledSelect>
           <LabelledSelect label="Metric" value={metric} onChange={(value) => setMetric(value as PermitMetricKey)}>{METRIC_OPTIONS.map((option) => <NativeSelectOption key={option.key} value={option.key}>{option.label}</NativeSelectOption>)}</LabelledSelect>
           <LabelledSelect label="Map & ranking date" value={selectedDate} onChange={setDate}>{[...dataset.dates].reverse().map((value) => <NativeSelectOption key={value} value={value}>{formatDate(value)}{frequency === "monthly" && value > `${historyManifest.latest_final_year}-12` ? " · preliminary" : ""}</NativeSelectOption>)}</LabelledSelect>
@@ -532,7 +548,7 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
         <Card className="ranking-card permit-ranking">
           <CardHeader><p className="section-kicker">Cross-section</p><CardTitle>City ranking</CardTitle><div className="permit-rank-columns"><span>#</span><span>City</span><span>{metricInfo.short_label}</span></div></CardHeader>
           <CardContent className="ranking-list">
-            {ranked.map((region, index) => <button type="button" className={region.id === primary?.id ? "permit-rank-row active" : "permit-rank-row"} key={region.id} onClick={() => setSelectedIds((current) => [region.id, ...current.filter((id) => id !== region.id)].slice(0, 5))}><span className="rank-number">{index + 1}</span><span className="rank-name">{region.name}<small>{region.county}</small></span><strong>{formatValue(region.series[metric][dateIndex], metricInfo)}</strong></button>)}
+            {ranked.map((region, index) => <button type="button" aria-pressed={selectedIds.includes(region.id)} disabled={!selectedIds.includes(region.id) && selectedIds.length >= 5} className={`permit-rank-row${region.id === primary?.id ? " active" : selectedIds.includes(region.id) ? " selected" : ""}`} key={region.id} onClick={() => togglePermitPlaceSelection(region.id)}><span className="rank-number">{index + 1}</span><span className="rank-name">{region.name}<small>{region.county}</small></span><strong>{formatValue(region.series[metric][dateIndex], metricInfo)}</strong></button>)}
           </CardContent>
         </Card>
       </section>
