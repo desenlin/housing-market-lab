@@ -82,7 +82,7 @@ class BpsQuestionGuardTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[1]
         packet = json.loads((root / "public/data/facts/latest.json").read_text())
         item = next(f for f in packet["facts"] if f["metric"] == "permits_ytd")
-        item["period"] = "2026 YTD through 2026-08"
+        item["period"] += " (mismatched test window)"
         with self.assertRaisesRegex(ValueError, "same year-to-date window"):
             question_sections(packet)
 
