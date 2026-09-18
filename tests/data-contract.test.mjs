@@ -5,6 +5,7 @@ import test from "node:test";
 
 const root = new URL("../public/data/", import.meta.url);
 const readJson = async (relative) => JSON.parse(await readFile(new URL(relative, root), "utf8"));
+const normalizedName = (name) => name.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase();
 const readDataset = async (prefix, manifest, geography) => {
   const names = manifest.files?.[geography] ?? [`${geography}.json`];
   const shards = await Promise.all(names.map((name) => readJson(`${prefix}${name}`)));
@@ -39,16 +40,53 @@ test("latest pointer resolves to a complete release", async () => {
   assert.equal(city.regions.length, manifest.counts.city);
   assert.equal(zip.regions.length, manifest.counts.zip);
   assert.equal(metro.regions.length, manifest.counts.metro);
+  // Coverage can grow or shrink between provider releases. Keep the pipeline's
+  // minimum coverage safeguards, but do not freeze counts to a past snapshot.
+  assert.ok(city.regions.length >= 140);
+  assert.ok(zip.regions.length >= 340);
   assert.ok(city.metrics.zhvi.dates.length > 250);
   assert.ok(zip.metrics.zori.dates.length > 100);
-  assert.equal(cityMap.counties["Orange County"].mapped, 39);
-  assert.equal(cityMap.counties["Orange County"].boundaries, 47);
+  assert.equal(mapManifest.release, mapPointer.release);
+  assert.equal(manifest.map_release, mapPointer.release);
+  const counties = ["Los Angeles County", "Orange County"];
+  for (const [geography, dataset, map] of [["city", city, cityMap], ["zip", zip, zipMap]]) {
+    assert.equal(new Set(dataset.regions.map((region) => region.id)).size, dataset.regions.length,
+      `${geography}: duplicate data region IDs`);
+    assert.deepEqual([...new Set(dataset.regions.map((region) => region.county))].sort(), counties);
+    assert.deepEqual(Object.keys(map.counties).sort(), counties);
+    for (const county of counties) {
+      const label = `${geography}, ${county}`;
+      const coverage = map.counties[county];
+      const dataRegions = dataset.regions.filter((region) => region.county === county);
+      // Zillow and Census use different city IDs; join their county-scoped names.
+      const names = new Set(dataRegions.map((region) => normalizedName(region.name)));
+      assert.equal(names.size, dataRegions.length, `${label}: duplicate data region names`);
+      assert.equal(new Set(coverage.regions.map((region) => region.id)).size, coverage.regions.length,
+        `${label}: duplicate map region IDs`);
+      assert.equal(new Set(coverage.regions.map((region) => normalizedName(region.name))).size,
+        coverage.regions.length, `${label}: duplicate map region names`);
+      assert.ok(coverage.regions.every((region) => region.county === county
+        && ["Polygon", "MultiPolygon"].includes(region.geometry?.type)
+        && region.geometry.coordinates.length > 0), `${label}: invalid map boundary`);
+      const mapped = coverage.regions.filter((region) => names.has(normalizedName(region.name))).length;
+      assert.ok(mapped > 0, `${label}: no data regions matched the map`);
+      assert.equal(coverage.available, dataRegions.length, `${label}: available count`);
+      assert.equal(coverage.boundaries, coverage.regions.length, `${label}: boundary count`);
+      assert.equal(coverage.mapped, mapped, `${label}: mapped count`);
+      assert.deepEqual(manifest.map_coverage[geography][county], {
+        available: dataRegions.length, boundaries: coverage.regions.length, mapped,
+      }, `${label}: manifest coverage`);
+      // City maps also retain Census places without Zillow data. ZIP maps contain
+      // only covered ZCTAs, so every ZIP observation must have a boundary.
+      if (geography === "zip") {
+        assert.equal(mapped, dataRegions.length, `${label}: missing ZIP boundaries`);
+        assert.equal(coverage.regions.length, mapped, `${label}: unexpected ZIP boundaries`);
+      }
+    }
+  }
   assert.ok(cityMap.counties["Orange County"].regions.some((region) =>
     region.name === "Rossmoor" && region.id === "place:0663050"
   ));
-  assert.equal(zipMap.counties["Los Angeles County"].mapped, 274);
-  assert.ok(cityMap.counties["Orange County"].regions.every((region) => region.geometry));
-  assert.ok(zipMap.counties["Los Angeles County"].regions.every((region) => region.geometry));
   const [[minLat, minLon], [maxLat, maxLon]] = cityMap.counties["Los Angeles County"].bounds;
   assert.ok(maxLat - minLat < 2);
   assert.ok(maxLon - minLon < 2);
@@ -223,9 +261,20 @@ test("ACS pointer resolves to compact current and non-overlapping context data",
     readJson(`${prefix}zip.json`),
   ]);
   assert.equal(manifest.provider, "U.S. Census Bureau American Community Survey");
-  assert.deepEqual(manifest.periods, ["2015–2019", "2020–2024"]);
-  assert.equal(city.regions.length, 189);
-  assert.equal(zip.regions.length, 360);
+  assert.equal(manifest.release, pointer.release);
+  assert.ok(Number.isInteger(manifest.latest_year) && Number.isInteger(manifest.comparison_year));
+  assert.equal(manifest.latest_year - manifest.comparison_year, 5);
+  assert.deepEqual(manifest.periods, [manifest.comparison_year, manifest.latest_year]
+    .map((year) => `${year - 4}–${year}`));
+  for (const [geography, dataset, minimum] of [["city", city, 170], ["zip", zip, 330]]) {
+    assert.deepEqual(dataset.periods, manifest.periods);
+    assert.equal(dataset.regions.length, manifest.counts[geography]);
+    assert.equal(new Set(dataset.regions.map((region) => region.id)).size, dataset.regions.length,
+      `${geography}: duplicate ACS region IDs`);
+    const covered = dataset.regions.filter((region) => Object.values(region.series)
+      .some((values) => values.some(Number.isFinite))).length;
+    assert.ok(covered >= minimum, `${geography}: ACS coverage fell below the pipeline floor`);
+  }
   assert.equal(city.comparison_available, true);
   assert.equal(zip.comparison_available, false);
   assert.deepEqual(Object.keys(city.metrics).sort(), [
