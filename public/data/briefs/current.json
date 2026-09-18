@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "status": "automatic_snapshot",
-  "generated_at": "2026-09-12T17:04:22.412541+00:00",
+  "generated_at": "2026-09-18T17:08:30.433044+00:00",
   "data_cutoff": "2026-08-31",
-  "source_packet_sha256": "6dfac7d2cc3c79c391b1d4e5745821498130e4fc9e877405821362ea3537f4ed",
+  "source_packet_sha256": "51618f178da4dcc6e4ae2d8afbae9183cf339f91f5672ce655e1c59e7da27444",
   "method": "Deterministic screening only; the rules identify review candidates and do not infer causes or forecasts.",
   "monitoring": {
     "question_count": 27,
-    "qualified_before_editorial_cap": 4,
-    "displayed_findings": 3,
+    "qualified_before_editorial_cap": 5,
+    "displayed_findings": 4,
     "suppressed_related_findings": 1
   },
   "qualification_rules": {
@@ -20,13 +20,13 @@
   "source_releases": [
     {
       "provider": "Zillow Research",
-      "release": "2026-09-12-r170123",
-      "sha256": "5a717579168532746ef32208a234a74b912411d77bcceead8f34a7b383e9ac15"
+      "release": "2026-09-18-r170716",
+      "sha256": "6d0e90853b3d78d47ff19babfaa1be76662a1d7cb571941b6b438b3b0cc0cb45"
     },
     {
       "provider": "Redfin",
-      "release": "2026-09-12-r170408",
-      "sha256": "268b5c628f8b042b7de75bab90c860dddf25abddc5278a218803da7f5da71423"
+      "release": "2026-09-18-r170830",
+      "sha256": "b758291760f8fdb431faa2af86aa9fbad92c198e85d3c72ac713a185a8f0cb13"
     },
     {
       "provider": "Realtor.com® Economic Research — Inventory",
@@ -94,19 +94,19 @@
     },
     {
       "question": "Are home values keeping pace with local inflation?",
-      "answer": "No. Los Angeles metro home values changed +0.9% from one year earlier, while LA-area CPI-U changed +3.4% over the same period. The implied inflation-adjusted change was -2.4%.",
+      "answer": "No. Los Angeles metro home values changed +1.2% from one year earlier, while LA-area CPI-U changed +3.6% over the same period. The implied inflation-adjusted change was -2.3%.",
       "trigger_fact_id": "derived-la-real-zhvi",
       "fact_ids": [
         "derived-la-real-zhvi",
         "zillow-la-metro-zhvi",
         "bls-la-cpi"
       ],
-      "period_end": "2026-07-31",
-      "observation_period": "July 2026",
+      "period_end": "2026-08-31",
+      "observation_period": "August 2026",
       "status": "validated",
       "evidence": [
-        "Nominal ZHVI changed +0.9% while LA-area CPI-U changed +3.4%.",
-        "$964,934 compared with $956,028 one year earlier."
+        "Nominal ZHVI changed +1.2% while LA-area CPI-U changed +3.6%.",
+        "$952,601 compared with $941,363 one year earlier."
       ],
       "sources": "Zillow Research + U.S. Bureau of Labor Statistics",
       "coverage": "Common-month Zillow ZHVI and LA-area CPI-U",
@@ -127,19 +127,59 @@
           "explanation": "The primary measure crossed its fixed editorial threshold."
         }
       ],
-      "selection_score": 85.8,
+      "selection_score": 85.3,
       "source_releases": [
         {
           "provider": "Zillow Research + BLS CPI-U",
-          "release": "2026-09-12-r170123 + 2026-09-12-r170422"
+          "release": "2026-09-18-r170716 + 2026-09-12-r170422"
         },
         {
           "provider": "Zillow Research",
-          "release": "2026-09-12-r170123"
+          "release": "2026-09-18-r170716"
         },
         {
           "provider": "U.S. Bureau of Labor Statistics",
           "release": "2026-09-12-r170422"
+        }
+      ]
+    },
+    {
+      "question": "How fast are asking rents changing?",
+      "answer": "Los Angeles metro typical asking rent changed +1.6% from one year earlier.",
+      "trigger_fact_id": "zillow-la-metro-zori",
+      "fact_ids": [
+        "zillow-la-metro-zori"
+      ],
+      "period_end": "2026-08-31",
+      "observation_period": "August 2026",
+      "status": "validated",
+      "evidence": [
+        "$2,941 compared with $2,894 one year earlier."
+      ],
+      "sources": "Zillow Research",
+      "coverage": "One focus metropolitan series",
+      "caveat": "Descriptive metropolitan estimate; not a causal or predictive measure.",
+      "question_id": "zori-los-angeles-metro",
+      "theme": "rents",
+      "kicker": "Asking rents",
+      "topic": "asking rents",
+      "trigger_fact_ids": [
+        "zillow-la-metro-zori"
+      ],
+      "destination": "local",
+      "link_label": "Explore rent trends",
+      "qualifications": [
+        {
+          "id": "material_movement",
+          "label": "Material movement",
+          "explanation": "The primary measure crossed its fixed editorial threshold."
+        }
+      ],
+      "selection_score": 67.9,
+      "source_releases": [
+        {
+          "provider": "Zillow Research",
+          "release": "2026-09-18-r170716"
         }
       ]
     },
@@ -167,7 +207,7 @@
       "source_releases": [
         {
           "provider": "Redfin",
-          "release": "2026-09-12-r170408"
+          "release": "2026-09-18-r170830"
         }
       ],
       "coverage": "41 of 42 local markets had calculable year-over-year changes",
