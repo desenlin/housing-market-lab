@@ -20,7 +20,118 @@
       "long_label": "Consumer Price Index for All Urban Consumers: All Items in Los Angeles-Long Beach-Anaheim, CA",
       "area": "Los Angeles-Long Beach-Anaheim, CA",
       "coverage": "Los Angeles and Orange Counties",
-      "seasonal_adjustment": "Not seasonally adjusted"
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "la",
+      "category": "all",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.10.OtherWest"
+    },
+    {
+      "key": "la_core",
+      "id": "CUURS49ASA0L1E",
+      "label": "LA-area Core CPI",
+      "long_label": "Consumer Price Index for All Urban Consumers: Core CPI in Los Angeles-Long Beach-Anaheim, CA",
+      "area": "Los Angeles-Long Beach-Anaheim, CA",
+      "coverage": "Los Angeles and Orange Counties",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "la",
+      "category": "core",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.10.OtherWest"
+    },
+    {
+      "key": "la_food",
+      "id": "CUURS49ASAF1",
+      "label": "LA-area Food",
+      "long_label": "Consumer Price Index for All Urban Consumers: Food in Los Angeles-Long Beach-Anaheim, CA",
+      "area": "Los Angeles-Long Beach-Anaheim, CA",
+      "coverage": "Los Angeles and Orange Counties",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "la",
+      "category": "food",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.10.OtherWest"
+    },
+    {
+      "key": "la_grocery",
+      "id": "CUURS49ASAF11",
+      "label": "LA-area Groceries",
+      "long_label": "Consumer Price Index for All Urban Consumers: Groceries in Los Angeles-Long Beach-Anaheim, CA",
+      "area": "Los Angeles-Long Beach-Anaheim, CA",
+      "coverage": "Los Angeles and Orange Counties",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "la",
+      "category": "grocery",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.10.OtherWest"
+    },
+    {
+      "key": "la_dining",
+      "id": "CUURS49ASEFV",
+      "label": "LA-area Dining out",
+      "long_label": "Consumer Price Index for All Urban Consumers: Dining out in Los Angeles-Long Beach-Anaheim, CA",
+      "area": "Los Angeles-Long Beach-Anaheim, CA",
+      "coverage": "Los Angeles and Orange Counties",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "la",
+      "category": "dining",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.10.OtherWest"
+    },
+    {
+      "key": "la_energy",
+      "id": "CUURS49ASA0E",
+      "label": "LA-area Energy",
+      "long_label": "Consumer Price Index for All Urban Consumers: Energy in Los Angeles-Long Beach-Anaheim, CA",
+      "area": "Los Angeles-Long Beach-Anaheim, CA",
+      "coverage": "Los Angeles and Orange Counties",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "la",
+      "category": "energy",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.10.OtherWest"
+    },
+    {
+      "key": "la_gasoline",
+      "id": "CUURS49ASETB01",
+      "label": "LA-area Gasoline",
+      "long_label": "Consumer Price Index for All Urban Consumers: Gasoline in Los Angeles-Long Beach-Anaheim, CA",
+      "area": "Los Angeles-Long Beach-Anaheim, CA",
+      "coverage": "Los Angeles and Orange Counties",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "la",
+      "category": "gasoline",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.10.OtherWest"
+    },
+    {
+      "key": "la_shelter",
+      "id": "CUURS49ASAH1",
+      "label": "LA-area Shelter",
+      "long_label": "Consumer Price Index for All Urban Consumers: Shelter in Los Angeles-Long Beach-Anaheim, CA",
+      "area": "Los Angeles-Long Beach-Anaheim, CA",
+      "coverage": "Los Angeles and Orange Counties",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "la",
+      "category": "shelter",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.10.OtherWest"
+    },
+    {
+      "key": "la_rent",
+      "id": "CUURS49ASEHA",
+      "label": "LA-area Tenant rent",
+      "long_label": "Consumer Price Index for All Urban Consumers: Tenant rent in Los Angeles-Long Beach-Anaheim, CA",
+      "area": "Los Angeles-Long Beach-Anaheim, CA",
+      "coverage": "Los Angeles and Orange Counties",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "la",
+      "category": "rent",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.10.OtherWest"
+    },
+    {
+      "key": "la_nonshelter",
+      "id": "CUURS49ASA0L2",
+      "label": "LA-area Excluding shelter",
+      "long_label": "Consumer Price Index for All Urban Consumers: Excluding shelter in Los Angeles-Long Beach-Anaheim, CA",
+      "area": "Los Angeles-Long Beach-Anaheim, CA",
+      "coverage": "Los Angeles and Orange Counties",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "la",
+      "category": "nonshelter",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.10.OtherWest"
     },
     {
       "key": "us",
@@ -29,7 +140,180 @@
       "long_label": "Consumer Price Index for All Urban Consumers: All Items in U.S. city average",
       "area": "U.S. city average",
       "coverage": "United States",
-      "seasonal_adjustment": "Not seasonally adjusted"
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "us",
+      "category": "all",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.1.AllItems"
+    },
+    {
+      "key": "us_core",
+      "id": "CUUR0000SA0L1E",
+      "label": "U.S. Core CPI",
+      "long_label": "Consumer Price Index for All Urban Consumers: Core CPI in U.S. city average",
+      "area": "U.S. city average",
+      "coverage": "United States",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "us",
+      "category": "core",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.20.USCommoditiesServicesSpecial"
+    },
+    {
+      "key": "us_food",
+      "id": "CUUR0000SAF1",
+      "label": "U.S. Food",
+      "long_label": "Consumer Price Index for All Urban Consumers: Food in U.S. city average",
+      "area": "U.S. city average",
+      "coverage": "United States",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "us",
+      "category": "food",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.11.USFoodBeverage"
+    },
+    {
+      "key": "us_grocery",
+      "id": "CUUR0000SAF11",
+      "label": "U.S. Groceries",
+      "long_label": "Consumer Price Index for All Urban Consumers: Groceries in U.S. city average",
+      "area": "U.S. city average",
+      "coverage": "United States",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "us",
+      "category": "grocery",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.11.USFoodBeverage"
+    },
+    {
+      "key": "us_dining",
+      "id": "CUUR0000SEFV",
+      "label": "U.S. Dining out",
+      "long_label": "Consumer Price Index for All Urban Consumers: Dining out in U.S. city average",
+      "area": "U.S. city average",
+      "coverage": "United States",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "us",
+      "category": "dining",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.11.USFoodBeverage"
+    },
+    {
+      "key": "us_energy",
+      "id": "CUUR0000SA0E",
+      "label": "U.S. Energy",
+      "long_label": "Consumer Price Index for All Urban Consumers: Energy in U.S. city average",
+      "area": "U.S. city average",
+      "coverage": "United States",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "us",
+      "category": "energy",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.20.USCommoditiesServicesSpecial"
+    },
+    {
+      "key": "us_gasoline",
+      "id": "CUUR0000SETB01",
+      "label": "U.S. Gasoline",
+      "long_label": "Consumer Price Index for All Urban Consumers: Gasoline in U.S. city average",
+      "area": "U.S. city average",
+      "coverage": "United States",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "us",
+      "category": "gasoline",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.14.USTransportation"
+    },
+    {
+      "key": "us_shelter",
+      "id": "CUUR0000SAH1",
+      "label": "U.S. Shelter",
+      "long_label": "Consumer Price Index for All Urban Consumers: Shelter in U.S. city average",
+      "area": "U.S. city average",
+      "coverage": "United States",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "us",
+      "category": "shelter",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.12.USHousing"
+    },
+    {
+      "key": "us_rent",
+      "id": "CUUR0000SEHA",
+      "label": "U.S. Tenant rent",
+      "long_label": "Consumer Price Index for All Urban Consumers: Tenant rent in U.S. city average",
+      "area": "U.S. city average",
+      "coverage": "United States",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "us",
+      "category": "rent",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.12.USHousing"
+    },
+    {
+      "key": "us_nonshelter",
+      "id": "CUUR0000SA0L2",
+      "label": "U.S. Excluding shelter",
+      "long_label": "Consumer Price Index for All Urban Consumers: Excluding shelter in U.S. city average",
+      "area": "U.S. city average",
+      "coverage": "United States",
+      "seasonal_adjustment": "Not seasonally adjusted",
+      "area_key": "us",
+      "category": "nonshelter",
+      "bulk_url": "https://download.bls.gov/pub/time.series/cu/cu.data.20.USCommoditiesServicesSpecial"
+    }
+  ],
+  "categories": [
+    {
+      "key": "all",
+      "label": "Headline CPI",
+      "code": "SA0",
+      "description": "All consumer goods and services; includes food and energy."
+    },
+    {
+      "key": "core",
+      "label": "Core CPI",
+      "code": "SA0L1E",
+      "description": "All items excluding food and energy; includes shelter."
+    },
+    {
+      "key": "food",
+      "label": "Food",
+      "code": "SAF1",
+      "description": "Food at home and food away from home."
+    },
+    {
+      "key": "grocery",
+      "label": "Groceries",
+      "code": "SAF11",
+      "description": "Food at home: purchases from grocery stores and similar outlets."
+    },
+    {
+      "key": "dining",
+      "label": "Dining out",
+      "code": "SEFV",
+      "description": "Food away from home: restaurant, cafeteria and other prepared-food purchases."
+    },
+    {
+      "key": "energy",
+      "label": "Energy",
+      "code": "SA0E",
+      "description": "Broad energy aggregate, including motor fuel and household energy."
+    },
+    {
+      "key": "gasoline",
+      "label": "Gasoline",
+      "code": "SETB01",
+      "description": "Gasoline, all types. A component of the energy index."
+    },
+    {
+      "key": "shelter",
+      "label": "Shelter",
+      "code": "SAH1",
+      "description": "Housing services, including tenant rent and owners’ equivalent rent; excludes home-purchase prices and mortgage payments."
+    },
+    {
+      "key": "rent",
+      "label": "Tenant rent",
+      "code": "SEHA",
+      "description": "Rent of primary residence, including existing rental agreements; different coverage from Zillow asking rents."
+    },
+    {
+      "key": "nonshelter",
+      "label": "Excluding shelter",
+      "code": "SA0L2",
+      "description": "All items less shelter. Includes food and energy."
     }
   ]
 }

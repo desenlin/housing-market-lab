@@ -43,6 +43,15 @@ import { FigureAttribution, type FigureSource } from "@/components/figure-attrib
 import { ThemeToggle } from "@/components/theme-toggle";
 import { DEFAULT_MAP_FIT_OPTIONS, focusedMapBounds } from "@/lib/map-view";
 
+import { TimeRangeControl } from "@/components/time-range-control";
+import { timeRangeStart, timeAxisTicks, valueAxisDomain, type TimeRange } from "@/lib/chart-series";
+import type { CpiDataset, CpiManifest, CpiSeries, CpiInterpolationRule } from "@/lib/inflation";
+import { PricesLens } from "@/components/inflation/prices-lens";
+import { InflationMethods, InflationProvenance } from "@/components/inflation/inflation-methods";
+export { timeAxisTicks, valueAxisDomain } from "@/lib/chart-series";
+
+const InflationPanel = lazy(() => import("@/components/inflation/inflation-panel").then((module) => ({ default: module.InflationPanel })));
+
 const PermitPanel = lazy(() => import("@/components/permits/permit-panel").then((module) => ({ default: module.PermitPanel })));
 const HcdPanel = lazy(() => import("@/components/permits/hcd-panel").then((module) => ({ default: module.HcdPanel })));
 const HcdMethods = lazy(() => import("@/components/permits/hcd-panel").then((module) => ({ default: module.HcdMethods })));
@@ -77,7 +86,7 @@ type MetricKey =
   | "realtor_median_dom";
 type ViewKey = "level" | "yoy" | "index";
 type ChangeMode = "percent" | "difference" | "percentage_point";
-type TimeRange = "1y" | "3y" | "5y" | "max";
+
 type RankKey = "growth" | "level";
 type MapPaletteKey = "navy" | "orange";
 type PriceBasis = "nominal" | "real";
@@ -195,53 +204,6 @@ type RealtorManifest = {
   };
 };
 
-type CpiSeries = {
-  key: CpiSeriesKey;
-  id: string;
-  label: string;
-  long_label: string;
-  area: string;
-  coverage: string;
-  seasonal_adjustment: string;
-  frequency: string;
-  unit: string;
-  dates: string[];
-  values: Value[];
-  yoy: Value[];
-  latest_observation: string;
-  missing_observations: string[];
-};
-
-type CpiInterpolationRule = {
-  month: string;
-  method: "log_linear";
-  reason: string;
-};
-
-type CpiDataset = {
-  provider: string;
-  frequency: string;
-  data_page: string;
-  real_value_interpolation?: CpiInterpolationRule[];
-  series: Record<CpiSeriesKey, CpiSeries>;
-};
-
-type CpiManifest = {
-  release: string;
-  created_at: string;
-  provider: string;
-  attribution: string;
-  data_page: string;
-  frequency: string;
-  real_value_interpolation?: CpiInterpolationRule[];
-  bundle_sha256: string;
-  series: Record<CpiSeriesKey, {
-    id: string;
-    label: string;
-    latest_observation: string;
-    missing_observations: string[];
-  }>;
-};
 
 type PriceAdjustment = {
   basis: PriceBasis;
@@ -298,12 +260,7 @@ const MAP_PALETTES: Record<MapPaletteKey, string[]> = {
   navy: ["#edf4fa", "#b9d2e5", "#74a8cc", "#2f6f9f", "#12355b"],
   orange: ["#fff3e8", "#ffd2aa", "#f7a35c", "#df6b1c", "#913500"],
 };
-const TIME_RANGES: { key: TimeRange; label: string; months: number | null }[] = [
-  { key: "1y", label: "1 year", months: 12 },
-  { key: "3y", label: "3 years", months: 36 },
-  { key: "5y", label: "5 years", months: 60 },
-  { key: "max", label: "Max", months: null },
-];
+
 
 function normalizedPlaceName(value: string) {
   return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
@@ -573,10 +530,7 @@ function normalizedBaseMonth(dates: string[], requested: string) {
   return months.find((month) => month >= requested) ?? months[0];
 }
 
-function timeRangeStart(length: number, range: TimeRange) {
-  const months = TIME_RANGES.find((item) => item.key === range)?.months;
-  return months == null ? 0 : Math.max(0, length - months);
-}
+
 
 function formatValue(
   value: number | null,
@@ -639,40 +593,7 @@ function latestObservation(values: Iterable<string>) {
   return [...values].sort().at(-1);
 }
 
-export function timeAxisTicks(dates: string[], maxTicks = 6) {
-  if (!dates.length) return [];
-  if (dates.length <= 18) {
-    const count = Math.min(maxTicks, dates.length);
-    return [...new Set(Array.from({ length: count }, (_, index) =>
-      dates[Math.round(index * (dates.length - 1) / Math.max(1, count - 1))],
-    ))];
-  }
-  const firstDateByYear = dates.filter((date, index) =>
-    index === 0 || date.slice(0, 4) !== dates[index - 1].slice(0, 4),
-  );
-  if (firstDateByYear.length <= maxTicks) return firstDateByYear;
-  return [...new Set(Array.from({ length: maxTicks }, (_, index) =>
-    firstDateByYear[Math.round(index * (firstDateByYear.length - 1) / (maxTicks - 1))],
-  ))];
-}
 
-export function valueAxisDomain(
-  rows: Record<string, string | number | boolean | null>[],
-  dataKeys: string[],
-  view: "level" | "yoy" | "index",
-) {
-  const values = rows.flatMap((row) => dataKeys
-    .map((key) => row[key])
-    .filter((value): value is number => typeof value === "number" && Number.isFinite(value)));
-  if (!values.length) return [0, 1] as [number, number];
-  if (view === "yoy") values.push(0);
-  if (view === "index") values.push(100);
-  const minimum = Math.min(...values);
-  const maximum = Math.max(...values);
-  const span = maximum - minimum;
-  const padding = span > 0 ? span * 0.06 : Math.max(Math.abs(maximum) * 0.03, 0.01);
-  return [minimum - padding, maximum + padding] as [number, number];
-}
 
 function LabelledSelect({
   label,
@@ -695,32 +616,7 @@ function LabelledSelect({
   );
 }
 
-function TimeRangeControl({
-  value,
-  onChange,
-}: {
-  value: TimeRange;
-  onChange: (value: TimeRange) => void;
-}) {
-  return (
-    <div className="time-range" aria-label="Chart time period">
-      <span>Time period</span>
-      <div role="group" aria-label="Choose chart time period">
-        {TIME_RANGES.map((option) => (
-          <button
-            type="button"
-            key={option.key}
-            className={value === option.key ? "active" : ""}
-            aria-pressed={value === option.key}
-            onClick={() => onChange(option.key)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
+
 
 function IndexBaseControl({
   value,
@@ -1736,6 +1632,7 @@ export default function MarketLab() {
   const [realtorTimeRange, setRealtorTimeRange] = useState<TimeRange>("5y");
   const [activityRankBy, setActivityRankBy] = useState<RankKey>("growth");
   const [realtorRankBy, setRealtorRankBy] = useState<RankKey>("growth");
+  const [pricesLens, setPricesLens] = useState("housing");
   const [priceBasis, setPriceBasis] = useState<PriceBasis>("nominal");
   const [deflatorKey, setDeflatorKey] = useState<CpiSeriesKey>("la");
   const [realBaseRequest, setRealBaseRequest] = useState("");
@@ -1883,6 +1780,7 @@ export default function MarketLab() {
             .filter((id): id is string => Boolean(id)),
         );
         const query = new URLSearchParams(window.location.search);
+        if (query.get("lens") === "inflation") setPricesLens("inflation");
         const queryGeo = query.get("geo");
         const queryCounty = query.get("county");
         const queryMetric = query.get("metric");
@@ -2342,6 +2240,9 @@ export default function MarketLab() {
         </TabsList>
 
         <TabsContent value="local" className="space-y-5">
+          {pricesLens === "inflation" ? (
+            <Suspense fallback={<PanelFallback label="regional inflation" />}><InflationPanel dataset={cpi} error={cpiError} lensControl={<PricesLens value={pricesLens} onChange={setPricesLens} />} /></Suspense>
+          ) : (<>
           <section className="regional-intro">
             <div><p className="section-kicker">Local values and rents</p><h2>Home values, asking rents, and market change.</h2></div>
             <p>Explore Zillow home-value and asking-rent indicators across cities and ZIP codes in Los Angeles and Orange Counties. Compare levels and growth, switch between nominal and inflation-adjusted dollars, and use the map to examine local differences.</p>
@@ -2354,7 +2255,8 @@ export default function MarketLab() {
               )}
               <span>Values and rents</span>
             </div>
-            <div className="control-grid">
+            <div className="control-grid prices-controls">
+              <PricesLens value={pricesLens} onChange={setPricesLens} />
               <LabelledSelect label="County" value={county} onChange={changeCounty}>
                 {COUNTY_OPTIONS.map((option) => <NativeSelectOption key={option} value={option}>{option}</NativeSelectOption>)}
               </LabelledSelect>
@@ -2495,6 +2397,7 @@ export default function MarketLab() {
           <section className="maps-grid">
             <CountyMap county={county} mapData={maps[geography]} dataset={dataset} metric={metric} metricLabel={currentMetricLabel} view={view} indexBaseMonth={indexBaseMonth} selectedId={primary?.id ?? ""} onSelect={selectPrimary} paletteKey={mapPalette} onPaletteChange={setMapPalette} provider="Zillow" priceAdjustment={localPriceAdjustment} />
           </section>
+          </>)}
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-5">
@@ -2853,7 +2756,7 @@ export default function MarketLab() {
           <section className="method-grid">
             <MethodCard title="Zillow measures"><p><strong>ZHVI</strong> estimates the typical mid-tier home value. <strong>ZORI</strong> tracks typical observed asking rent. The price–rent multiple is ZHVI divided by twelve months of ZORI.</p><p>Monthly year-over-year change compares each observation with the same month one year earlier. In indexed views, the user-selected starting month equals 100.</p></MethodCard>
             <MethodCard title="Nominal and real terms"><p>Home values and rents can be shown in nominal dollars or converted to constant dollars using CPI-U. Local views default to the Los Angeles–Long Beach–Anaheim index, which covers Los Angeles and Orange Counties. Cross-metro views use the U.S. city average as a single common deflator; mixing local CPIs would introduce differences in geographic coverage and publication frequency.</p><p>Real value in base month <em>b</em> equals nominal value in month <em>t</em> multiplied by CPI<sub>b</sub>/CPI<sub>t</sub>. The base month changes displayed dollar levels but not real growth. Real rent is a purchasing-power measure, not an affordability measure.</p></MethodCard>
-            <MethodCard title="CPI and inflation"><p>The lab retrieves monthly CPI-U, All Items directly from the U.S. Bureau of Labor Statistics: <code>CUURS49ASA0</code> for the LA area and <code>CUUR0000SA0</code> for the U.S. city average. Both are not seasonally adjusted.</p><p>Inflation overlays use only official observations. Because BLS could not collect October 2025 data during the federal appropriations lapse, the official series remains missing for that month. Only derived real housing calculations fill that single gap with the geometric midpoint of September and November CPI, equivalent to log-linear interpolation. No other missing or trailing month is filled.</p><p><a href="https://www.bls.gov/cpi/additional-resources/2025-federal-government-shutdown-impact-cpi.htm" target="_blank" rel="noreferrer">Read the BLS explanation <ExternalLink /></a></p></MethodCard>
+            <InflationMethods />
             <MethodCard title="Redfin activity measures"><p>Redfin supplies months of supply, median days on market, the share sold above original list, the share of active listings with price reductions, and median sale price per square foot.</p><p>City and ZIP observations are rolling three-month windows. Share changes are shown in percentage points; days and months use absolute differences; price per square foot uses percent change.</p></MethodCard>
             <MethodCard title="Realtor.com inventory and demand"><p>Realtor.com® Economic Research supplies monthly ZIP-level active and new listings, the pending-to-active ratio, listing viewers relative to the U.S., and its Market Hotness score.</p><p>Hotness equally weights relative demand and supply scores based on listing attention and market speed. It is a comparative index, not a probability of sale. Provider-flagged ZIP-months remain visible and are explicitly marked for review.</p></MethodCard>
             <MethodCard title="Building permits"><p>The U.S. Census Bureau Building Permits Survey reports new privately owned housing units authorized by permit-issuing jurisdictions. The lab groups units into single-unit, 2–4-unit, and 5+-unit structures and shows annual history from 1980 and comparable local monthly history from 2022.</p><p>Current-year monthly observations are preliminary and may be revised or imputed. Annual data become final after the Census Bureau’s revision cycle. Permit authorization is an early production indicator, not a housing start or completion.</p></MethodCard>
@@ -2891,6 +2794,7 @@ export default function MarketLab() {
                 <div><dt>ACS observation coverage</dt><dd>{acsManifest ? `${acsManifest.counts.city} city/community · ${acsManifest.counts.zip} ZCTA` : "Unavailable"}</dd></div>
                 <div><dt>Permit-jurisdiction coverage</dt><dd>{permitManifests?.history.counts.jurisdictions ?? 124} jurisdictions</dd></div>
               </dl>
+              {cpiManifest && <InflationProvenance manifest={cpiManifest} />}
               <details className="provenance-technical">
                 <summary>Technical release identifiers and fingerprints</summary>
                 <p>Each fingerprint is the complete SHA-256 identifier for its validated data bundle.</p>

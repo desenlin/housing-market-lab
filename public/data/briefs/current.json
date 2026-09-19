@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "status": "automatic_snapshot",
-  "generated_at": "2026-09-18T17:08:30.433044+00:00",
+  "generated_at": "2026-09-19T07:15:01.629458+00:00",
   "data_cutoff": "2026-08-31",
-  "source_packet_sha256": "51618f178da4dcc6e4ae2d8afbae9183cf339f91f5672ce655e1c59e7da27444",
+  "source_packet_sha256": "11891a20516701036021998729f906b67975f9d15808be74dbb4803e8a525d46",
   "method": "Deterministic screening only; the rules identify review candidates and do not infer causes or forecasts.",
   "monitoring": {
     "question_count": 27,
@@ -35,8 +35,8 @@
     },
     {
       "provider": "U.S. Bureau of Labor Statistics",
-      "release": "2026-09-12-r170422",
-      "sha256": "a32f7988cda75f5c65f33a6ababa4332a568d5fc97f3b52177020c3102b6a827"
+      "release": "2026-09-19-r071501",
+      "sha256": "aae2b6f71d457e90a24df1b8a8740143484ee4a89741a5a5c01765db1eb653d0"
     },
     {
       "provider": "Census BPS — preliminary current-year observations",
@@ -131,7 +131,7 @@
       "source_releases": [
         {
           "provider": "Zillow Research + BLS CPI-U",
-          "release": "2026-09-18-r170716 + 2026-09-12-r170422"
+          "release": "2026-09-18-r170716 + 2026-09-19-r071501"
         },
         {
           "provider": "Zillow Research",
@@ -139,7 +139,7 @@
         },
         {
           "provider": "U.S. Bureau of Labor Statistics",
-          "release": "2026-09-12-r170422"
+          "release": "2026-09-19-r071501"
         }
       ]
     },

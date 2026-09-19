@@ -28,9 +28,12 @@ Created by **[Desen Lin](https://desenlin.com/)**, California State University, 
 - City/community and ZIP rankings sortable by current value or 12-month growth
 - Interactive OpenStreetMap context maps with pan, zoom, focused mainland defaults, hover details, gray **No data** boundaries, and a separate legend state for land outside city/CDP geography
 - Population-ranked comparisons of the 20 largest U.S. metropolitan statistical areas, plus San Jose as a selected California comparator, including inventory, days-to-pending, price-cut-share, and sale-to-list measures
-- LA-area and U.S. CPI-U benchmarks, including year-over-year inflation overlays
+- A **Regional inflation** data lens within **Prices & Rents**: ten spending categories for the LA area and United States, year-over-year inflation and cumulative price changes, matched-month comparisons, and category definitions on hover/focus
+- LA-area and U.S. headline CPI-U benchmarks, including year-over-year inflation overlays
 
 Local real-value views may use the LA-area CPI-U. Cross-metro real-value views instead use one U.S. city-average CPI-U series for every metro, avoiding incomparable local-index coverage and publication schedules. The official October 2025 CPI gap remains visible in CPI overlays; derived real housing series use a disclosed log-linear interpolation for that one month only.
+
+Regional inflation shares the Lab's navigation, header/footer, Recharts figure framework, in-figure time-period buttons, source attribution, and question-mark definitions. The latest comparison table uses the most recent month available for every included series, and users can select or deselect up to five categories. Cumulative changes use an explicit starting month independent of the chart window. Technical interpretation and source-level provenance reside in **Data & methods**. LA CPI represents Los Angeles and Orange counties together; its continuous pre-2018 history covered a broader area. These indexes measure price changes, not dollar budgets or cross-area price levels.
 
 The application is a static Next.js/Vinext export. It uses no database, paid API, paid map service, or continuously running server. Google Analytics measures aggregate traffic using the same property as the academic website.
 
@@ -39,7 +42,7 @@ The application is a static Next.js/Vinext export. It uses no database, paid API
 - [Zillow Research housing data](https://www.zillow.com/research/data/) supplies the market time series.
 - [Redfin Data Center](https://www.redfin.com/news/data-center/downloads/) supplies local listing and transaction activity in rolling three-month windows.
 - [Realtor.com® Economic Research](https://www.realtor.com/research/data/) supplies monthly ZIP-level inventory and buyer-interest measures.
-- [U.S. Bureau of Labor Statistics CPI](https://www.bls.gov/cpi/data.htm) supplies monthly LA-area and U.S. all-items CPI-U observations.
+- [U.S. Bureau of Labor Statistics CPI](https://www.bls.gov/cpi/data.htm) supplies monthly LA-area and U.S. headline, core, food, energy, housing-service, and related CPI-U component observations.
 - [U.S. Census Bureau Building Permits Survey](https://www.census.gov/construction/bps/) supplies permit-jurisdiction housing-unit authorizations; [HUD SOCDS](https://www.huduser.gov/socds/permits/) provides a public lookup interface for verification.
 - [California HCD Annual Progress Reports](https://www.hcd.ca.gov/housing-open-data-tools/apr-dashboard) supply annual local housing delivery and composition.
 - [U.S. Census Bureau American Community Survey](https://www.census.gov/programs-surveys/acs/data.html) supplies selected five-year household and housing-stock estimates and margins of error.
@@ -52,7 +55,7 @@ Definitions, transformations, boundary vintages, coverage rules, and provider ca
 
 ```mermaid
 flowchart TD
-  M["Zillow, Redfin, Realtor.com, BLS CPI"] --> MP["Monthly pipelines and validation"]
+  M["Zillow, Redfin, Realtor.com, BLS headline and component CPI"] --> MP["Monthly pipelines and validation"]
   MP --> MR["Independent market release pointers"]
   B["Census BPS"] --> BP["Permit pipeline and validation"]
   BP --> BR["Final history and open-year pointers"]
@@ -60,7 +63,7 @@ flowchart TD
   AP --> AR["ACS release pointer"]
   H["California HCD APR"] --> HP["Annual delivery pipeline and validation"]
   HP --> HR["HCD release pointer"]
-  MR --> UI["Static interactive site"]
+  MR --> UI["Static interactive site, including Regional inflation"]
   BR --> UI
   AR --> UI
   HR --> UI
@@ -76,7 +79,7 @@ flowchart TD
 ```
 
 
-Raw source files are temporary. Zillow releases live in `public/data/releases/<release-id>/`; Redfin and BLS CPI releases live independently in `public/data/redfin/releases/<release-id>/` and `public/data/cpi/releases/<release-id>/`. Realtor.com Inventory and Hotness use separate directories and pointers under `public/data/realtor/` because they can be published at different times. Census boundary geometry has its own pointer under `public/data/maps/`, so unchanged maps are not copied into every Zillow release. Building permits use `history` and `provisional` pointers under `public/data/permits/`, allowing final annual history and open monthly years to advance independently. Each pointer changes only after that source's schema, date, coverage, quality, and size checks succeed. The CPI pipeline reads BLS's official bulk time-series file first and uses the Public Data API only as a fallback, avoiding routine dependence on the API's unregistered daily quota.
+Raw source files are temporary. Zillow releases live in `public/data/releases/<release-id>/`; Redfin and BLS CPI releases live independently in `public/data/redfin/releases/<release-id>/` and `public/data/cpi/releases/<release-id>/`. Realtor.com Inventory and Hotness use separate directories and pointers under `public/data/realtor/` because they can be published at different times. Census boundary geometry has its own pointer under `public/data/maps/`, so unchanged maps are not copied into every Zillow release. Building permits use `history` and `provisional` pointers under `public/data/permits/`, allowing final annual history and open monthly years to advance independently. Each pointer changes only after that source's schema, date, coverage, quality, and size checks succeed. The CPI pipeline retrieves six official BLS bulk files once each and retains only twenty selected series (ten categories × two areas). Failed bulk groups fall back to batched Public Data API requests of at most 25 series and ten years; retrieving all twenty series from 2000 through 2026 requires three fallback requests. Source URLs, retrieval methods, response/file fingerprints, series identifiers, coverage, and missing observations are recorded in the CPI manifest. The existing `la` and `us` headline series continue to provide housing deflators. All required CPI series must validate before its shared pointer advances.
 
 ACS follows a separate annual release-window review in December, January, and February. Processing stops after a lightweight vintage check when the published vintage remains current. When a new five-year vintage appears, the keyed Census API retrieves only 42 required estimate/MOE fields for California places and ZCTAs; the pipeline then retains only mapped Los Angeles and Orange County records. It publishes roughly 270 KB, reuses existing map geometry, keeps one rollback, advances the non-overlapping comparison endpoint by five years, and explicitly requests a deployment-only Pages build. A free Census API key is stored only as the repository secret `CENSUS_API_KEY` and is never published.
 

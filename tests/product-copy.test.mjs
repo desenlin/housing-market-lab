@@ -82,6 +82,7 @@ test("provides a persistent light and dark theme control", async () => {
 
 test("publishes the requested authorship, controls, and map attribution", async () => {
   const source = await readProjectFile("app/market-lab.tsx");
+  const inflationMethods = await readProjectFile("components/inflation/inflation-methods.tsx");
   const styles = await readProjectFile("app/globals.css");
   const buildScript = await readProjectFile("scripts/build-verified.sh");
   assert.match(source, /href="\.\/" aria-label="Housing Market Lab home">Housing Market Lab<\/a>/);
@@ -167,7 +168,8 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /nearby Riverside, CA is outlined in orange/);
   assert.match(source, /Real rent is a purchasing-power measure, not an affordability measure/);
   assert.match(source, /October 2025 uses a log-linear CPI interpolation/);
-  assert.match(source, /Only derived real housing calculations fill that single gap/);
+  assert.match(source, /<InflationMethods\s*\/>/);
+  assert.match(inflationMethods, /Only derived real housing calculations interpolate the October 2025 headline CPI gap using the geometric midpoint of September and November/);
   assert.match(source, /official CPI overlays retain the gap/i);
   assert.match(source, /className="footer-emphasis" href="https:\/\/desenlin\.com\/"/);
   assert.match(source, /className="footer-emphasis" href="https:\/\/business\.fullerton\.edu\/academics\/finance"/);

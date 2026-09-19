@@ -36,7 +36,7 @@ The Data Library expressly provides downloads and attribution instructions, but 
 
 ## U.S. Bureau of Labor Statistics
 
-- **Material used:** CPI-U All Items for Los Angeles–Long Beach–Anaheim and the U.S. city average.
+- **Material used:** Monthly CPI-U for Los Angeles–Long Beach–Anaheim and the U.S. city average: headline, core, food, food at home, food away from home, energy, gasoline, shelter, rent of primary residence, and all items less shelter.
 - **Source:** [BLS CPI data](https://www.bls.gov/cpi/data.htm)
 - **Copyright:** [BLS Copyright Information](https://www.bls.gov/opub/copyright-information.htm)
 - **API terms:** [BLS Public Data API Terms of Service](https://www.bls.gov/developers/termsOfService.htm)

@@ -203,6 +203,15 @@ test("BLS CPI pointer resolves to complete LA-area and U.S. series", async () =>
     readJson(`${prefix}cpi.json`),
   ]);
   assert.equal(manifest.provider, "U.S. Bureau of Labor Statistics");
+  assert.equal(cpi.categories.length, 10);
+  assert.equal(Object.keys(cpi.series).length, 20);
+  assert.ok(manifest.source_files.length > 0);
+  const sourceIds = manifest.source_files.flatMap(source => {
+    assert.match(source.sha256, /^[a-f0-9]{64}$/);
+    assert.ok(["bulk", "api"].includes(source.method));
+    return source.series_ids;
+  });
+  assert.deepEqual([...new Set(sourceIds)].sort(), Object.values(cpi.series).map(series => series.id).sort());
   assert.equal(cpi.series.la.id, "CUURS49ASA0");
   assert.equal(cpi.series.us.id, "CUUR0000SA0");
   assert.ok(cpi.series.la.dates.length >= 300);
@@ -216,8 +225,13 @@ test("BLS CPI pointer resolves to complete LA-area and U.S. series", async () =>
   assert.deepEqual(manifest.real_value_interpolation, cpi.real_value_interpolation);
   for (const series of Object.values(cpi.series)) {
     const october = series.dates.findIndex((date) => date.startsWith("2025-10"));
-    assert.equal(series.values[october], null);
-    assert.ok(series.missing_observations.includes(series.dates[october]));
+    if (series.category === "gasoline") {
+      assert.equal(typeof series.values[october], "number");
+      assert.ok(!series.missing_observations.includes(series.dates[october]));
+    } else {
+      assert.equal(series.values[october], null);
+      assert.ok(series.missing_observations.includes(series.dates[october]));
+    }
   }
 });
 

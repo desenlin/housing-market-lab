@@ -188,3 +188,27 @@ test("uses a focused y-axis while preserving meaningful change baselines", async
   assert.ok(changeDomain[0] < 0);
   assert.ok(changeDomain[1] > 0.019);
 });
+
+
+test("inflation rates use calendar months and preserve missing bases", async () => {
+  const { inflationValues } = await vite.ssrLoadModule("/lib/inflation.ts");
+  const series = { dates: ["2024-01-31", "2024-02-29", "2025-01-31", "2025-02-28"], values: [100, null, 110, 112] };
+  const yoy = inflationValues(series, "yoy", "2024-01");
+  assert.equal(yoy[0], null);
+  assert.ok(Math.abs(yoy[2] - 0.1) < 1e-12);
+  assert.equal(yoy[3], null);
+  assert.deepEqual(inflationValues(series, "cumulative", "2024-02"), [null, null, null, null]);
+  assert.ok(Math.abs(inflationValues(series, "cumulative", "2024-01")[3] - 0.12) < 1e-12);
+});
+
+test("inflation snapshots use a common observed month and selection can be emptied", async () => {
+  const { commonInflationMonths, toggleInflationCategory } = await vite.ssrLoadModule("/lib/inflation.ts");
+  const first = { dates: ["2025-09-30", "2025-10-31", "2025-11-30"], values: [100, null, 102] };
+  const lagging = { dates: ["2025-09-30", "2025-10-31"], values: [101, 102] };
+  assert.deepEqual(commonInflationMonths([first, lagging]), ["2025-09"]);
+  assert.deepEqual(toggleInflationCategory(["food"], "food"), []);
+  assert.deepEqual(toggleInflationCategory([], "energy"), ["energy"]);
+  const full = ["all", "core", "food", "energy", "shelter"];
+  assert.deepEqual(toggleInflationCategory(full, "rent"), full);
+  assert.deepEqual(toggleInflationCategory(full, "food"), ["all", "core", "energy", "shelter"]);
+});

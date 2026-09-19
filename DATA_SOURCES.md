@@ -68,18 +68,32 @@ The public application attributes the data to **Realtor.com® Economic Research*
 
 ## Consumer Price Index
 
-The independent CPI pipeline reads the official BLS [`cu.data.1.AllItems`](https://download.bls.gov/pub/time.series/cu/cu.data.1.AllItems) bulk time-series file first and uses the [Public Data API](https://www.bls.gov/developers/) only as a fallback. It does not rely on a FRED mirror or require a registered API key. This avoids routine dependence on the API's unregistered daily query quota; fallback requests are divided into ten-year blocks within the public limit.
+The independent CPI pipeline uses official [BLS bulk time-series files](https://download.bls.gov/pub/time.series/cu/): `cu.data.10.OtherWest`, `cu.data.1.AllItems`, `cu.data.11.USFoodBeverage`, `cu.data.12.USHousing`, `cu.data.14.USTransportation`, and `cu.data.20.USCommoditiesServicesSpecial`. Each file is retrieved once per run, then only the configured series are retained. The [Public Data API](https://www.bls.gov/developers/) is a fallback for failed bulk groups, batched into at most 25 series and ten-year windows. No FRED mirror or paid API is required. Twenty series over 2000–2026 require three batched API requests if every bulk source is unavailable.
 
-Selected series:
+| Category | Los Angeles area | U.S. city average |
+|---|---|---|
+| Headline CPI | `CUURS49ASA0` | `CUUR0000SA0` |
+| Core CPI | `CUURS49ASA0L1E` | `CUUR0000SA0L1E` |
+| Food | `CUURS49ASAF1` | `CUUR0000SAF1` |
+| Groceries | `CUURS49ASAF11` | `CUUR0000SAF11` |
+| Dining out | `CUURS49ASEFV` | `CUUR0000SEFV` |
+| Energy | `CUURS49ASA0E` | `CUUR0000SA0E` |
+| Gasoline | `CUURS49ASETB01` | `CUUR0000SETB01` |
+| Shelter | `CUURS49ASAH1` | `CUUR0000SAH1` |
+| Tenant rent | `CUURS49ASEHA` | `CUUR0000SEHA` |
+| Excluding shelter | `CUURS49ASA0L2` | `CUUR0000SA0L2` |
 
-| Use | BLS series | Geography | Adjustment |
-|---|---|---|---|
-| Local real values, rents, and inflation | `CUURS49ASA0` | Los Angeles–Long Beach–Anaheim; Los Angeles and Orange Counties | Not seasonally adjusted |
-| Common cross-metro benchmark | `CUUR0000SA0` | U.S. city average | Not seasonally adjusted |
+All selected series are monthly CPI-U, not seasonally adjusted, with an index reference base of 1982–84=100. The retained history begins January 2000. The `la` and `us` keys remain the headline all-items series used for existing nominal/real housing views and CPI overlays; component series use explicit area/category keys.
 
-Both series are CPI-U, All Items, monthly, with an index reference base of 1982–84=100. Local views default to the LA-area series because its published geography matches the two-county focus. Regional-cycle comparisons default to the U.S. series so every selected metro uses the same deflator. Users may select either series when viewing real values.
+**Regional inflation** is a data lens within **Prices & Rents**, alongside Zillow values and rents. It supports comparison across spending categories within an area and comparison of a single category between LA and the United States. Up to five categories can be selected or deselected. Annual inflation is `CPI[t] / CPI[t-12] - 1`; cumulative change is `CPI[t] / CPI[base] - 1`. The chart window crops observations without changing the cumulative base. The snapshot uses the most recent month officially observed in every included series, avoiding comparisons of different release months. Calculations use unrounded index observations, with percentages rounded only for display. Year-over-year change uses calendar months, not the previous twelve nonmissing observations.
 
-The pipeline constructs a complete monthly calendar and preserves every unavailable official observation as `null`. BLS did not publish October 2025 CPI because the [2025 federal appropriations lapse prevented data collection](https://www.bls.gov/cpi/additional-resources/2025-federal-government-shutdown-impact-cpi.htm). For derived real housing calculations only, the application fills that single administrative gap with the geometric midpoint of September and November CPI, which is log-linear interpolation. Published CPI values and inflation overlays retain the official gap. No other missing observation is interpolated or carried forward, and unmatched newer housing months remain unavailable in real terms until BLS publishes CPI for the same month. The local index has a smaller sample and can be more volatile than the national index, so year-over-year inflation is emphasized over month-to-month change.
+Headline CPI includes food and energy. Core excludes both but includes shelter. Groceries and dining are components of food; gasoline is part of energy. These overlapping inflation rates cannot be summed as contributions to headline inflation. Shelter measures housing services including rental equivalence for owners, not home-purchase prices or mortgage payments. Tenant rent includes existing rental agreements and is not interchangeable with Zillow observed asking rents. Separate local electricity and natural-gas indexes ended in December 2024, while the broad energy index continues; see the [BLS utility-series notice](https://www.bls.gov/regions/west/news-release/averageenergyprices_losangeles.htm).
+
+The current LA-area index covers Los Angeles and Orange counties together, matching the Lab's focus, but provides no distinct county, city or ZIP-code inflation rates. Before the [2018 geographic revision](https://www.bls.gov/cpi/additional-resources/geographic-revision-2018.htm), its continuous historical series covered the broader Los Angeles–Riverside–Orange County area. Long comparisons cross this geography change. CPI tracks price changes within an area, not differences in absolute price levels between places. Local samples are smaller than the national sample, and the indexes are not seasonally adjusted; year-over-year rates are the default.
+
+The pipeline constructs complete monthly calendars and preserves unavailable observations as `null`. Most selected series lack October 2025 because of the [2025 federal appropriations lapse](https://www.bls.gov/cpi/additional-resources/2025-federal-government-shutdown-impact-cpi.htm), while gasoline observations remain available. Missingness is series-specific. Inflation charts never interpolate or carry observations forward, and a missing comparison month also leaves the corresponding year-over-year change unavailable. For **derived real housing calculations only**, the application fills the October 2025 headline CPI gap with the geometric midpoint of September and November CPI (log-linear interpolation). No other missing or trailing observation is filled; unmatched newer housing months remain unavailable in real terms.
+
+CPI shares one independent, validated release pointer for all twenty series. Its manifest records each series identifier, observation coverage, missing months, source URL, retrieval method, and source-content fingerprint (SHA-256 of decoded bulk text or canonical API JSON), plus the chart-ready bundle fingerprint. All required series must pass history, schema and size checks before publication. Unchanged data retain the current release; a failed update retains the previous validated release. The site exposes series coverage and source fingerprints in **Data & methods → Current release provenance** and retains one rollback release. Raw national files are not committed.
 
 ## Building Permits Survey
 

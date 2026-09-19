@@ -680,3 +680,30 @@ footer p { margin: 0; }
 .hcd-ranking .rank-row > span:last-child { text-align: right; font-size: 11px; }
 .hcd-ranking .ranking-title { align-items: start; flex-wrap: wrap; }
 .hcd-rank-note { margin: 0 18px; color: var(--detail-copy); font-size: 12px; line-height: 1.5; }
+
+/* Regional inflation reuses the Lab's controls, cards, chart tokens and tooltips. */
+.prices-controls { grid-template-columns: 1.5fr 1fr 1.2fr 1.2fr 1fr; }
+.inflation-controls { display: grid; grid-template-columns: 1.4fr 1.1fr 1.2fr 1.2fr; gap: 12px; }
+.inflation-controls .control-label > span { display: inline-flex; align-items: center; gap: 6px; }
+.inflation-analysis-grid { grid-template-columns: minmax(0, 1.7fr) minmax(340px, 1fr); }
+.inflation-snapshot-note, .inflation-selection { margin: 0; color: var(--section-copy); font-size: 12px; line-height: 1.5; }
+.inflation-columns { display: grid; grid-template-columns: 1fr 74px 29px; gap: 8px; color: var(--detail-copy); font-size: 11px; }
+.inflation-columns.two-areas { grid-template-columns: 1fr 68px 68px 29px; }
+.inflation-columns > span:not(:first-child) { text-align: right; }
+.inflation-rows { padding: 0 12px 14px; }
+.inflation-row { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--chart-grid); padding-right: 8px; }
+.inflation-row.selected { background: var(--secondary); }
+.inflation-category-button { display: grid; grid-template-columns: minmax(0,1fr) 74px; gap: 8px; align-items: center; flex: 1; min-width: 0; padding: 12px 6px; border: 0; background: transparent; color: var(--foreground); font-size: 13px; text-align: left; cursor: pointer; }
+.inflation-category-button.two-areas { grid-template-columns: minmax(0,1fr) 68px 68px; }
+.inflation-category-button > span { display: flex; align-items: center; gap: 7px; }
+.inflation-category-button i { display: inline-block; width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; }
+.inflation-category-button strong { font-variant-numeric: tabular-nums; font-size: 13px; text-align: right; }
+.inflation-category-button:disabled { opacity: .6; cursor: default; }
+.inflation-category-button:focus-visible { outline: 2px solid var(--chart-2); outline-offset: -2px; }
+.inflation-selection { padding: 12px 6px 0; }
+.inflation-provenance-table { overflow-x: auto; }
+.inflation-provenance table { width: 100%; border-collapse: collapse; font-size: 12px; color: var(--foreground); }
+.inflation-provenance th, .inflation-provenance td { padding: 8px; text-align: left; border-bottom: 1px solid var(--chart-grid); }
+.inflation-provenance code { overflow-wrap: anywhere; }
+@media (max-width: 1050px) { .prices-controls, .inflation-controls { grid-template-columns: 1fr 1fr; } .inflation-analysis-grid { grid-template-columns: minmax(0,1fr); } }
+@media (max-width: 640px) { .prices-controls, .inflation-controls { grid-template-columns: minmax(0,1fr); } .inflation-category-button.two-areas { grid-template-columns: minmax(0,1fr) 48px 48px; } .inflation-columns.two-areas { grid-template-columns: minmax(0,1fr) 48px 48px 29px; } }

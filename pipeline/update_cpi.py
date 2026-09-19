@@ -3,9 +3,10 @@
 
 The lab uses the Los Angeles-area CPI-U to express local values and rents in
 constant dollars and the U.S. CPI-U as a common benchmark in cross-metro
-figures. The official BLS bulk file is preferred because it is not subject to
+figures, and publishes component series for the Regional inflation lens.
+Official BLS bulk files are preferred because they are not subject to
 the Public Data API's unregistered daily query quota. The API remains a
-fallback, with requests split within its ten-year unregistered limit. Missing
+fallback, batched within its 25-series and ten-year unregistered limits. Missing
 official observations remain explicit nulls. A disclosed interpolation policy
 is published separately for the application's derived real-value calculations.
 """
@@ -56,9 +57,9 @@ def month_end(year: int, month: int) -> str:
     return f"{year:04d}-{month:02d}-{calendar.monthrange(year, month)[1]:02d}"
 
 
-def api_request(api_url: str, series_id: str, start_year: int, end_year: int) -> dict[str, Any]:
+def api_request(api_url: str, series_ids: list[str], start_year: int, end_year: int) -> dict[str, Any]:
     body = compact_json({
-        "seriesid": [series_id],
+        "seriesid": series_ids,
         "startyear": str(start_year),
         "endyear": str(end_year),
     })
@@ -84,8 +85,9 @@ def bulk_request(bulk_url: str) -> str:
 def parse_response(payload: dict[str, Any], expected_series_id: str) -> dict[str, float]:
     if payload.get("status") != "REQUEST_SUCCEEDED":
         raise ValueError(f"BLS request failed: {payload.get('message')}")
-    series = payload.get("Results", {}).get("series", [])
-    if len(series) != 1 or series[0].get("seriesID") != expected_series_id:
+    series = [item for item in payload.get("Results", {}).get("series", [])
+              if item.get("seriesID") == expected_series_id]
+    if len(series) != 1:
         raise ValueError(f"BLS response did not contain {expected_series_id}")
     observations: dict[str, float] = {}
     for row in series[0].get("data", []):
@@ -171,23 +173,6 @@ def yoy_values(values: list[float | None]) -> list[float | None]:
     return result
 
 
-def fetch_series(
-    config: dict[str, Any],
-    source: dict[str, Any],
-    end_year: int,
-    fetcher: Callable[[str, str, int, int], dict[str, Any]] = api_request,
-) -> dict[str, Any]:
-    observations: dict[str, float] = {}
-    for start, end in year_chunks(int(config["start_year"]), end_year):
-        payload = fetcher(config["api_url"], source["id"], start, end)
-        parsed = parse_response(payload, source["id"])
-        overlap = observations.keys() & parsed.keys()
-        if overlap:
-            raise ValueError(f"Duplicate CPI dates returned for {source['id']}: {sorted(overlap)[:3]}")
-        observations.update(parsed)
-    return build_series(config, source, end_year, observations)
-
-
 def build_series(
     config: dict[str, Any],
     source: dict[str, Any],
@@ -203,8 +188,8 @@ def build_series(
     latest_index = max(index for index, value in enumerate(values) if value is not None)
     return {
         **source,
-        "frequency": "Monthly",
-        "unit": "Index 1982-1984=100",
+        "frequency": source.get("frequency", "Monthly"),
+        "unit": source.get("unit", "Index 1982-1984=100"),
         "dates": dates,
         "values": values,
         "yoy": yoy_values(values),
@@ -217,30 +202,49 @@ def fetch_all_series(
     config: dict[str, Any],
     end_year: int,
     bulk_fetcher: Callable[[str], str] = bulk_request,
-    api_fetcher: Callable[[str, str, int, int], dict[str, Any]] = api_request,
+    api_fetcher: Callable[[str, list[str], int, int], dict[str, Any]] = api_request,
+    source_files: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    try:
-        bulk_payload = bulk_fetcher(config["bulk_url"])
-        observations = parse_bulk_data(
-            bulk_payload,
-            {source["id"] for source in config["series"]},
-            int(config["start_year"]),
-            end_year,
-        )
-        return {
-            source["key"]: build_series(config, source, end_year, observations[source["id"]])
-            for source in config["series"]
-        }
-    except (OSError, RuntimeError, ValueError, UnicodeError) as bulk_error:
+    """Fetch each bulk file once; batch failed groups within public API limits."""
+    records = source_files if source_files is not None else []
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for source in config["series"]:
+        groups.setdefault(source.get("bulk_url", config["bulk_url"]), []).append(source)
+    observations: dict[str, dict[str, float]] = {}
+    fallback: list[dict[str, Any]] = []
+    for url, sources in groups.items():
+        ids = {source["id"] for source in sources}
         try:
-            return {
-                source["key"]: fetch_series(config, source, end_year, api_fetcher)
-                for source in config["series"]
-            }
-        except (OSError, RuntimeError, ValueError) as api_error:
-            raise RuntimeError(
-                f"BLS bulk download failed ({bulk_error}); API fallback failed ({api_error})"
-            ) from api_error
+            raw = bulk_fetcher(url)
+            parsed = parse_bulk_data(raw, ids, int(config["start_year"]), end_year)
+        except (OSError, RuntimeError, ValueError, UnicodeError):
+            fallback.extend(sources)
+            continue
+        observations.update(parsed)
+        records.append({
+            "url": url, "method": "bulk", "series_ids": sorted(ids),
+            "sha256": hashlib.sha256(raw.encode("utf-8")).hexdigest(),
+        })
+    for offset in range(0, len(fallback), 25):
+        ids = [source["id"] for source in fallback[offset:offset + 25]]
+        for series_id in ids:
+            observations[series_id] = {}
+        for start, end in year_chunks(int(config["start_year"]), end_year):
+            payload = api_fetcher(config["api_url"], ids, start, end)
+            for series_id in ids:
+                parsed = parse_response(payload, series_id)
+                if observations[series_id].keys() & parsed.keys():
+                    raise ValueError(f"Duplicate CPI dates returned for {series_id}")
+                observations[series_id].update(parsed)
+            records.append({
+                "url": config["api_url"], "method": "api", "series_ids": ids,
+                "start_year": start, "end_year": end,
+                "sha256": hashlib.sha256(compact_json(payload)).hexdigest(),
+            })
+    return {
+        source["key"]: build_series(config, source, end_year, observations[source["id"]])
+        for source in config["series"]
+    }
 
 
 def existing_bundle_sha() -> str | None:
@@ -316,12 +320,14 @@ def main() -> None:
     parser.add_argument("--end-year", type=int, default=datetime.now(timezone.utc).year)
     args = parser.parse_args()
     config = json.loads(args.config.read_text())
+    source_files: list[dict[str, Any]] = []
     incoming = {
         "provider": config["provider"],
         "frequency": "Monthly",
         "data_page": config["data_page"],
         "real_value_interpolation": config.get("real_value_interpolation", []),
-        "series": fetch_all_series(config, args.end_year),
+        "categories": config.get("categories", []),
+        "series": fetch_all_series(config, args.end_year, source_files=source_files),
     }
     previous, previous_manifest = load_current_dataset()
     dataset, history_report = merge_cpi_history(previous, incoming)
@@ -344,7 +350,9 @@ def main() -> None:
         "attribution": "Consumer Price Index data provided by the U.S. Bureau of Labor Statistics.",
         "data_page": config["data_page"],
         "frequency": "Monthly",
-        "storage_schema_version": 2,
+        "storage_schema_version": 3,
+        "source_files": source_files,
+        "categories": config.get("categories", []),
         "real_value_interpolation": config.get("real_value_interpolation", []),
         "bundle_sha256": bundle_sha,
         "history_policy": {
@@ -356,6 +364,9 @@ def main() -> None:
             key: {
                 "id": item["id"],
                 "label": item["label"],
+                "area_key": item.get("area_key"),
+                "category": item.get("category"),
+                "first_observation": item["dates"][0],
                 "latest_observation": item["latest_observation"],
                 "missing_observations": item["missing_observations"],
             }

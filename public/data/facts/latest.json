@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "status": "operational",
-  "generated_at": "2026-09-18T17:08:30.433044+00:00",
+  "generated_at": "2026-09-19T07:15:01.629458+00:00",
   "data_cutoff": "2026-08-31",
   "method": "Deterministic calculations only; no language model generated these facts.",
   "source_releases": {
@@ -18,8 +18,8 @@
       "sha256": "2b48b0eb596d5f72b506c08ee9b762a27f11cc0c67570bcb74f8f172a819197c"
     },
     "cpi": {
-      "release": "2026-09-12-r170422",
-      "sha256": "a32f7988cda75f5c65f33a6ababa4332a568d5fc97f3b52177020c3102b6a827"
+      "release": "2026-09-19-r071501",
+      "sha256": "aae2b6f71d457e90a24df1b8a8740143484ee4a89741a5a5c01765db1eb653d0"
     },
     "permits_provisional": {
       "release": "2026-09-07-r170136",
@@ -97,7 +97,7 @@
       "id": "derived-la-real-zhvi",
       "domain": "Prices",
       "provider": "Zillow Research + BLS CPI-U",
-      "release": "2026-09-18-r170716 + 2026-09-12-r170422",
+      "release": "2026-09-18-r170716 + 2026-09-19-r071501",
       "metric": "real_zhvi",
       "metric_label": "Inflation-adjusted home value",
       "geography": "Los Angeles metro",
@@ -126,7 +126,7 @@
       "id": "bls-la-cpi",
       "domain": "Inflation",
       "provider": "U.S. Bureau of Labor Statistics",
-      "release": "2026-09-12-r170422",
+      "release": "2026-09-19-r071501",
       "metric": "cpi_la",
       "metric_label": "Los Angeles-area inflation",
       "geography": "Los Angeles\u2013Long Beach\u2013Anaheim",
@@ -820,5 +820,5 @@
       "reference_count": 85
     }
   ],
-  "packet_sha256": "51618f178da4dcc6e4ae2d8afbae9183cf339f91f5672ce655e1c59e7da27444"
+  "packet_sha256": "11891a20516701036021998729f906b67975f9d15808be74dbb4803e8a525d46"
 }
