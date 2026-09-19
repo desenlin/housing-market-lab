@@ -5,6 +5,8 @@ import { AlertCircle, ArrowRight, Database, FlaskConical, Link2, ListChecks, Shi
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DefinitionHelp } from "@/components/definition-help";
+import { PERMIT_LABELS } from "@/lib/data-status";
 
 type Qualification = { id: string; label: string; explanation: string };
 type SourceRelease = { provider: string; release: string; sha256?: string };
@@ -98,10 +100,7 @@ export function FactEnginePanel({ basePath, onNavigate }: { basePath: string; on
           <p className="brief-answer">{item.answer}</p>
           <div className="brief-source-row">
             <span>{item.sources}</span>
-            <span className={`brief-status ${item.status === "preliminary" ? "review" : "checked"}`}>
-              {item.status === "preliminary" ? <AlertCircle /> : <ShieldCheck />}
-              {item.status === "preliminary" ? "Preliminary" : "Validated"}
-            </span>
+            {item.status === "preliminary" && <span className="brief-status neutral">{PERMIT_LABELS.monthly.label}<DefinitionHelp label="Monthly permit estimates" definition={PERMIT_LABELS.monthly.definition} /></span>}
           </div>
           <div className="brief-evidence">{item.evidence.map((evidence) => <p key={evidence}>{evidence}</p>)}</div>
           <div className="brief-card-footer">

@@ -17,6 +17,7 @@ import { DefinitionHelp } from "@/components/definition-help";
 import { FigureAttribution } from "@/components/figure-attribution";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { DEFAULT_MAP_FIT_OPTIONS, focusedMapBounds } from "@/lib/map-view";
+import { PERMIT_LABELS } from "@/lib/data-status";
 
 type PermitMetricKey =
   | "total_units"
@@ -447,6 +448,7 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
   if (!dataset || !metricInfo || !historyManifest || !provisionalManifest) return <div className="permit-status">{lensControl}<span className="loader" />Loading building permits…</div>;
 
   const currentIsPreliminary = frequency === "monthly" && selectedDate > `${historyManifest.latest_final_year}-12`;
+  const observationStatus = frequency === "annual" ? PERMIT_LABELS.annual : currentIsPreliminary ? PERMIT_LABELS.monthly : PERMIT_LABELS.historical;
   const counties = county === "Both" ? ["Orange County", "Los Angeles County"] : [county];
   const chartStartDate = dataset.dates[chartStartIndex];
   const chartEndDate = dataset.dates.at(-1)!;
@@ -455,15 +457,15 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
       <section className="control-deck" aria-label="Building permit controls">
         <div className="source-strip">
           <span className="source-badge census">Source: U.S. Census Bureau BPS · {frequency === "annual" ? "Annual" : "Monthly"}</span>
-          <span className={currentIsPreliminary ? "permit-status-chip preliminary" : "permit-status-chip final"}>{currentIsPreliminary ? "Preliminary · subject to revision" : "Final annual history"}</span>
-          <span>Final through {historyManifest.latest_final_year}; preliminary through {formatDate(provisionalManifest.latest_observation ?? "")}</span>
+          <span className="permit-status-chip neutral">{observationStatus.label}<DefinitionHelp label="Permit estimate status" definition={observationStatus.definition} /></span>
+          <span>Annual totals through {historyManifest.latest_final_year}; monthly estimates through {formatDate(provisionalManifest.latest_observation ?? "")}</span>
         </div>
         <div className="control-grid permit-controls">
           {lensControl}
           <LabelledSelect label="County" value={county} onChange={changeCounty}>{COUNTY_OPTIONS.map((option) => <NativeSelectOption key={option} value={option}>{option}</NativeSelectOption>)}</LabelledSelect>
           <LabelledSelect label="Frequency" value={frequency} onChange={(value) => setFrequency(value as Frequency)}><NativeSelectOption value="monthly">Monthly · 2022–present</NativeSelectOption><NativeSelectOption value="annual">Annual · 1980–present</NativeSelectOption></LabelledSelect>
           <LabelledSelect label="Metric" value={metric} onChange={(value) => setMetric(value as PermitMetricKey)}>{METRIC_OPTIONS.map((option) => <NativeSelectOption key={option.key} value={option.key}>{option.label}</NativeSelectOption>)}</LabelledSelect>
-          <LabelledSelect label="Map & ranking date" value={selectedDate} onChange={setDate}>{[...dataset.dates].reverse().map((value) => <NativeSelectOption key={value} value={value}>{formatDate(value)}{frequency === "monthly" && value > `${historyManifest.latest_final_year}-12` ? " · preliminary" : ""}</NativeSelectOption>)}</LabelledSelect>
+          <LabelledSelect label="Map & ranking date" value={selectedDate} onChange={setDate}>{[...dataset.dates].reverse().map((value) => <NativeSelectOption key={value} value={value}>{formatDate(value)}</NativeSelectOption>)}</LabelledSelect>
         </div>
         <div className="comparison-row">
           <LabelledSelect label="Add a comparison (up to five)" value={addId} onChange={setAddId}><NativeSelectOption value="">Choose a permit jurisdiction…</NativeSelectOption>{eligible.filter((region) => !selectedIds.includes(region.id)).map((region) => <NativeSelectOption key={region.id} value={region.id}>{region.name}</NativeSelectOption>)}</LabelledSelect>
@@ -478,7 +480,7 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
         <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">{primary?.name ?? "Focus jurisdiction"}</p><p className="kpi-value">{formatValue(primaryValue, metricInfo)}</p><p className="kpi-note">{metricInfo.short_label} · {formatDate(selectedDate)}</p></CardContent></Card>
         <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">Structure mix<DefinitionHelp label="Structure mix" definition="Share of authorized units in buildings containing five or more units; this describes structure size, not tenure." /></p><p className="kpi-value">{formatValue(primary?.series.large_multifamily_share[dateIndex] ?? null, dataset.metrics.large_multifamily_share)}</p><p className="kpi-note">Share of authorized units in 5+-unit buildings</p></CardContent></Card>
         <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">City rank<DefinitionHelp label="City rank" definition="Descending rank among incorporated cities reporting the selected measure and period. Unincorporated county totals are excluded." /></p><p className="kpi-value">{primaryRank > 0 ? `#${primaryRank}` : "—"}</p><p className="kpi-note">Of {ranked.length} reporting cities in selected county view</p></CardContent></Card>
-        <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">Observation status<DefinitionHelp label="Observation status" definition="Preliminary observations may be revised. Imputed observations are Census estimates. Final observations reflect the annual benchmark." /></p><p className="kpi-value permit-quality-value">{isImputed ? "Imputed" : currentIsPreliminary ? "Preliminary" : "Final"}</p><p className="kpi-note">{isImputed ? "Census estimate; use with added caution" : currentIsPreliminary ? "May be revised or imputed" : "Final annual benchmark"}</p></CardContent></Card>
+        <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">Observation status<DefinitionHelp label="Observation status" definition={`${observationStatus.definition} Census-imputed identifies observations whose published totals include estimated activity for missing reports.`} /></p><p className="kpi-value permit-quality-value">{!primary ? "No selection" : primaryValue == null ? "Not available" : isImputed ? "Census-imputed" : observationStatus.label}</p><p className="kpi-note">{!primary ? "Select a jurisdiction" : primaryValue == null ? "No observation for this measure and period" : isImputed ? "Includes Census estimates for missing reports" : frequency === "annual" ? "Annual Census release" : currentIsPreliminary ? "Current monthly release" : "Archived monthly observations"}</p></CardContent></Card>
       </section>
 
       <section className="analysis-grid permit-analysis-grid">
@@ -542,7 +544,7 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
               </ResponsiveContainer>
             </div>
             <FigureAttribution sources={metric === "units_per_1000_stock" ? ["census-bps", "census-acs"] : ["census-bps"]} />
-            <p className="data-note">Annual data are final after the Census Bureau’s yearly revision cycle. Current-year monthly observations are preliminary; observations identified as imputed remain included and are disclosed in the status card. The optional trailing three-month average is calculated only when all three monthly observations are reported and affects this trend figure only.</p>
+            <p className="data-note">Census-imputed observations remain included and are identified in the status card. The optional trailing three-month average is calculated only when all three monthly observations are available and affects this trend figure only.</p>
           </CardContent>
         </Card>
         <Card className="ranking-card permit-ranking">

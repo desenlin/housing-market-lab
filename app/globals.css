@@ -12,7 +12,6 @@
   --detail-label: #778995; --detail-muted: #6b7b86;
   --context-accent: #155f82;
   --kpi-label: #667987; --kpi-value: #12355b; --kpi-note: #7b8994;
-  --permit-status-bg: #fffaf6; --permit-status-border: #e5b995;
   --acs-moe-bg: #f7fafb; --acs-change-bg: #f3f9fc;
   --acs-change-border: #9fc3d8;
   --brief-accent: #d85d08; --brief-number-bg: #12355b;
@@ -50,7 +49,6 @@
   --detail-label: #bac6ce; --detail-muted: #aebbc5;
   --context-accent: #8fc9e5;
   --kpi-label: #bac6ce; --kpi-value: #e7edf2; --kpi-note: #aebbc5;
-  --permit-status-bg: #30251f; --permit-status-border: #76523a;
   --acs-moe-bg: #202b33; --acs-change-bg: #1d303a;
   --acs-change-border: #44697c;
   --brief-accent: #ff9f5c; --brief-number-bg: #2f6183;
@@ -261,12 +259,11 @@ button, select { font: inherit; }
 .permit-intro { border-bottom-color: #9fc3d8; }
 .permit-intro .section-kicker { color: var(--context-accent); }
 .permit-controls { grid-template-columns: 1fr 1.25fr 1.5fr 1.25fr; }
-.permit-status-chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 9px; font-size: 11px; font-weight: 800; }
-.permit-status-chip.preliminary { border: 1px solid #efc17c; background: #fff7e8; color: #875300; }
-.permit-status-chip.final { border: 1px solid #a7c8b8; background: #eef8f2; color: #22624d; }
+.permit-status-chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 9px; font-size: 11px; font-weight: 800; }
+.permit-status-chip.neutral, .brief-status.neutral { border: 1px solid var(--border); background: var(--muted); color: var(--foreground); }
 .permit-add { min-height: 35px; border: 1px solid #12355b; border-radius: 5px; background: #12355b; color: white; padding: 0 16px; font-weight: 750; cursor: pointer; }
 .permit-add:disabled { border-color: #bdcbd2; background: #e5ebee; color: #8796a0; cursor: not-allowed; }
-.permit-kpis .kpi-card:last-child { border-color: var(--permit-status-border); background: var(--permit-status-bg); }
+.permit-kpis .kpi-card:last-child { border-color: var(--border); background: var(--muted); }
 .permit-quality-value { font-size: 22px; }
 .permit-analysis-grid { grid-template-columns: minmax(0, 1.65fr) minmax(330px, .8fr); }
 .permit-chart-header { align-items: center; }
@@ -321,8 +318,6 @@ button, select { font: inherit; }
 .brief-qualifications span { border: 1px solid var(--brief-checked-border); border-radius: 999px; background: var(--brief-checked-bg); padding: 4px 8px; color: var(--brief-checked-fg); font-size: 10px; font-weight: 800; }
 .brief-status { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 4px 8px; font-size: 10px; font-weight: 800; }
 .brief-status svg { width: 12px; height: 12px; }
-.brief-status.checked { border: 1px solid var(--brief-checked-border); background: var(--brief-checked-bg); color: var(--brief-checked-fg); }
-.brief-status.review { border: 1px solid var(--brief-review-border); background: var(--brief-review-bg); color: var(--brief-review-fg); }
 .brief-evidence { border-left: 3px solid var(--border); background: var(--brief-evidence-bg); padding: 9px 11px; }
 .brief-evidence p { margin: 0; color: var(--detail-copy); font-size: 12px; line-height: 1.5; }
 .brief-evidence p + p { margin-top: 5px; }
@@ -566,8 +561,7 @@ footer p { margin: 0; }
 .dark .activity-intro .section-kicker { color: #ffaaa4; }
 .dark .positive { color: #69d3b5; }
 .dark .negative { color: #ff8e84; }
-.dark :where(.permit-status-chip.preliminary, .brief-status.review, .brief-archive-badge.corrected) { border-color: #82613c; background: #3b3021; color: #ffd08a; }
-.dark :where(.permit-status-chip.final, .brief-status.checked) { border-color: #447865; background: #20382f; color: #9be0c2; }
+.dark .brief-archive-badge.corrected { border-color: #82613c; background: #3b3021; color: #ffd08a; }
 .dark .permit-add:disabled { border-color: #3d4a53; background: #29343c; color: #7f909c; }
 .dark :where(.permit-kpis .kpi-card:last-child, .permit-error, .disclaimer-card) { border-color: #76523a; background: #30251f; color: #e9c5ab; }
 .dark :where(.brief-evidence, .brief-archive-body, .acs-kpis .kpi-card:nth-child(2), .provenance-technical) { background: #202b33; }

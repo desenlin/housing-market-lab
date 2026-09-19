@@ -53,7 +53,7 @@ BLS-published material is public domain except for identified third-party photog
 - **Citation guidance:** [Citing Census data and geographic products](https://www.census.gov/about/policies/citation.html)
 - **Attribution:** U.S. Census Bureau, with the boundary vintage recorded in [DATA_SOURCES.md](DATA_SOURCES.md).
 
-U.S. Census Bureau data and publications are generally public domain; provider marks and any identified third-party content remain excluded. The lab records release provenance, labels preliminary and imputed permit observations, and does not imply that HUD produced a separate estimate. Derived classifications and conclusions are the responsibility of Housing Market Lab and do not imply Census Bureau or HUD endorsement.
+U.S. Census Bureau data and publications are generally public domain; provider marks and any identified third-party content remain excluded. The lab records release provenance, distinguishes monthly estimates from final annual totals, discloses revisions and Census-imputed activity, and does not imply that HUD produced a separate estimate. Processing checks do not certify statistical accuracy. Derived classifications and conclusions are the responsibility of Housing Market Lab and do not imply Census Bureau or HUD endorsement.
 
 ## California Department of Housing and Community Development
 

@@ -17,7 +17,7 @@ Created by **[Desen Lin](https://desenlin.com/)**, California State University, 
 - A derived price–rent multiple
 - Redfin months of supply, median days on market, sales above original list, price-drop share, and median sale price per square foot
 - Realtor.com monthly ZIP-level active and new listings, pending ratio, listing viewers relative to the U.S., and Market Hotness
-- Census Building Permits Survey annual history from 1980 and monthly place-level observations from 2022, with explicit preliminary and imputation status
+- Census Building Permits Survey final annual totals from 1980 and monthly place-level estimates from 2022, with revision definitions and explicit Census-imputed flags
 - California HCD annual housing-delivery measures: permitted and completed units, completions per 1,000 existing units, ADU contribution, housing types, and secondary affordability detail. A shared metric controls the trend, city ranking and map, with up to five selected jurisdictions.
 - A focused ACS five-year housing-context layer covering median household income, tenure, rent burden, household size, median age, and multifamily housing, with 90% margins of error
 - City/community structural comparisons between non-overlapping ACS five-year periods; overlapping annual vintages are intentionally omitted
@@ -36,6 +36,8 @@ Local real-value views may use the LA-area CPI-U. Cross-metro real-value views i
 Regional inflation shares the Lab's navigation, header/footer, Recharts figure framework, in-figure time-period buttons, source attribution, and question-mark definitions. The latest comparison table uses the most recent month available for every included series, and users can select or deselect up to five categories. Cumulative changes use an explicit starting month independent of the chart window. Technical interpretation and source-level provenance reside in **Data & methods**. LA CPI represents Los Angeles and Orange counties together; its continuous pre-2018 history covered a broader area. These indexes measure price changes, not dollar budgets or cross-area price levels.
 
 The application is a static Next.js/Vinext export. It uses no database, paid API, paid map service, or continuously running server. Google Analytics measures aggregate traffic using the same property as the academic website.
+
+Data & methods reports **Data checks completed** dates for every provider. These record the Lab’s processing checks, not statistical certification or immunity to source revisions. Permit displays distinguish **Monthly estimates**, **Historical monthly estimates**, and **Final annual totals**; local monthly observations are not benchmarked to final annual totals. Market Brief uses a neutral monthly-estimates badge for permit findings and omits “Validated” badges for other findings. Revision details remain available through question-mark definitions and evidence notes.
 
 ## Data sources and references
 
@@ -58,7 +60,7 @@ flowchart TD
   M["Zillow, Redfin, Realtor.com, BLS headline and component CPI"] --> MP["Monthly pipelines and validation"]
   MP --> MR["Independent market release pointers"]
   B["Census BPS"] --> BP["Permit pipeline and validation"]
-  BP --> BR["Final history and open-year pointers"]
+  BP --> BR["Permit history and open-year pointers"]
   A["Census ACS"] --> AP["Annual context pipeline and validation"]
   AP --> AR["ACS release pointer"]
   H["California HCD APR"] --> HP["Annual delivery pipeline and validation"]
@@ -85,7 +87,7 @@ ACS follows a separate annual release-window review in December, January, and Fe
 
 HCD also uses an independent annual release-window check, in July and October, with manual runs available. The updater checks source metadata and calculation/reference fingerprints before retrieving changed APR data, then publishes only selected Los Angeles and Orange County jurisdiction-year aggregates under `public/data/hcd/`. It reuses existing map geometry and retains one rollback release. Metadata-only changes do not trigger deployment; a validated content release requests a deployment-only Pages build. HCD rebuilds from the current APR snapshot and checks historical coverage loss before publishing. See [HCD methods](DATA_SOURCES.md#california-hcd-housing-delivery).
 
-Permit updates use only the latest cumulative West-region monthly file, publish roughly 80 KB of local observations when it changes, and leave the final-history bundle untouched. The 1980–present annual archive and fixed ACS housing-stock denominator are rebuilt only after a new final annual BPS file appears. This keeps the monthly review lightweight while preserving a complete auditable history.
+Permit updates use only the latest cumulative West-region monthly file, publish roughly 80 KB of local observations when it changes, and leave the history bundle untouched. The history bundle holds final annual totals and historical monthly estimates. It and the fixed ACS housing-stock denominator are rebuilt only after a new final annual BPS file appears. This keeps the monthly review lightweight while preserving a complete auditable history.
 
 The Realtor.com pipeline first compares the upstream ETag or modification metadata with the last validated release. It streams the large national history only when the source changes, never saves that national file, and publishes only compact chart-ready observations for the two-county ZIP reference. Reported observations are retained when Realtor.com assigns its row-level quality flag; compact month-index lists carry those flags into charts, rankings, and maps without duplicating the series. Every provider keeps the current validated release and one rollback release.
 
@@ -105,7 +107,7 @@ Housing Supply review rules: the brief's recurring construction question uses Ce
 
 The permitting brief reports a derived Los Angeles metro aggregate: matched-jurisdiction counts from Los Angeles and Orange counties are summed for the same year-to-date months in both years. Growth is computed from those sums, not averaged from county growth rates. This is not a separately published Census BPS metro series. The answer gives the percentage change; one evidence line gives current and prior counts, with the reporting window, derived-geography coverage, and revision caveat retained in the evidence details and future archived editions. County facts remain available for auditing; historical editions retain their original wording.
 
-Repository settings must permit GitHub Actions to create pull requests. Reviewers should verify the evidence lines, observation periods, preliminary labels, source releases, and fact-packet fingerprint before merging. If the readiness gates do not pass, the workflow records “no draft recommended” in its run summary and makes no repository change.
+Repository settings must permit GitHub Actions to create pull requests. Reviewers should verify the evidence lines, observation periods, monthly-estimate labels and revision disclosures, source releases, and fact-packet fingerprint before merging. If the readiness gates do not pass, the workflow records “no draft recommended” in its run summary and makes no repository change.
 
 Provider releases do not need to arrive in the same order. If BLS CPI arrives before Zillow, the CPI pointer advances and waits for the next housing observation. If Zillow arrives first, nominal housing data advance immediately while real series stop at the latest month with an observation in both datasets. A later validated update extends the real series. CPI is never carried forward; the only derived exception is the documented October 2025 geometric interpolation between the adjacent official months.
 

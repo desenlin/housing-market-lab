@@ -64,13 +64,13 @@ test("provides a persistent light and dark theme control", async () => {
   assert.match(styles, /\.dark \.map-selection \{[^}]+background: #202b33[^}]+color: #edf3f7/);
   assert.match(styles, /\.dark \.map-selection strong \{ color: #ffffff; \}/);
   assert.match(styles, /\.dark \.leaflet-tooltip strong \{ color: #ffffff; \}/);
-  assert.match(styles, /--permit-status-bg: #30251f/);
+  assert.match(styles, /\.permit-status-chip.neutral, \.brief-status.neutral \{[^}]+background: var\(--muted\)/);
   assert.match(styles, /--acs-moe-bg: #202b33/);
   assert.match(styles, /--acs-change-bg: #1d303a/);
   assert.match(styles, /\.kpi-label \{[^}]+color: var\(--kpi-label\)/);
   assert.match(styles, /\.kpi-value \{[^}]+color: var\(--kpi-value\)/);
   assert.match(styles, /\.kpi-note \{[^}]+color: var\(--kpi-note\)/);
-  assert.match(styles, /\.permit-kpis \.kpi-card:last-child \{[^}]+background: var\(--permit-status-bg\)/);
+  assert.match(styles, /\.permit-kpis \.kpi-card:last-child \{[^}]+background: var\(--muted\)/);
   assert.match(styles, /\.acs-kpis \.kpi-card:nth-child\(2\) \{[^}]+background: var\(--acs-moe-bg\)/);
   assert.match(styles, /\.acs-kpis \.kpi-card:nth-child\(3\) \{[^}]+background: var\(--acs-change-bg\)/);
   assert.match(styles, /--context-accent: #8fc9e5/);
@@ -136,8 +136,10 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Published JSON files remain below 1 MB/);
   assert.match(source, /HCD is rebuilt from the current APR snapshot/);
   assert.match(source, /Coverage identifies the newest observation in each source/);
-  assert.match(source, /Final permit history/);
-  assert.match(source, /Preliminary permits/);
+  assert.match(source, /Final annual permit totals/);
+  assert.match(source, /Historical monthly permit estimates/);
+  assert.match(source, /Current monthly permit estimates/);
+  assert.match(source, /Data checks completed/);
   assert.match(source, /Technical release identifiers and fingerprints/);
   assert.match(source, /data\/acs\/latest\.json/);
   assert.match(source, /<dt>ACS context<\/dt><dd><span>Release \{acsManifest\.release\}<\/span><code>\{acsManifest\.bundle_sha256\}<\/code>/);

@@ -31,7 +31,7 @@ Each updater follows a **merge-forward** rule before publishing:
 
 This distinction is important: a date omitted from a truncated file is archived, while a date still present but reported as missing remains missing. The pipeline does not overwrite an explicit provider deletion with an old value.
 
-Zillow, Redfin, Realtor.com, and BLS CPI use this merge-forward process. Final Census building-permit history is appended and merged from the last validated archive, so a new final year does not require re-downloading every file back to 1980. Preliminary permit releases are not merged indefinitely; once a year becomes final, it belongs in the final-history layer.
+Zillow, Redfin, Realtor.com, and BLS CPI use this merge-forward process. Census building-permit history is appended and merged from the last validated archive, so a new annual release does not require re-downloading every file back to 1980. The history layer holds final annual totals and historical local monthly estimates; the latter are not benchmarked to annual totals. Open-year permit releases are not merged indefinitely; when annual totals are released, that year’s annual totals and historical monthly observations move into the history layer.
 
 ## Recovery hierarchy
 
