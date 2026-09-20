@@ -25,8 +25,9 @@ Created by **[Desen Lin](https://desenlin.com/)**, California State University, 
 - Current levels and explicitly labeled changes from one year earlier
 - User-selected one-, three-, and five-year or maximum chart windows
 - Indexed comparisons with a user-selected starting month
-- City/community and ZIP rankings sortable by current value or 12-month growth
-- Interactive OpenStreetMap context maps with pan, zoom, focused mainland defaults, hover details, gray **No data** boundaries, and a separate legend state for land outside city/CDP geography
+- Consistent **Level** and **Change** ranking controls across market, permit, delivery, and housing-context panels, with each comparison period stated. ACS changes compare non-overlapping five-year estimates and remain unavailable for ZCTAs with incompatible boundary vintages.
+- BPS monthly rankings also offer **Last 12 months**. Count changes use absolute differences in authorized units; shares use percentage points and normalized rates use differences in units per 1,000. Rolling counts sum 12 complete months, rolling shares use summed units, and rolling changes compare consecutive 12-month windows.
+- Interactive OpenStreetMap context maps with consistent **Data through** badges, a separate **Showing** period for historical selections, pan, zoom, focused mainland defaults, hover details, gray **No data** boundaries, and a separate legend state for land outside city/CDP geography
 - Population-ranked comparisons of the 20 largest U.S. metropolitan statistical areas, plus San Jose as a selected California comparator, including inventory, days-to-pending, price-cut-share, and sale-to-list measures
 - A **Regional inflation** data lens within **Prices & Rents**: ten spending categories for the LA area and United States, year-over-year inflation and cumulative price changes, matched-month comparisons, and category definitions on hover/focus
 - LA-area and U.S. headline CPI-U benchmarks, including year-over-year inflation overlays
