@@ -50,6 +50,9 @@ test("ACS uses a separate low-frequency change-detecting workflow", async () => 
   assert.match(workflow, /gh workflow run pages\.yml --ref main -f deploy_only=true/);
   assert.doesNotMatch(workflow, /update_data\.py/);
   assert.doesNotMatch(workflow, /update_redfin\.py/);
+  assert.match(workflow, /--check-revisions/);
+  assert.match(workflow, /Record ACS update health/);
+  assert.match(workflow, /Enforce ACS update health/);
 });
 
 test("annual data workflows serialize commits and explicitly deploy changed releases", async () => {
@@ -60,6 +63,21 @@ test("annual data workflows serialize commits and explicitly deploy changed rele
   assert.match(workflow, /group: pages/);
   assert.match(workflow, /actions: write/);
   assert.match(workflow, /gh workflow run pages\.yml --ref main -f deploy_only=true/);
+  assert.match(workflow, /Record HCD update health/);
+  assert.match(workflow, /Enforce HCD update health/);
+});
+
+test("health failures preserve deployment independence and durable attempt state", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/pages.yml", import.meta.url), "utf8");
+  const deploy = workflow.split("\n  deploy:\n")[1].split("\n  data-health:\n")[0];
+  assert.match(deploy, /needs: build/);
+  assert.doesNotMatch(deploy, /needs:.*data-health/);
+  assert.match(workflow, /health_attention: \$\{\{ steps\.health\.outputs\.attention \}\}/);
+  assert.match(workflow, /git add \.github\/data-update-state\.json/);
+  assert.match(workflow, /!cancelled\(\).*steps\.health\.outcome == 'success'/);
+  assert.match(workflow, /if \[ "\$STORAGE_OUTCOME" = "success" \]; then\s+git add public\/data/);
+  assert.match(workflow, /--force-history/);
+  assert.match(workflow, /01\|04\|07\|10/);
 });
 
 test("market brief automation evaluates the exact successful Pages revision", async () => {

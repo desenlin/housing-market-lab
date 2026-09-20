@@ -580,7 +580,9 @@ def main() -> None:
         raise ValueError("No provisional BPS monthly year is available")
     provisional_urls = [monthly_files[year][1] for year in open_years]
     provisional_manifest = load_manifest("provisional")
-    if sources_unchanged(provisional_manifest, provisional_urls):
+    # A history rebuild may pick up corrections to the fixed ACS denominator
+    # or jurisdiction reference. Apply those inputs to open years as well.
+    if not rebuild_history and sources_unchanged(provisional_manifest, provisional_urls):
         print("BPS provisional source metadata are unchanged; retaining the current release.")
         return
     downloaded = download_many(provisional_urls, args.cache_dir)

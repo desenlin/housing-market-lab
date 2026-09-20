@@ -2,9 +2,14 @@ name: Check annual ACS release
 
 on:
   workflow_dispatch:
+    inputs:
+      recheck_current:
+        description: Check for a new vintage and re-fetch existing estimates for corrections
+        type: boolean
+        default: false
   schedule:
-    # ACS five-year estimates update once per year. Three lightweight checks
-    # cover the normal release window and recent delays without monthly work.
+    # ACS five-year estimates update once per year. Three checks cover the
+    # release window; February also retrieves same-vintage corrections.
     - cron: "41 14 15 12,1,2 *"
 
 permissions:
@@ -18,48 +23,86 @@ concurrency:
 
 jobs:
   update:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          # Read the latest state after acquiring the shared concurrency group.
+          ref: main
 
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
-      - name: Check for a new five-year vintage
+      - name: Check for a new vintage or corrected five-year estimates
+        id: refresh
         env:
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
-        run: python pipeline/update_acs.py
+          RECHECK_CURRENT: ${{ inputs.recheck_current }}
+        run: |
+          acs_args=()
+          # February checks corrections even if the vintage has not advanced.
+          if [ "$RECHECK_CURRENT" = "true" ] || { [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$(date -u +%m)" = "02" ]; }; then
+            acs_args+=(--check-revisions)
+          fi
+          set +e
+          python pipeline/update_acs.py "${acs_args[@]}"
+          acs_status=$?
+          set -e
+          echo "exit_code=$acs_status" >> "$GITHUB_OUTPUT"
+          python scripts/data_update_report.py record-status --output "$RUNNER_TEMP/annual-status.json" acs="$acs_status"
+
+      - name: Record ACS update health
+        id: health
+        run: |
+          python scripts/data_health.py --groups acs \
+            --statuses "$RUNNER_TEMP/annual-status.json" --run-id "$GITHUB_RUN_ID" \
+            --summary "$GITHUB_STEP_SUMMARY" --output "$GITHUB_OUTPUT"
 
       - name: Validate compact storage and ACS tests
+        id: validation
         run: |
           python -m unittest tests.test_acs_pipeline
           python scripts/check_storage.py
 
-      - name: Commit a new validated ACS release and deploy it
+      - name: Commit ACS health and validated releases
+        if: "${{ !cancelled() && steps.health.outcome == 'success' }}"
         env:
           GH_TOKEN: ${{ github.token }}
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+          REFRESH_EXIT: ${{ steps.refresh.outputs.exit_code }}
         run: |
           release_changed=false
-          if ! git diff --quiet -- public/data/acs/latest.json; then
-            release_changed=true
+          git add .github/data-update-state.json
+          if [ "$VALIDATION_OUTCOME" = "success" ] && [ "$REFRESH_EXIT" = "0" ]; then
+            if ! git diff --quiet -- public/data/acs/latest.json; then
+              release_changed=true
+            fi
+            git add public/data/acs config/acs_sources.json
           fi
-          if git status --porcelain -- public/data/acs config/acs_sources.json | grep -q .; then
+          if ! git diff --cached --quiet; then
             git config user.name "housing-market-lab[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add public/data/acs config/acs_sources.json
-            git commit -m "data: publish validated ACS five-year release"
+            git commit -m "data: record ACS checks and validated releases"
             git push
-          else
-            echo "The published ACS vintage is still current; nothing was rebuilt."
           fi
           if [ "$release_changed" = "true" ]; then
             # GITHUB_TOKEN pushes do not trigger push workflows. Dispatch explicitly.
             gh workflow run pages.yml --ref main -f deploy_only=true
-            echo "Published a new ACS release and requested deployment." >> "$GITHUB_STEP_SUMMARY"
+            echo "Published an ACS release and requested deployment." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "No ACS release change; no deployment requested." >> "$GITHUB_STEP_SUMMARY"
+            echo "No ACS release deployed; see the data health summary." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Enforce ACS update health
+        env:
+          HEALTH_ATTENTION: ${{ steps.health.outputs.attention }}
+        run: |
+          if [ "$HEALTH_ATTENTION" != "false" ]; then
+            echo "::error::ACS freshness or update checks need attention."
+            exit 1
           fi

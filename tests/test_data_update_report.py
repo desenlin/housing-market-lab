@@ -67,9 +67,19 @@ class DataUpdateReportTests(unittest.TestCase):
             "https://desenlin.com/housing-market-lab/",
         )
         self.assertIn("Data update summary", report)
-        self.assertIn("completed successfully", report)
+        self.assertIn("Provider checks completed", report)
+        self.assertNotIn("completed successfully", report)
         self.assertIn("Redfin market activity", report)
         self.assertNotIn("@desenlin", report)
+
+    def test_summary_does_not_hide_partial_provider_failures(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            before = current_pointers(root)
+            self.write_release(root, "public/data/cpi/latest.json", "new", {"series": {}})
+            rows = report_rows(root, before, {"cpi": 1})
+            self.assertEqual(rows[0]["result"], "Published with update error")
+            self.assertIn("checks completed with update errors", markdown_report(rows, "run", "site"))
 
 
 if __name__ == "__main__":

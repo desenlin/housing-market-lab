@@ -31,7 +31,7 @@ Each updater follows a **merge-forward** rule before publishing:
 
 This distinction is important: a date omitted from a truncated file is archived, while a date still present but reported as missing remains missing. The pipeline does not overwrite an explicit provider deletion with an old value.
 
-Zillow, Redfin, Realtor.com, and BLS CPI use this merge-forward process. Census building-permit history is appended and merged from the last validated archive, so a new annual release does not require re-downloading every file back to 1980. The history layer holds final annual totals and historical local monthly estimates; the latter are not benchmarked to annual totals. Open-year permit releases are not merged indefinitely; when annual totals are released, that year’s annual totals and historical monthly observations move into the history layer.
+Zillow, Redfin, Realtor.com, and BLS CPI use this merge-forward process. Census building-permit history is appended and merged from the last validated archive, so a new annual release does not require re-downloading every file back to 1980. Quarterly revision checks deliberately re-fetch the full configured BPS history to pick up same-vintage corrections; unchanged content keeps the existing release. The history layer holds final annual totals and historical local monthly estimates; the latter are not benchmarked to annual totals. Open-year permit releases are not merged indefinitely; when annual totals are released, that year’s annual totals and historical monthly observations move into the history layer.
 
 ## Recovery hierarchy
 
@@ -41,3 +41,7 @@ Zillow, Redfin, Realtor.com, and BLS CPI use this merge-forward process. Census 
 4. The provider remains the authoritative source for overlapping revisions and corrections.
 
 GitHub Actions artifacts are not used as the historical archive because public-repository artifacts have a maximum 90-day retention period and GitHub Free artifact storage is limited. Git LFS and GitHub Release assets are also unnecessary at the current scale and would complicate GitHub Pages delivery and third-party-data governance.
+
+## Update-monitoring state
+
+`.github/data-update-state.json` stores one current attempt/success/failure-streak record per provider outside `public/data`. It is committed under the same serialized workflow concurrency group as data releases, including failed attempts; deployment-only audits do not alter it. It stores no raw data or growing event log and does not change observation provenance. Git history preserves prior monitoring states. Source release pointers still advance only after their existing validation and storage gates.

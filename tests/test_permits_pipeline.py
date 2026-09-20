@@ -1,8 +1,9 @@
 import csv
 import io
 import unittest
+from unittest.mock import patch
 
-from pipeline.update_permits import build_dataset, clean_name, current_reference, parse_bps, reference_from_dataset
+from pipeline.update_permits import build_dataset, clean_name, current_reference, main, parse_bps, reference_from_dataset
 
 
 def encoded_bps_row(*, modern=False, name="Alhambra", place_fips="00884"):
@@ -40,6 +41,34 @@ def encoded_bps_row(*, modern=False, name="Alhambra", place_fips="00884"):
 
 
 class PermitPipelineTest(unittest.TestCase):
+    def test_same_year_revision_rebuilds_history_and_open_year_reference_inputs(self):
+        config = {
+            "annual_directory": "annual", "monthly_directory": "monthly", "annual_start_year": 2025,
+            "monthly_start_year": 2025, "acs_year": 2024, "counties": {"037": {}},
+            "provider": "Census", "data_page": "url", "socds_page": "url",
+            "methodology_page": "url", "documentation_page": "url",
+            "keep_history_releases": 2, "keep_provisional_releases": 2,
+            "max_history_bytes": 1000000, "max_provisional_bytes": 1000000,
+        }
+        with patch("sys.argv", ["update_permits.py", "--force-history"]), \
+             patch("pipeline.update_permits.load_config", return_value=config), \
+             patch("pipeline.update_permits.discover_annual_files", return_value={2025: (12, "annual-2025")}), \
+             patch("pipeline.update_permits.discover_monthly_files", return_value={2025: (12, "monthly-2025"), 2026: (7, "monthly-2026")}), \
+             patch("pipeline.update_permits.load_manifest", return_value={"release": "old", "latest_final_year": 2025, "sources": []}), \
+             patch("pipeline.update_permits.fetch_bytes", return_value=(b"", {})), \
+             patch("pipeline.update_permits.current_reference", return_value=[{"jurisdiction_type": "incorporated_city"}]), \
+             patch("pipeline.update_permits.acs_housing_stock", return_value=({}, [])), \
+             patch("pipeline.update_permits.download_many", side_effect=lambda urls, cache: {url: (b"", {}) for url in urls}) as download, \
+             patch("pipeline.update_permits.parse_bps", return_value=[]), \
+             patch("pipeline.update_permits.build_dataset", return_value={"dates": ["2025-12"], "regions": []}), \
+             patch("pipeline.update_permits.sources_unchanged", return_value=True) as unchanged, \
+             patch("pipeline.update_permits.publish") as publish:
+            main()
+            self.assertEqual(download.call_args_list[0].args[0], ["annual-2025", "monthly-2025"])
+            self.assertEqual(download.call_args_list[1].args[0], ["monthly-2026"])
+            self.assertEqual([call.args[0] for call in publish.call_args_list], ["history", "provisional"])
+            unchanged.assert_not_called()
+
     def test_legacy_parser_combines_structure_types_and_flags_imputation(self):
         rows = parse_bps(encoded_bps_row(), 1980, {"037"})
         self.assertEqual(len(rows), 1)

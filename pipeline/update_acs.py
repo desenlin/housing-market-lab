@@ -3,8 +3,9 @@
 
 Routine runs first check whether the next ACS five-year vintage exists.  When
 the configured vintage is already current, the script exits without a data
-query or rebuild.  A new vintage is retrieved from the Census API in two
-requests: selected variables for California places and for California ZCTAs.
+query or rebuild, except for an explicit same-vintage revision check. Data
+retrieval uses three Census API requests: prior/current California places
+and current California ZCTAs.
 Only map geographies in Los Angeles and Orange Counties are retained.
 
 The optional --bootstrap-bulk mode exists to seed a release without an API
@@ -23,6 +24,7 @@ import math
 import os
 import shutil
 import tempfile
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -143,11 +145,24 @@ def table_url(config: dict[str, Any], year: int, table: str) -> str:
 
 
 def vintage_available(config: dict[str, Any], year: int) -> bool:
-    try:
-        with urllib.request.urlopen(request(table_url(config, year, "B19013"), "HEAD"), timeout=45) as response:
-            return getattr(response, "status", 200) == 200
-    except (OSError, urllib.error.HTTPError):
-        return False
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(request(table_url(config, year, "B19013"), "HEAD"), timeout=45) as response:
+                if response.status != 200:
+                    raise RuntimeError(f"Unexpected ACS availability response: HTTP {response.status}")
+                return True
+        except urllib.error.HTTPError as error:
+            if error.code in {404, 410}:
+                return False
+            if error.code != 429 and error.code < 500:
+                raise RuntimeError(f"ACS availability check failed: HTTP {error.code}") from error
+            if attempt == 2:
+                raise RuntimeError(f"ACS availability check failed after 3 attempts: HTTP {error.code}") from error
+        except OSError as error:
+            if attempt == 2:
+                raise RuntimeError("ACS availability check failed after 3 attempts; the vintage status is unknown") from error
+        time.sleep(2 ** (attempt + 1))
+    raise AssertionError("Unreachable ACS availability check")
 
 
 def map_reference() -> dict[str, dict[str, dict[str, str]]]:
@@ -385,6 +400,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--bootstrap-bulk", action="store_true", help="Stream Census table files instead of using the keyed API")
     parser.add_argument("--force", action="store_true", help="Rebuild the configured vintage even if it is already published")
+    parser.add_argument("--check-revisions", action="store_true", help="Check the next vintage and re-fetch the current vintage if no newer one exists")
     args = parser.parse_args()
     config = load_config()
     current, _ = current_release()
@@ -394,11 +410,12 @@ def main() -> None:
     next_year = configured_year + 1
 
     if not args.force and current and int(current["latest_year"]) >= configured_year:
-        if not vintage_available(config, next_year):
+        if vintage_available(config, next_year):
+            latest_year = next_year
+            comparison_year = next_year - 5
+        elif not args.check_revisions:
             print(f"ACS {configured_year} five-year vintage remains current; no data query or processing needed.")
             return
-        latest_year = next_year
-        comparison_year = next_year - 5
 
     if latest_year - comparison_year != 5:
         raise ValueError("ACS comparison vintages must be non-overlapping five-year periods")
@@ -411,7 +428,7 @@ def main() -> None:
     else:
         key = os.environ.get("CENSUS_API_KEY", "").strip()
         if not key:
-            raise RuntimeError("CENSUS_API_KEY is required when a new ACS vintage must be retrieved")
+            raise RuntimeError("CENSUS_API_KEY is required when ACS estimates must be retrieved")
         prior_rows, prior_info = fetch_api(config, comparison_year, "city", key)
         current_places, place_info = fetch_api(config, latest_year, "city", key)
         current_zctas, zcta_info = fetch_api(config, latest_year, "zip", key)

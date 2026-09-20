@@ -9,6 +9,10 @@ on:
         description: Deploy validated committed data without refreshing providers
         type: boolean
         default: false
+      recheck_history:
+        description: Re-fetch permit history to check same-vintage corrections
+        type: boolean
+        default: false
   schedule:
     # Providers publish independently, and their release timing can differ.
     - cron: "23 13 12 * *"
@@ -27,11 +31,17 @@ concurrency:
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/main'
+    outputs:
+      health_attention: ${{ steps.health.outputs.attention }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          # Read the latest state after acquiring the shared concurrency group.
+          ref: main
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -47,6 +57,9 @@ jobs:
       - name: Refresh and validate provider data
         id: refresh
         if: "${{ !inputs.deploy_only && (github.event_name != 'push' || hashFiles('public/data/latest.json') == '' || hashFiles('public/data/redfin/latest.json') == '' || hashFiles('public/data/realtor/inventory/latest.json') == '' || hashFiles('public/data/realtor/hotness/latest.json') == '' || hashFiles('public/data/cpi/latest.json') == '' || hashFiles('public/data/permits/history/latest.json') == '' || hashFiles('public/data/permits/provisional/latest.json') == '' || contains(github.event.head_commit.message, '[refresh-data]')) }}"
+        env:
+          RECHECK_HISTORY: ${{ inputs.recheck_history }}
+          QUARTERLY_CHECK: ${{ github.event.schedule == '23 13 28 * *' }}
         run: |
           python scripts/data_update_report.py snapshot --output "$RUNNER_TEMP/data-before.json"
           set +e
@@ -58,7 +71,11 @@ jobs:
           realtor_status=$?
           python pipeline/update_cpi.py
           cpi_status=$?
-          python pipeline/update_permits.py
+          permit_args=()
+          if [ "$RECHECK_HISTORY" = "true" ] || { [ "$QUARTERLY_CHECK" = "true" ] && [[ "$(date -u +%m)" =~ ^(01|04|07|10)$ ]]; }; then
+            permit_args+=(--force-history)
+          fi
+          python pipeline/update_permits.py "${permit_args[@]}"
           permits_status=$?
           set -e
           python scripts/data_update_report.py record-status \
@@ -80,24 +97,39 @@ jobs:
           if [ "$permits_status" -ne 0 ]; then
             echo "::warning::Census building permits refresh failed; retaining its prior validated releases."
           fi
-          if [ "$zillow_status" -ne 0 ] && [ "$redfin_status" -ne 0 ] && [ "$realtor_status" -ne 0 ] && [ "$cpi_status" -ne 0 ] && [ "$permits_status" -ne 0 ]; then
-            exit 1
+
+      - name: Audit source freshness and update failures
+        id: health
+        env:
+          REFRESH_OUTCOME: ${{ steps.refresh.outcome }}
+        run: |
+          health_args=()
+          if [ "$REFRESH_OUTCOME" = "success" ]; then
+            health_args+=(--statuses "$RUNNER_TEMP/data-refresh-status.json" --run-id "$GITHUB_RUN_ID")
           fi
+          python scripts/data_health.py "${health_args[@]}" \
+            --summary "$GITHUB_STEP_SUMMARY" --output "$GITHUB_OUTPUT"
 
       - name: Enforce bounded storage policy
+        id: storage
         run: |
           python pipeline/build_fact_engine.py
           python pipeline/prepare_market_brief.py --snapshot-only
           python scripts/check_storage.py
 
-      - name: Commit a successful data release
-        if: steps.refresh.outcome == 'success'
+      - name: Commit checked releases and preserve update health
+        if: "${{ !cancelled() && steps.health.outcome == 'success' && steps.refresh.outcome == 'success' }}"
+        env:
+          STORAGE_OUTCOME: ${{ steps.storage.outcome }}
         run: |
-          if git status --porcelain -- public/data | grep -q .; then
+          git add .github/data-update-state.json
+          if [ "$STORAGE_OUTCOME" = "success" ]; then
+            git add public/data
+          fi
+          if ! git diff --cached --quiet; then
             git config user.name "housing-market-lab[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add public/data
-            git commit -m "data: publish validated provider releases [skip ci]"
+            git commit -m "data: record provider checks and validated releases [skip ci]"
             git push
           else
             echo "No new provider observations."
@@ -116,7 +148,7 @@ jobs:
             --site-url "https://desenlin.com/housing-market-lab/"
 
       - name: Summarize a pushed data release
-        if: "${{ github.event_name == 'push' && steps.refresh.outcome == 'skipped' && !startsWith(github.event.head_commit.message, 'data: publish validated provider releases') }}"
+        if: "${{ github.event_name == 'push' && steps.refresh.outcome == 'skipped' && !startsWith(github.event.head_commit.message, 'data: record provider checks and validated releases') }}"
         env:
           BEFORE_SHA: ${{ github.event.before }}
           REPORT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -175,3 +207,17 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+  data-health:
+    name: Check data freshness and repeated update failures
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce data health independently of deployment
+        env:
+          HEALTH_ATTENTION: ${{ needs.build.outputs.health_attention }}
+        run: |
+          if [ "$HEALTH_ATTENTION" != "false" ]; then
+            echo "::error::Data health needs attention. See the build job's Data health summary. Validated releases can still deploy."
+            exit 1
+          fi

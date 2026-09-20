@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "failure_threshold": 2,
+  "reviewed_on": "2026-09-20",
+  "reference_review_due": "2027-01-15",
+  "reference_review": [
+    "Review Census place, county, Gazetteer and ZCTA vintages in pipeline/update_data.py; compare geography coverage before changing them.",
+    "Review the metro population date and selected metro ranks in config/sources.json.",
+    "Review the fixed ACS housing-stock year in config/permit_sources.json and the HCD calculation fingerprint; a denominator change requires a consistent rebuild and methods update.",
+    "Refresh the BLS and Census release-date overrides in config/data_health_policy.json; document any delayed releases."
+  ],
+  "sources": {
+    "zillow": {"frequency": "monthly", "check_day": 28, "lag_months": 1, "series_lag_months": {"metro_sale_to_list": 2}},
+    "redfin": {"frequency": "monthly", "check_day": 28, "lag_months": 1},
+    "realtor_inventory": {"frequency": "monthly", "check_day": 18, "lag_months": 1},
+    "realtor_hotness": {"frequency": "monthly", "check_day": 24, "lag_months": 1},
+    "cpi": {
+      "frequency": "monthly", "check_day": 25, "lag_months": 1,
+      "schedule_source": "https://www.bls.gov/schedule/news_release/cpi.htm",
+      "grace_days": 1,
+      "release_dates": {"2026-08": "2026-09-11", "2026-09": "2026-10-14", "2026-10": "2026-11-10", "2026-11": "2026-12-10"}
+    },
+    "permits_provisional": {
+      "frequency": "monthly", "check_day": 31, "lag_months": 1,
+      "schedule_source": "https://www.census.gov/construction/bps/schedule.html",
+      "grace_days": 1,
+      "release_dates": {"2026-08": "2026-09-24", "2026-09": "2026-10-27", "2026-10": "2026-11-25", "2026-11": "2026-12-23"}
+    },
+    "permits_history": {"frequency": "annual", "check_month_day": "06-28", "lag_years": 1},
+    "acs": {"frequency": "annual", "check_month_day": "03-01", "lag_years": 2},
+    "hcd": {"frequency": "annual", "check_month_day": "11-01", "lag_years": 1}
+  }
+}

@@ -30,8 +30,8 @@ DATA_SOURCES = (
     DataSource("realtor_inventory", "Realtor.com inventory", "public/data/realtor/inventory/latest.json", "realtor"),
     DataSource("realtor_hotness", "Realtor.com Market Hotness", "public/data/realtor/hotness/latest.json", "realtor"),
     DataSource("cpi", "BLS CPI", "public/data/cpi/latest.json", "cpi"),
-    DataSource("permits_history", "Census building permits — final history", "public/data/permits/history/latest.json", "permits"),
-    DataSource("permits_provisional", "Census building permits — provisional", "public/data/permits/provisional/latest.json", "permits"),
+    DataSource("permits_history", "Census building permits — annual totals and historical monthly estimates", "public/data/permits/history/latest.json", "permits"),
+    DataSource("permits_provisional", "Census building permits — current monthly estimates", "public/data/permits/provisional/latest.json", "permits"),
     DataSource("acs", "ACS five-year estimates", "public/data/acs/latest.json", "acs"),
     DataSource("hcd", "HCD annual housing delivery", "public/data/hcd/latest.json", "hcd"),
 )
@@ -129,7 +129,9 @@ def report_rows(
         previous_release = release_value(before.get(source.key))
         current_pointer = after.get(source.key)
         current_release = release_value(current_pointer)
-        if current_release != previous_release:
+        if statuses and statuses.get(source.provider_group) not in {None, 0}:
+            result = "Published with update error" if current_release != previous_release else "Retained — update error"
+        elif current_release != previous_release:
             result = "Published"
         elif statuses is None or source.provider_group not in statuses:
             continue
@@ -157,7 +159,7 @@ def markdown_report(
     lines = [
         "### Data update summary",
         "",
-        "**Housing Market Lab completed successfully.**",
+        "**Provider checks completed with update errors.**" if any("error" in row["result"] for row in rows) else "**Provider checks completed.**",
         "",
         f"Completed {published_at.strftime('%B')} {published_at.day}, {published_at.strftime('%Y at %H:%M UTC')}.",
         "",
@@ -197,7 +199,7 @@ def finish_report(args: argparse.Namespace, before: dict[str, dict[str, Any] | N
     else:
         report = (
             "### Data update summary\n\n"
-            "Housing Market Lab completed successfully. No validated provider "
+            "No validated provider "
             "release pointers changed.\n"
         )
     with args.summary.open("a", encoding="utf-8") as summary:
