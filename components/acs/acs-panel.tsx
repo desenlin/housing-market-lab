@@ -18,6 +18,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { FigureAttribution } from "@/components/figure-attribution";
+import { MapPeriod } from "@/components/map-period";
+import { RankingSort, type RankBy } from "@/components/ranking-sort";
 import { DEFAULT_MAP_FIT_OPTIONS, focusedMapBounds } from "@/lib/map-view";
 
 type Value = number | null;
@@ -311,7 +313,8 @@ function AcsMap({ county, mapData, dataset, metricKey, view, selectedId, onSelec
             {metric.label}
             <DefinitionHelp label={metric.label} definition={`${metric.definition} ACS table ${metric.source_table}; universe: ${metric.universe}.`} />
           </h3>
-          <p>{view === "level" ? dataset.periods[1] : `${dataset.periods[0]} to ${dataset.periods[1]}`}</p>
+          <p>{view === "level" ? "Five-year estimate" : `Change from ${dataset.periods[0]} to ${dataset.periods[1]}`}</p>
+          <MapPeriod latest={dataset.periods[1]} />
         </div>
         <div className="map-tools">
           <button type="button" className="map-reset" onClick={reset}><RotateCcw /> Reset map</button>
@@ -415,6 +418,7 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
   const [county, setCounty] = useState<County>("Orange County");
   const [metricKey, setMetricKey] = useState("median_household_income");
   const [view, setView] = useState<AcsView>("level");
+  const [rankBy, setRankBy] = useState<RankBy>("level");
   const [selectedId, setSelectedId] = useState("");
 
   useEffect(() => {
@@ -455,9 +459,9 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
       region,
       level: region.series[metricKey]?.[1] ?? null,
       change: changeValue(region, metricKey, metric),
-    })).filter((item) => (view === "level" ? item.level : item.change) != null)
-      .sort((a, b) => ((view === "level" ? b.level : b.change) ?? -Infinity) - ((view === "level" ? a.level : a.change) ?? -Infinity));
-  }, [eligible, metric, metricKey, view]);
+    })).filter((item) => item.level != null)
+      .sort((a, b) => ((rankBy === "level" ? b.level : b.change) ?? -Infinity) - ((rankBy === "level" ? a.level : a.change) ?? -Infinity) || a.region.name.localeCompare(b.region.name));
+  }, [eligible, metric, metricKey, rankBy]);
 
   const relationshipPoints = useMemo((): Record<Relationship, RelationshipPoint[]> => {
     if (!dataset) return { income_value: [], burden_rent: [] };
@@ -510,12 +514,13 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
   const current = selected?.series[metricKey]?.[1] ?? null;
   const currentMoe = selected?.moe[metricKey]?.[1] ?? null;
   const selectedChange = selected ? changeValue(selected, metricKey, metric) : null;
-  const rank = selected ? ranked.findIndex((item) => item.region.id === selected.id) + 1 : 0;
+  const rank = selected && (rankBy === "level" ? current : selectedChange) != null ? ranked.findIndex((item) => item.region.id === selected.id) + 1 : 0;
+  const rankedCount = ranked.filter((item) => (rankBy === "level" ? item.level : item.change) != null).length;
 
   function changeGeography(next: string) {
     const value = next as Geography;
     setGeography(value);
-    if (value === "zip") setView("level");
+    if (value === "zip") { setView("level"); setRankBy("level"); }
     const preferred = value === "city" ? "Fullerton" : "92831";
     const nextDataset = datasets?.[value];
     const nextEligible = nextDataset?.regions.filter((region) => county === "Both" || region.county === county) ?? [];
@@ -571,27 +576,28 @@ export function AcsPanel({ basePath, maps, marketDatasets, onManifest }: {
         <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">{selected?.name ?? "Selected place"}</p><p className="kpi-value">{formatEstimate(current, metric)}</p><p className="kpi-note">{metric.label} · {dataset.periods[1]}</p></CardContent></Card>
         <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">90% margin of error</p><p className="kpi-value">{currentMoe == null ? "—" : `±${formatMargin(currentMoe, metric)}`}</p><p className="kpi-note">Sampling uncertainty around the estimate</p></CardContent></Card>
         <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">Non-overlapping change</p><p className="kpi-value">{geography === "city" ? formatEstimate(selectedChange, metric, true) : "Not shown"}</p><p className="kpi-note">{geography === "city" && selected ? (changeSignificant(selected, metricKey) ? "Statistically distinguishable at 90%" : "Not distinguishable at 90%") : "Current ZCTA estimate only"}</p></CardContent></Card>
-        <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">Local rank</p><p className="kpi-value">{rank > 0 ? `${rank} of ${ranked.length}` : "—"}</p><p className="kpi-note">Ranked by the displayed {view === "level" ? "estimate" : "change"}</p></CardContent></Card>
+        <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">Local rank</p><p className="kpi-value">{rank > 0 ? `${rank} of ${rankedCount}` : "—"}</p><p className="kpi-note">Ranked by {rankBy === "level" ? "level" : "non-overlapping change"}</p></CardContent></Card>
       </section>
 
       <section className="analysis-grid acs-analysis-grid">
         <AcsMap county={county} mapData={maps[geography]} dataset={dataset} metricKey={metricKey} view={view} selectedId={selected?.id ?? ""} onSelect={setSelectedId} />
         <Card className="ranking-card acs-ranking">
           <CardHeader>
-            <div className="ranking-title"><div><p className="section-kicker">Comparison</p><CardTitle>Local ranking</CardTitle></div></div>
-            <div className="acs-rank-columns" aria-hidden="true"><span>#</span><span>Place</span><span>{view === "level" ? "Estimate" : "Change"}</span><span>{view === "level" ? "MOE" : "90% test"}</span></div>
+            <div className="ranking-title"><div><p className="section-kicker">Place</p><CardTitle>Local ranking</CardTitle></div><RankingSort label="Housing context ranking sort" value={rankBy} onChange={setRankBy} changeDisabled={geography === "zip"} /></div>
+            <p className="ranking-note">{rankBy === "level" ? `Level: ${dataset.periods[1]}. MOE is the 90% margin of error.` : `Change: ${dataset.periods[0]} to ${dataset.periods[1]}. Missing changes sort last.`}{geography === "zip" && " Change is unavailable across ZCTA boundary vintages."}</p>
+            <div className="acs-rank-columns" aria-hidden="true"><span>#</span><span>Place</span><span>{rankBy === "level" ? "Level" : "Change"}</span><span>{rankBy === "level" ? "MOE" : "90% test"}</span></div>
           </CardHeader>
           <CardContent className="ranking-list">
             {ranked.map((item, index) => {
-              const value = view === "level" ? item.level : item.change;
+              const value = rankBy === "level" ? item.level : item.change;
               const moe = item.region.moe[metricKey]?.[1] ?? null;
               const uncertain = relativeUncertainty(item.level, moe);
               return (
                 <button key={item.region.id} type="button" aria-pressed={item.region.id === selected?.id} onClick={() => toggleContextPlaceSelection(item.region.id)} className={`acs-rank-row${item.region.id === selected?.id ? " active" : ""}`}>
-                  <span className="rank-number">{index + 1}</span>
+                  <span className="rank-number">{value == null ? "—" : index + 1}</span>
                   <span className="rank-name">{item.region.name}<small>{item.region.county}{uncertain != null && uncertain > 0.3 ? " · high uncertainty" : ""}</small></span>
-                  <strong>{formatEstimate(value, metric, view === "change")}</strong>
-                  <span>{view === "level" ? (moe == null ? "—" : `±${formatMargin(moe, metric)}`) : (changeSignificant(item.region, metricKey) ? "Distinct" : "Not distinct")}</span>
+                  <strong>{formatEstimate(value, metric, rankBy === "growth")}</strong>
+                  <span>{rankBy === "level" ? (moe == null ? "—" : `±${formatMargin(moe, metric)}`) : value == null ? "—" : (changeSignificant(item.region, metricKey) ? "Distinct" : "Not distinct")}</span>
                 </button>
               );
             })}

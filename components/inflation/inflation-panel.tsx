@@ -7,6 +7,7 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { DefinitionHelp } from "@/components/definition-help";
 import { FigureAttribution } from "@/components/figure-attribution";
 import { TimeRangeControl } from "@/components/time-range-control";
+import { DataThrough } from "@/components/map-period";
 import { timeAxisTicks, timeRangeStart, valueAxisDomain, type TimeRange } from "@/lib/chart-series";
 import {
   CPI_AREAS, INFLATION_DEFINITIONS, INFLATION_STYLES, commonInflationMonths,
@@ -65,7 +66,7 @@ function LoadedInflationPanel({ dataset, categories, lensControl }: { dataset: C
     <section className="analysis-grid inflation-analysis-grid">
       <Card className="chart-card">
         <CardHeader className="chart-header">
-          <div><p className="section-kicker">Time</p><CardTitle><span className="metric-heading">{comparison === "areas" ? categoryMeta.label : view === "yoy" ? "Consumer price inflation" : "Consumer price growth"}<DefinitionHelp label="Consumer price change" definition={description} /></span></CardTitle></div>
+          <div><p className="section-kicker">Time</p><div className="metric-title-row"><CardTitle><span className="metric-heading">{comparison === "areas" ? categoryMeta.label : view === "yoy" ? "Consumer price inflation" : "Consumer price growth"}<DefinitionHelp label="Consumer price change" definition={description} /></span></CardTitle><DataThrough period={inflationDate(latest)} /></div></div>
           <div className="chart-options">
             <TimeRangeControl value={range} onChange={setRange} />
             {view === "cumulative" && <label className="index-base"><span>Starting month</span><NativeSelect aria-label="Inflation starting month" value={baseMonth} onChange={event => setRequestedBase(event.target.value)}>{months.map(month => <NativeSelectOption key={month} value={month}>{inflationDate(month)}</NativeSelectOption>)}</NativeSelect></label>}

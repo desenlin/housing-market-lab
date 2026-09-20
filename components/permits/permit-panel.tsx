@@ -18,6 +18,9 @@ import { FigureAttribution } from "@/components/figure-attribution";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { DEFAULT_MAP_FIT_OPTIONS, focusedMapBounds } from "@/lib/map-view";
 import { PERMIT_LABELS } from "@/lib/data-status";
+import { MapPeriod, DataThrough } from "@/components/map-period";
+import { RankingSort, type SupplyRankBy } from "@/components/ranking-sort";
+import { permitChange, formatPermitChange, trailingPermitValue, trailingPermitChange } from "@/lib/permit-change";
 
 type PermitMetricKey =
   | "total_units"
@@ -322,7 +325,8 @@ export function PermitMap({ mapData, dataset, county, metric, dateIndex, selecte
         <div>
           <p className="section-kicker">{title}</p>
           <h3>{county === "Both" ? "Orange and Los Angeles Counties" : county}</h3>
-          <p><strong>{metricInfo.label}</strong><DefinitionHelp label={metricInfo.label} definition={metricInfo.definition} /> · {formatDate(dataset.dates[dateIndex])}</p>
+          <p><strong>{metricInfo.label}</strong><DefinitionHelp label={metricInfo.label} definition={metricInfo.definition} /></p>
+          <MapPeriod latest={formatDate(dataset.dates.at(-1)!)} selected={formatDate(dataset.dates[dateIndex])} />
         </div>
         <div className="map-tools">
           <div className="map-actions"><div className="map-palette" role="group" aria-label="Map color gradient"><span>Color</span>{(["navy", "orange"] as const).map(option => <button key={option} type="button" aria-pressed={palette === option} className={palette === option ? "active" : ""} onClick={() => setPalette(option)}>{option === "navy" ? "Navy" : "Orange"}</button>)}</div>
@@ -358,6 +362,7 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
   const [annualChartRange, setAnnualChartRange] = useState<AnnualChartRange>("max");
   const [monthlyChartRange, setMonthlyChartRange] = useState<MonthlyChartRange>("max");
   const [monthlySeriesView, setMonthlySeriesView] = useState<MonthlySeriesView>("observations");
+  const [rankBy, setRankBy] = useState<SupplyRankBy>("level");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [addId, setAddId] = useState("");
   const onManifestRef = useRef(onManifest);
@@ -406,13 +411,20 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
   const primary = selected[0];
   const primaryValue = primary?.series[metric][dateIndex] ?? null;
   const isImputed = Boolean(primary?.quality.imputed.includes(dateIndex));
+  const rankingValues = useMemo(() => new Map(eligible.map((region) => [region.id, {
+    level: rankBy === "trailing" && dataset ? trailingPermitValue(region, dataset.dates, dateIndex, metric) : region.series[metric][dateIndex] ?? null,
+    change: dataset && metricInfo ? rankBy === "trailing"
+      ? trailingPermitChange(region, dataset.dates, dateIndex, metric, metricInfo.unit)
+      : permitChange(region.series[metric], dataset.dates, dateIndex, metricInfo.unit) : null,
+  }])), [eligible, dataset, dateIndex, metric, metricInfo, rankBy]);
   const ranked = useMemo(() => {
     if (!dataset) return [];
+    const rankValue = (region: PermitRegion) => rankingValues.get(region.id)?.[rankBy === "growth" ? "change" : "level"];
     return eligible
-      .filter((region) => region.jurisdiction_type === "incorporated_city" && region.series[metric][dateIndex] != null)
-      .sort((a, b) => (b.series[metric][dateIndex] ?? -Infinity) - (a.series[metric][dateIndex] ?? -Infinity));
-  }, [dataset, dateIndex, eligible, metric]);
-  const primaryRank = primary ? ranked.findIndex((region) => region.id === primary.id) + 1 : 0;
+      .filter((region) => region.jurisdiction_type === "incorporated_city" && (rankBy === "trailing" || region.series[metric][dateIndex] != null))
+      .sort((a, b) => (rankValue(b) ?? -Infinity) - (rankValue(a) ?? -Infinity) || a.name.localeCompare(b.name));
+  }, [dataset, dateIndex, eligible, metric, rankBy, rankingValues]);
+  const primaryRank = primary && rankingValues.get(primary.id)?.[rankBy === "growth" ? "change" : "level"] != null ? ranked.findIndex((region) => region.id === primary.id) + 1 : 0;
   const chartRange = frequency === "annual" ? annualChartRange : monthlyChartRange;
   const chartPointLimit = chartRange === "max"
     ? dataset?.dates.length ?? 0
@@ -452,6 +464,7 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
   const counties = county === "Both" ? ["Orange County", "Los Angeles County"] : [county];
   const chartStartDate = dataset.dates[chartStartIndex];
   const chartEndDate = dataset.dates.at(-1)!;
+  const rankedCount = ranked.filter((region) => rankingValues.get(region.id)?.[rankBy === "growth" ? "change" : "level"] != null).length;
   return (
     <div className="permit-stack">
       <section className="control-deck" aria-label="Building permit controls">
@@ -463,7 +476,7 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
         <div className="control-grid permit-controls">
           {lensControl}
           <LabelledSelect label="County" value={county} onChange={changeCounty}>{COUNTY_OPTIONS.map((option) => <NativeSelectOption key={option} value={option}>{option}</NativeSelectOption>)}</LabelledSelect>
-          <LabelledSelect label="Frequency" value={frequency} onChange={(value) => setFrequency(value as Frequency)}><NativeSelectOption value="monthly">Monthly · 2022–present</NativeSelectOption><NativeSelectOption value="annual">Annual · 1980–present</NativeSelectOption></LabelledSelect>
+          <LabelledSelect label="Frequency" value={frequency} onChange={(value) => { setFrequency(value as Frequency); if (value === "annual" && rankBy === "trailing") setRankBy("level"); }}><NativeSelectOption value="monthly">Monthly · 2022–present</NativeSelectOption><NativeSelectOption value="annual">Annual · 1980–present</NativeSelectOption></LabelledSelect>
           <LabelledSelect label="Metric" value={metric} onChange={(value) => setMetric(value as PermitMetricKey)}>{METRIC_OPTIONS.map((option) => <NativeSelectOption key={option.key} value={option.key}>{option.label}</NativeSelectOption>)}</LabelledSelect>
           <LabelledSelect label="Map & ranking date" value={selectedDate} onChange={setDate}>{[...dataset.dates].reverse().map((value) => <NativeSelectOption key={value} value={value}>{formatDate(value)}</NativeSelectOption>)}</LabelledSelect>
         </div>
@@ -479,17 +492,16 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
       <section className="kpi-grid permit-kpis">
         <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">{primary?.name ?? "Focus jurisdiction"}</p><p className="kpi-value">{formatValue(primaryValue, metricInfo)}</p><p className="kpi-note">{metricInfo.short_label} · {formatDate(selectedDate)}</p></CardContent></Card>
         <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">Structure mix<DefinitionHelp label="Structure mix" definition="Share of authorized units in buildings containing five or more units; this describes structure size, not tenure." /></p><p className="kpi-value">{formatValue(primary?.series.large_multifamily_share[dateIndex] ?? null, dataset.metrics.large_multifamily_share)}</p><p className="kpi-note">Share of authorized units in 5+-unit buildings</p></CardContent></Card>
-        <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">City rank<DefinitionHelp label="City rank" definition="Descending rank among incorporated cities reporting the selected measure and period. Unincorporated county totals are excluded." /></p><p className="kpi-value">{primaryRank > 0 ? `#${primaryRank}` : "—"}</p><p className="kpi-note">Of {ranked.length} reporting cities in selected county view</p></CardContent></Card>
+        <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">City rank<DefinitionHelp label="City rank" definition="Descending rank by the selected level, change, or last 12 months among incorporated cities with available values. Unincorporated county totals are excluded." /></p><p className="kpi-value">{primaryRank > 0 ? `#${primaryRank}` : "—"}</p><p className="kpi-note">By {rankBy === "level" ? "level" : rankBy === "trailing" ? "last 12 months" : "annual change"} · {rankedCount} cities in selected county view</p></CardContent></Card>
         <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">Observation status<DefinitionHelp label="Observation status" definition={`${observationStatus.definition} Census-imputed identifies observations whose published totals include estimated activity for missing reports.`} /></p><p className="kpi-value permit-quality-value">{!primary ? "No selection" : primaryValue == null ? "Not available" : isImputed ? "Census-imputed" : observationStatus.label}</p><p className="kpi-note">{!primary ? "Select a jurisdiction" : primaryValue == null ? "No observation for this measure and period" : isImputed ? "Includes Census estimates for missing reports" : frequency === "annual" ? "Annual Census release" : currentIsPreliminary ? "Current monthly release" : "Archived monthly observations"}</p></CardContent></Card>
       </section>
 
       <section className="analysis-grid permit-analysis-grid">
         <Card className="chart-card">
           <CardHeader className="chart-header permit-chart-header">
-            <div><p className="section-kicker">Trend comparison</p><CardTitle>{metricInfo.label}<DefinitionHelp label={metricInfo.label} definition={metricInfo.definition} /></CardTitle></div>
+            <div><p className="section-kicker">Trend comparison</p><div className="metric-title-row"><CardTitle>{metricInfo.label}<DefinitionHelp label={metricInfo.label} definition={metricInfo.definition} /></CardTitle><DataThrough period={formatDate(chartEndDate)} /></div></div>
             <div className="permit-chart-options">
               <div className="map-palette" role="group" aria-label="Permit chart colors"><span>Color</span>{(["navy", "orange"] as const).map(option => <button key={option} type="button" className={chartPalette === option ? "active" : ""} aria-pressed={chartPalette === option} onClick={() => setChartPalette(option)}>{option === "navy" ? "Navy" : "Orange"}</button>)}</div>
-              <p className="permit-definition">{metricInfo.definition}</p>
               <LabelledSelect
                 label="Chart range"
                 value={chartRange}
@@ -548,10 +560,18 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
           </CardContent>
         </Card>
         <Card className="ranking-card permit-ranking">
-          <CardHeader><p className="section-kicker">Cross-section</p><CardTitle>City ranking</CardTitle><div className="permit-rank-columns"><span>#</span><span>City</span><span>{metricInfo.short_label}</span></div></CardHeader>
+          <CardHeader>
+            <div className="ranking-title"><div><p className="section-kicker">Place</p><CardTitle>City ranking</CardTitle></div><RankingSort label="Permit ranking sort" value={rankBy} onChange={setRankBy} trailing={frequency === "monthly"} /></div>
+            <p className="ranking-note">{rankBy === "trailing" ? `12 months ending ${formatDate(selectedDate)} · Change from the preceding 12 months` : `${formatDate(selectedDate)} · Change from ${frequency === "monthly" ? "the same month one year earlier" : "one year earlier"}`}</p>
+            <div className="permit-rank-columns" aria-hidden="true"><span>#</span><span>City</span><span>{rankBy === "trailing" ? "Last 12 months" : metricInfo.short_label}</span><span>Change{metricInfo.unit === "units" ? " (units)" : metricInfo.unit === "share" ? " (pp)" : ""}</span></div>
+          </CardHeader>
           <CardContent className="ranking-list">
-            {ranked.map((region, index) => <button type="button" aria-pressed={selectedIds.includes(region.id)} disabled={!selectedIds.includes(region.id) && selectedIds.length >= 5} className={`permit-rank-row${region.id === primary?.id ? " active" : selectedIds.includes(region.id) ? " selected" : ""}`} key={region.id} onClick={() => togglePermitPlaceSelection(region.id)}><span className="rank-number">{index + 1}</span><span className="rank-name">{region.name}<small>{region.county}</small></span><strong>{formatValue(region.series[metric][dateIndex], metricInfo)}</strong></button>)}
+            {ranked.map((region, index) => {
+              const { level, change } = rankingValues.get(region.id)!;
+              return <button type="button" aria-pressed={selectedIds.includes(region.id)} disabled={!selectedIds.includes(region.id) && selectedIds.length >= 5} className={`permit-rank-row${region.id === primary?.id ? " active" : selectedIds.includes(region.id) ? " selected" : ""}`} key={region.id} onClick={() => togglePermitPlaceSelection(region.id)}><span className="rank-number">{(rankBy === "growth" ? change : level) == null ? "—" : index + 1}</span><span className="rank-name">{region.name}<small>{region.county}</small></span><strong>{formatValue(level, metricInfo)}</strong><span className={change == null ? "" : change < 0 ? "negative" : "positive"}>{formatPermitChange(change, metricInfo.unit)}</span></button>;
+            })}
           </CardContent>
+          <p className="ranking-footnote">{metricInfo.unit === "share" ? "Change is in percentage points." : metricInfo.unit === "rate" ? "Change is in units per 1,000 existing units." : "Change is the difference in authorized units."} {rankBy === "trailing" ? `Rolling values require 12 available months; changes require 24. ${metricInfo.unit === "share" ? "The share uses summed units, not an average of monthly shares." : "Permits are authorizations, not net additions to housing stock."} Missing values sort last.` : "Missing changes sort last."}</p>
         </Card>
       </section>
 

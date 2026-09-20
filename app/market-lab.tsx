@@ -44,6 +44,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { DEFAULT_MAP_FIT_OPTIONS, focusedMapBounds } from "@/lib/map-view";
 
 import { TimeRangeControl } from "@/components/time-range-control";
+import { MapPeriod, DataThrough } from "@/components/map-period";
+import { RankingSort } from "@/components/ranking-sort";
 import { timeRangeStart, timeAxisTicks, valueAxisDomain, type TimeRange } from "@/lib/chart-series";
 import type { CpiDataset, CpiManifest, CpiSeries, CpiInterpolationRule } from "@/lib/inflation";
 import { PricesLens } from "@/components/inflation/prices-lens";
@@ -362,6 +364,12 @@ export function cpiValuesForRealAdjustment(
     }
   });
   return new Map(cpi.dates.map((date, index) => [date.slice(0, 7), values[index]]));
+}
+
+export function latestComparableDate(dates: string[], metric: MetricKey, adjustment?: PriceAdjustment) {
+  if (adjustment?.basis !== "real" || !adjustment.cpi || (metric !== "zhvi" && metric !== "zori")) return dates.at(-1);
+  const cpiByMonth = cpiValuesForRealAdjustment(adjustment.cpi, adjustment.interpolationRules);
+  return dates.findLast((date) => (cpiByMonth.get(date.slice(0, 7)) ?? 0) > 0);
 }
 
 export function applyPriceAdjustment(
@@ -1278,6 +1286,7 @@ function CountyMap({
     };
   }, [county, mapData]);
   const dates = metricDates(dataset, metric);
+  const mapDateIndex = useMemo(() => dates.indexOf(latestComparableDate(dates, metric, priceAdjustment) ?? ""), [dates, metric, priceAdjustment]);
   const datasetByPlace = useMemo(
     () => new Map(
       dataset.regions.map((region) => [
@@ -1313,14 +1322,14 @@ function CountyMap({
           dataId: region?.id ?? null,
           name: shape.name,
           county: shape.county ?? region?.county ?? "",
-          value: transformed.at(-1) ?? null,
-          yoy: yoyValues.at(-1) ?? null,
-          qualityFlagged: showQuality && Boolean(qualityFlags.at(-1)),
+          value: transformed[mapDateIndex] ?? null,
+          yoy: yoyValues[mapDateIndex] ?? null,
+          qualityFlagged: showQuality && Boolean(qualityFlags[mapDateIndex]),
           unit: series?.unit ?? "number",
           changeMode: series?.changeMode ?? "percent",
         };
       }),
-    [dataset, datasetByPlace, indexBaseMonth, metric, priceAdjustment, shapes.regions, showQuality, view],
+    [dataset, datasetByPlace, indexBaseMonth, mapDateIndex, metric, priceAdjustment, shapes.regions, showQuality, view],
   );
   const valueById = useMemo(
     () => new Map(values.map((item) => [item.id, item])),
@@ -1489,7 +1498,8 @@ function CountyMap({
         <div>
           <p className="section-kicker">Map · {geographyLabel}</p>
           <h3>{countyLabel}</h3>
-          <p><strong>{metricLabel}</strong> · {viewLabel} · {dates.length ? shortDate(dates.at(-1)!) : "latest observation"}</p>
+          <p><strong>{metricLabel}</strong> · {viewLabel}</p>
+          <MapPeriod latest={mapDateIndex >= 0 ? shortDate(dates[mapDateIndex]) : "unavailable"} />
         </div>
         <div className="map-tools">
           <div className="map-actions">
@@ -1857,6 +1867,8 @@ export default function MarketLab() {
     interpolationRules: cpi?.real_value_interpolation ?? [],
   };
   const regionalRealBaseMonths = observedCpiMonths(regionalCpi, regionalDates);
+  const localFreshnessDate = latestComparableDate(localDates, metric, localPriceAdjustment);
+  const regionalFreshnessDate = latestComparableDate(regionalDates, regionalMetric, regionalPriceAdjustment);
   const eligible = useMemo(
     () =>
       dataset?.regions.filter((region) => county === "Both" || region.county === county) ?? [],
@@ -2337,7 +2349,7 @@ export default function MarketLab() {
           <section className="analysis-grid">
             <Card className="chart-card">
               <CardHeader className="chart-header">
-                <div><p className="section-kicker">Time</p><CardTitle><MetricHeading metric={currentMetricMetadata} fallback={currentMetricLabel} /></CardTitle></div>
+                <div><p className="section-kicker">Time</p><div className="metric-title-row"><CardTitle><MetricHeading metric={currentMetricMetadata} fallback={currentMetricLabel} /></CardTitle><DataThrough period={localFreshnessDate ? shortDate(localFreshnessDate) : "unavailable"} /></div></div>
                 <div className="chart-options">
                   <TimeRangeControl value={timeRange} onChange={setTimeRange} />
                   {view === "index" && (
@@ -2368,10 +2380,7 @@ export default function MarketLab() {
               <CardHeader>
                 <div className="ranking-title">
                   <div><p className="section-kicker">Place</p><CardTitle>Market ranking</CardTitle></div>
-                  <LabelledSelect label="Sort by" value={rankBy} onChange={(next) => setRankBy(next as RankKey)}>
-                    <NativeSelectOption value="growth">12-month growth</NativeSelectOption>
-                    <NativeSelectOption value="level">Current value</NativeSelectOption>
-                  </LabelledSelect>
+                  <RankingSort label="Price and rent ranking sort" value={rankBy} onChange={setRankBy} />
                 </div>
                 <div className="rank-columns" aria-hidden="true">
                   <span>#</span><span>Place</span><span>{currentMetricLabel}</span><span>Change from<br />one year earlier</span>
@@ -2518,7 +2527,7 @@ export default function MarketLab() {
                       <p className="section-kicker">Local activity</p>
                       <div className="metric-title-row">
                         <CardTitle><MetricHeading metric={activityMetricMetadata} fallback={activityMetricMetadata.label} /></CardTitle>
-                        <span className="metric-freshness">Data through {shortDate(activityFreshnessDate)}</span>
+                        <DataThrough period={shortDate(activityFreshnessDate)} />
                       </div>
                     </div>
                     <div className="chart-options">
@@ -2561,10 +2570,7 @@ export default function MarketLab() {
                   <CardHeader>
                     <div className="ranking-title">
                       <div><p className="section-kicker">Place</p><CardTitle>Market activity ranking</CardTitle></div>
-                      <LabelledSelect label="Sort by" value={activeActivityRankBy} onChange={changeActivityRankBy}>
-                        <NativeSelectOption value="growth">Change from one year earlier</NativeSelectOption>
-                        <NativeSelectOption value="level">Current level</NativeSelectOption>
-                      </LabelledSelect>
+                      <RankingSort label="Market conditions ranking sort" value={activeActivityRankBy} onChange={changeActivityRankBy} />
                     </div>
                     <div className="rank-columns" aria-hidden="true">
                       <span>#</span><span>Place</span><span>{activityMetricMetadata.short_label}</span><span>Change from<br />one year earlier</span>
@@ -2643,9 +2649,6 @@ export default function MarketLab() {
                 <NativeSelectOption value="yoy">Year-over-year change</NativeSelectOption>
                 <NativeSelectOption value="index">Indexed to 100</NativeSelectOption>
               </LabelledSelect>
-              {regionalView === "index" && (
-                <IndexBaseControl value={regionalIndexBaseMonth} dates={regionalDates} onChange={setRegionalIndexBaseRequest} />
-              )}
             </div>
             {regionalMetricSupportsReal && (
               <div className="price-controls regional-price-controls" aria-label="Regional inflation adjustment controls">
@@ -2661,7 +2664,6 @@ export default function MarketLab() {
                 )}
               </div>
             )}
-            <TimeRangeControl value={regionalTimeRange} onChange={setRegionalTimeRange} />
             <div className="comparison-row regional-comparison-row">
               <label className="control-label comparison-select">
                 <span>Add a metro comparison (up to five)</span>
@@ -2704,8 +2706,10 @@ export default function MarketLab() {
           <section className="regional-visual-grid">
             <Card className="chart-card regional-chart">
               <CardHeader className="chart-header">
-                <div><p className="section-kicker">Trend comparison</p><CardTitle><MetricHeading metric={regionalMetricMetadata} fallback={REGIONAL_METRICS.find((item) => item.key === regionalMetric)?.label ?? regionalMetric} /></CardTitle></div>
+                <div><p className="section-kicker">Trend comparison</p><div className="metric-title-row"><CardTitle><MetricHeading metric={regionalMetricMetadata} fallback={REGIONAL_METRICS.find((item) => item.key === regionalMetric)?.label ?? regionalMetric} /></CardTitle><DataThrough period={regionalFreshnessDate ? shortDate(regionalFreshnessDate) : "unavailable"} /></div></div>
                 <div className="chart-options">
+                  <TimeRangeControl value={regionalTimeRange} onChange={setRegionalTimeRange} />
+                  {regionalView === "index" && <IndexBaseControl value={regionalIndexBaseMonth} dates={regionalDates} onChange={setRegionalIndexBaseRequest} />}
                   {(regionalView === "yoy" || regionalView === "index") && regionalCpi && regionalMetricSupportsReal && (
                     <InflationToggle checked={showRegionalInflation} onCheckedChange={setShowRegionalInflation} label={`Plot ${regionalCpi.label}${regionalView === "yoy" ? " inflation" : ""}`} />
                   )}

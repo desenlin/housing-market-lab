@@ -90,7 +90,7 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /href="https:\/\/www\.fullerton\.edu\/">California State University, Fullerton<\/a>/);
   assert.match(styles, /\.header-link[^}]+color: inherit; font: inherit; text-decoration: none;/);
   assert.match(source, /Index starting month/);
-  assert.match(source, /12-month growth/);
+  assert.match(source, /Price and rent ranking sort/);
   assert.match(source, /fetch\(url, \{ cache: "no-store" \}\)/);
   assert.match(source, /Try loading again/);
   assert.match(source, /Change from one year earlier/);
@@ -121,7 +121,7 @@ test("publishes the requested authorship, controls, and map attribution", async 
   assert.match(source, /Definition of \$\{label\}/);
   assert.match(source, /rolling three-month window/i);
   assert.match(source, /const activityFreshnessDate = activityDates\.at\(-1\)/);
-  assert.match(source, /className="metric-title-row"[\s\S]*className="metric-freshness">Data through \{shortDate\(activityFreshnessDate\)\}<\/span>/);
+  assert.match(source, /className="metric-title-row"[\s\S]*<DataThrough period=\{shortDate\(activityFreshnessDate\)\} \/>/);
   assert.match(styles, /\.metric-freshness[^}]+white-space: nowrap;/);
   assert.match(source, /View Redfin Data Center/);
   assert.match(source, /Inventory &amp; buyer interest — Realtor\.com/);

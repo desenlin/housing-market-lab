@@ -19,6 +19,42 @@ after(async () => {
   await vite.close();
 });
 
+test("permit ranking changes use unit differences and matched calendar periods", async () => {
+  const { permitChange, formatPermitChange } = await vite.ssrLoadModule("/lib/permit-change.ts");
+  assert.equal(permitChange([0, 240], ["2024", "2025"], 1, "units"), 240);
+  assert.equal(permitChange([240, 15], ["2024", "2025"], 1, "units"), -225);
+  assert.equal(permitChange([100, 800, 140], ["2025-07", "2026-06", "2026-07"], 2, "units"), 40);
+  assert.equal(permitChange([100, 140], ["2025-06", "2026-07"], 1, "units"), null);
+  assert.equal(permitChange([null, 140], ["2025-07", "2026-07"], 1, "units"), null);
+  assert.equal(permitChange([100, null], ["2025-07", "2026-07"], 1, "units"), null);
+  assert.ok(Math.abs(permitChange([0.4, 0.5], ["2024", "2025"], 1, "share") - 10) < 1e-10);
+  assert.equal(permitChange([2.5, 4], ["2024", "2025"], 1, "rate"), 1.5);
+  assert.equal(formatPermitChange(240, "units"), "+240");
+  assert.equal(formatPermitChange(-225, "units"), "-225");
+  assert.equal(formatPermitChange(10, "share"), "+10 pp");
+  assert.equal(formatPermitChange(1.5, "rate"), "+1.5");
+  assert.equal(formatPermitChange(null, "units"), "—");
+});
+
+test("rolling permit rankings require complete windows and aggregate shares from units", async () => {
+  const { trailingPermitValue, trailingPermitChange } = await vite.ssrLoadModule("/lib/permit-change.ts");
+  const dates = Array.from({ length: 24 }, (_, i) => new Date(Date.UTC(2024, i, 1)).toISOString().slice(0, 7));
+  const region = { housing_stock: 1000, series: {
+    total_units: Array(12).fill(0).concat(Array(11).fill(10), [100]),
+    large_multifamily: Array(23).fill(0).concat([100]),
+  } };
+  assert.equal(trailingPermitValue(region, dates, 23, "total_units"), 210);
+  assert.equal(trailingPermitChange(region, dates, 23, "total_units", "units"), 210);
+  assert.equal(trailingPermitValue(region, dates, 23, "large_multifamily_share"), 100 / 210);
+  assert.equal(trailingPermitValue(region, dates, 23, "units_per_1000_stock"), 210);
+  assert.equal(trailingPermitValue(region, dates, 10, "total_units"), null);
+  assert.equal(trailingPermitChange(region, dates, 22, "total_units", "units"), null);
+  assert.equal(trailingPermitValue(region, dates.map((d, i) => i === 15 ? "2020-01" : d), 23, "total_units"), null);
+  region.series.total_units[15] = null;
+  assert.equal(trailingPermitValue(region, dates, 23, "total_units"), null);
+  assert.equal(trailingPermitChange(region, dates, 23, "total_units", "units"), null);
+});
+
 test("forwards progress semantics to the primitive", async () => {
   const { Progress } = await vite.ssrLoadModule("/components/ui/progress.tsx");
   const html = renderToStaticMarkup(React.createElement(Progress, { value: 37 }));
@@ -81,6 +117,17 @@ test("calculates real growth as an exact CPI ratio", async () => {
   assert.equal(adjusted.values[0], 110);
   assert.equal(adjusted.values[12], 120);
   assert.ok(Math.abs(realYoy[12] - (1.2 / 1.1 - 1)) < 1e-12);
+});
+
+test("real-data coverage stops at the latest matching CPI month", async () => {
+  const { latestComparableDate } = await vite.ssrLoadModule("/app/market-lab.tsx");
+  const dates = ["2026-06-30", "2026-07-31", "2026-08-31"];
+  const adjustment = { basis: "real", cpi: { dates: ["2026-06-30", "2026-07-31"], values: [100, 101] } };
+  assert.equal(latestComparableDate(dates, "zhvi", adjustment), "2026-07-31");
+  assert.equal(latestComparableDate(dates, "zori", adjustment), "2026-07-31");
+  assert.equal(latestComparableDate(dates, "zhvi", { ...adjustment, basis: "nominal" }), "2026-08-31");
+  assert.equal(latestComparableDate(dates, "inventory", adjustment), "2026-08-31");
+  assert.equal(latestComparableDate([], "zhvi", adjustment), undefined);
 });
 
 test("does not fill a missing CPI observation without an approved rule", async () => {
