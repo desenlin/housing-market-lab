@@ -42,6 +42,8 @@ jobs:
         with:
           # Read the latest state after acquiring the shared concurrency group.
           ref: main
+          # The pushed-release summary compares pointers with github.event.before.
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v6
