@@ -105,8 +105,14 @@ const METRIC_ORDER = [
   "median_age",
   "multifamily_share",
 ];
-const LEVEL_COLORS = ["#fff3e9", "#ffd9bc", "#ffbb88", "#f58a3a", "#c9530a", "#793004"];
-const CHANGE_COLORS = ["#194f78", "#75a8c6", "#dce8ee", "#f8e2d0", "#ed9859", "#ad4308"];
+const LEVEL_COLORS = {
+  orange: ["#fff3e9", "#ffd9bc", "#ffbb88", "#f58a3a", "#c9530a", "#793004"],
+  navy: ["#edf4fa", "#d1e2ef", "#a2c5de", "#74a8cc", "#2f6f9f", "#12355b"],
+};
+const CHANGE_COLORS = {
+  orange: ["#194f78", "#75a8c6", "#dce8ee", "#f8e2d0", "#ed9859", "#ad4308"],
+  navy: ["#ad4308", "#ed9859", "#f8e2d0", "#dce8ee", "#75a8c6", "#194f78"],
+};
 
 function metricDisplayLabel(key: string, metric: AcsMetric) {
   return key === "median_household_income" ? metric.label : metric.short_label;
@@ -205,6 +211,8 @@ function AcsMap({ county, mapData, dataset, metricKey, view, selectedId, onSelec
   const onSelectRef = useRef(onSelect);
   const lastFitKey = useRef("");
   const [ready, setReady] = useState(false);
+  const [palette, setPalette] = useState<"navy" | "orange">("orange");
+  const colors = view === "change" ? CHANGE_COLORS[palette] : LEVEL_COLORS[palette];
   const metric = dataset.metrics[metricKey];
   const regions = useMemo(() => new Map(dataset.regions.map((region) => [region.id, region])), [dataset]);
   const groups = county === "Both"
@@ -229,6 +237,8 @@ function AcsMap({ county, mapData, dataset, metricKey, view, selectedId, onSelec
   const finite = plotted.map((item) => item.value).filter((value): value is number => value != null && Number.isFinite(value));
   const low = finite.length ? Math.min(...finite) : 0;
   const high = finite.length ? Math.max(...finite) : 0;
+  const scaleLow = view === "change" ? -Math.max(Math.abs(low), Math.abs(high), 0.001) : low;
+  const scaleHigh = view === "change" ? -scaleLow : high;
 
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
 
@@ -262,8 +272,6 @@ function AcsMap({ county, mapData, dataset, metricKey, view, selectedId, onSelec
     if (!ready || !L || !map) return;
     layerRef.current?.remove();
     const byId = new Map(plotted.map((item) => [item.id, item]));
-    const palette = view === "change" ? CHANGE_COLORS : LEVEL_COLORS;
-    const span = view === "change" ? Math.max(Math.abs(low), Math.abs(high), 0.001) : null;
     const collection = {
       type: "FeatureCollection" as const,
       features: plotted.map((shape) => ({ type: "Feature" as const, properties: { id: shape.id, name: shape.name }, geometry: shape.geometry })),
@@ -272,8 +280,8 @@ function AcsMap({ county, mapData, dataset, metricKey, view, selectedId, onSelec
       style: (feature) => {
         const item = byId.get(String(feature?.properties?.id ?? ""));
         const value = item?.value;
-        const ratio = value == null ? 0 : view === "change" ? (value + span!) / (2 * span!) : high === low ? 0.5 : (value - low) / (high - low);
-        const color = value == null ? "var(--map-no-data)" : palette[Math.min(palette.length - 1, Math.max(0, Math.floor(ratio * palette.length)))];
+        const ratio = value == null ? 0 : scaleHigh === scaleLow ? 0.5 : (value - scaleLow) / (scaleHigh - scaleLow);
+        const color = value == null ? "var(--map-no-data)" : colors[Math.min(colors.length - 1, Math.max(0, Math.floor(ratio * colors.length)))];
         return { color: item?.id === selectedId ? "var(--chart-2)" : "var(--chart-selected-stroke)", weight: item?.id === selectedId ? 3 : 1.1, fillColor: color, fillOpacity: item?.id === selectedId ? 0.9 : 0.75 };
       },
       onEachFeature: (feature, layer) => {
@@ -297,7 +305,7 @@ function AcsMap({ county, mapData, dataset, metricKey, view, selectedId, onSelec
       lastFitKey.current = fitKey;
     }
     map.invalidateSize({ pan: false });
-  }, [bounds, county, dataset, high, low, metric, metricKey, plotted, ready, selectedId, view]);
+  }, [bounds, colors, county, dataset, scaleHigh, scaleLow, metric, metricKey, plotted, ready, selectedId, view]);
 
   function reset() {
     const L = leafletRef.current;
@@ -317,15 +325,18 @@ function AcsMap({ county, mapData, dataset, metricKey, view, selectedId, onSelec
           <MapPeriod latest={dataset.periods[1]} />
         </div>
         <div className="map-tools">
-          <button type="button" className="map-reset" onClick={reset}><RotateCcw /> Reset map</button>
+          <div className="map-actions">
+            <div className="map-palette" role="group" aria-label="Map color gradient"><span>Color</span>{(["navy", "orange"] as const).map((option) => <button key={option} type="button" className={palette === option ? "active" : ""} aria-pressed={palette === option} onClick={() => setPalette(option)}>{option === "navy" ? "Navy" : "Orange"}</button>)}</div>
+            <button type="button" className="map-reset" onClick={reset}><RotateCcw /> Reset map</button>
+          </div>
           <div className="map-legend" aria-label="ACS map legend">
-            <span className="map-legend-item map-legend-scale">{formatEstimate(low, metric, view === "change")}<i className="map-gradient" style={{ background: `linear-gradient(90deg, ${(view === "change" ? CHANGE_COLORS : LEVEL_COLORS).join(",")})` }} />{formatEstimate(high, metric, view === "change")}</span>
+            <span className="map-legend-item map-legend-scale">{formatEstimate(scaleLow, metric, view === "change")}<i className="map-gradient" style={{ background: `linear-gradient(90deg, ${colors.join(",")})` }} />{formatEstimate(scaleHigh, metric, view === "change")}</span>
             <span className="map-legend-item"><i className="map-swatch no-data" />No estimate</span>
           </div>
         </div>
       </div>
       <div ref={containerRef} className="leaflet-map" role="region" aria-label={`${metric.label} ACS map`} />
-      <p className="map-coverage">Estimates describe the full ACS period. Map colors are descriptive; hover for estimates and 90% margins of error.</p>
+      <p className="map-coverage">Estimates describe the full ACS period. Map colors are descriptive; hover for estimates and 90% margins of error.{view === "change" && ` The color scale is centered on zero; ${palette === "orange" ? "orange" : "navy"} marks increases and ${palette === "orange" ? "navy" : "orange"} marks decreases.`}</p>
       <FigureAttribution sources={view === "change" && metricKey === "median_household_income" ? ["census-acs", "bls"] : ["census-acs"]} boundaries basemap />
     </div>
   );
