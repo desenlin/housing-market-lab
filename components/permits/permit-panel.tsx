@@ -348,8 +348,6 @@ export function PermitMap({ mapData, dataset, county, metric, dateIndex, selecte
 }
 
 export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: MapData; lensControl: React.ReactNode; onManifest?: (history: PermitManifest, provisional: PermitManifest) => void }) {
-  const [chartPalette, setChartPalette] = useState<"orange" | "navy">("orange");
-  const chartColors = chartPalette === "orange" ? COLORS : [COLORS[1], COLORS[0], ...COLORS.slice(2)];
   const [annual, setAnnual] = useState<PermitDataset | null>(null);
   const [monthly, setMonthly] = useState<PermitDataset | null>(null);
   const [historyManifest, setHistoryManifest] = useState<PermitManifest | null>(null);
@@ -485,7 +483,7 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
           <button className="permit-add" type="button" disabled={!addId || selectedIds.length >= 5} onClick={() => { if (addId && !selectedIds.includes(addId)) setSelectedIds((current) => [...current, addId].slice(0, 5)); setAddId(""); }}>Add</button>
         </div>
         <div className="chips">
-          {selected.map((region, index) => <button type="button" key={region.id} className={index === 0 ? "chip primary" : "chip"} onClick={() => setSelectedIds((current) => [region.id, ...current.filter((id) => id !== region.id)])}><i style={{ background: chartColors[index] }} />{region.name}<X onClick={(event) => { event.stopPropagation(); setSelectedIds((current) => current.filter((id) => id !== region.id)); }} /></button>)}
+          {selected.map((region, index) => <button type="button" key={region.id} className={index === 0 ? "chip primary" : "chip"} onClick={() => setSelectedIds((current) => [region.id, ...current.filter((id) => id !== region.id)])}><i style={{ background: COLORS[index] }} />{region.name}<X onClick={(event) => { event.stopPropagation(); setSelectedIds((current) => current.filter((id) => id !== region.id)); }} /></button>)}
         </div>
       </section>
 
@@ -493,7 +491,7 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
         <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">{primary?.name ?? "Focus jurisdiction"}</p><p className="kpi-value">{formatValue(primaryValue, metricInfo)}</p><p className="kpi-note">{metricInfo.short_label} · {formatDate(selectedDate)}</p></CardContent></Card>
         <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">Structure mix<DefinitionHelp label="Structure mix" definition="Share of authorized units in buildings containing five or more units; this describes structure size, not tenure." /></p><p className="kpi-value">{formatValue(primary?.series.large_multifamily_share[dateIndex] ?? null, dataset.metrics.large_multifamily_share)}</p><p className="kpi-note">Share of authorized units in 5+-unit buildings</p></CardContent></Card>
         <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">City rank<DefinitionHelp label="City rank" definition="Descending rank by the selected level, change, or last 12 months among incorporated cities with available values. Unincorporated county totals are excluded." /></p><p className="kpi-value">{primaryRank > 0 ? `#${primaryRank}` : "—"}</p><p className="kpi-note">By {rankBy === "level" ? "level" : rankBy === "trailing" ? "last 12 months" : "annual change"} · {rankedCount} cities in selected county view</p></CardContent></Card>
-        <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">Observation status<DefinitionHelp label="Observation status" definition={`${observationStatus.definition} Census-imputed identifies observations whose published totals include estimated activity for missing reports.`} /></p><p className="kpi-value permit-quality-value">{!primary ? "No selection" : primaryValue == null ? "Not available" : isImputed ? "Census-imputed" : observationStatus.label}</p><p className="kpi-note">{!primary ? "Select a jurisdiction" : primaryValue == null ? "No observation for this measure and period" : isImputed ? "Includes Census estimates for missing reports" : frequency === "annual" ? "Annual Census release" : currentIsPreliminary ? "Current monthly release" : "Archived monthly observations"}</p></CardContent></Card>
+        <Card className="kpi-card"><CardContent className="p-4"><p className="kpi-label">Observation status<DefinitionHelp label="Observation status" definition={`${observationStatus.definition} Census-imputed identifies observations whose published totals include estimated activity for missing reports.`} /></p><p className="kpi-value">{!primary ? "No selection" : primaryValue == null ? "Not available" : isImputed ? "Census-imputed" : observationStatus.label}</p><p className="kpi-note">{!primary ? "Select a jurisdiction" : primaryValue == null ? "No observation for this measure and period" : isImputed ? "Includes Census estimates for missing reports" : frequency === "annual" ? "Annual Census release" : currentIsPreliminary ? "Current monthly release" : "Archived monthly observations"}</p></CardContent></Card>
       </section>
 
       <section className="analysis-grid permit-analysis-grid">
@@ -501,7 +499,6 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
           <CardHeader className="chart-header permit-chart-header">
             <div><p className="section-kicker">Trend comparison</p><div className="metric-title-row"><CardTitle>{metricInfo.label}<DefinitionHelp label={metricInfo.label} definition={metricInfo.definition} /></CardTitle><DataThrough period={formatDate(chartEndDate)} /></div></div>
             <div className="permit-chart-options">
-              <div className="map-palette" role="group" aria-label="Permit chart colors"><span>Color</span>{(["navy", "orange"] as const).map(option => <button key={option} type="button" className={chartPalette === option ? "active" : ""} aria-pressed={chartPalette === option} onClick={() => setChartPalette(option)}>{option === "navy" ? "Navy" : "Orange"}</button>)}</div>
               <LabelledSelect
                 label="Chart range"
                 value={chartRange}
@@ -533,7 +530,7 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
           <CardContent className="permit-chart-wrap">
             <p className="permit-chart-window">Showing {formatDate(chartStartDate)}–{formatDate(chartEndDate)}{frequency === "monthly" && monthlySeriesView === "three_month_average" ? " · trailing 3-month moving average" : ""}</p>
             <ul className="permit-chart-legend" aria-label="Permit activity figure legend">
-              {selected.map((region, index) => <li key={region.id}><i style={{ background: chartColors[index] }} aria-hidden="true" />{region.name}</li>)}
+              {selected.map((region, index) => <li key={region.id}><i style={{ background: COLORS[index] }} aria-hidden="true" />{region.name}</li>)}
             </ul>
             <div className="permit-chart" aria-label={`${metricInfo.label} trend`}>
               <ResponsiveContainer width="100%" height="100%">
@@ -551,7 +548,7 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
                       boxShadow: "var(--chart-tooltip-shadow)",
                     }}
                   />
-                  {selected.map((region, index) => <Line key={region.id} type="monotone" dataKey={region.id} name={region.name} stroke={chartColors[index]} strokeWidth={index === 0 ? 2.8 : 1.8} dot={false} connectNulls={false} isAnimationActive={false} />)}
+                  {selected.map((region, index) => <Line key={region.id} type="monotone" dataKey={region.id} name={region.name} stroke={COLORS[index]} strokeWidth={index === 0 ? 2.8 : 1.8} dot={false} connectNulls={false} isAnimationActive={false} />)}
                 </LineChart>
               </ResponsiveContainer>
             </div>
