@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "status": "operational",
-  "generated_at": "2026-09-19T07:15:01.629458+00:00",
+  "generated_at": "2026-09-24T17:54:06.969138+00:00",
   "data_cutoff": "2026-08-31",
   "method": "Deterministic calculations only; no language model generated these facts.",
   "source_releases": {
@@ -10,8 +10,8 @@
       "sha256": "6d0e90853b3d78d47ff19babfaa1be76662a1d7cb571941b6b438b3b0cc0cb45"
     },
     "redfin": {
-      "release": "2026-09-18-r170830",
-      "sha256": "b758291760f8fdb431faa2af86aa9fbad92c198e85d3c72ac713a185a8f0cb13"
+      "release": "2026-09-24-r175406",
+      "sha256": "99c7d13db49b6d7c7c6a3a102748d8e02887b350cd99ef48ea30156faf138e7b"
     },
     "realtor_inventory": {
       "release": "2026-09-08-r003529",
@@ -227,7 +227,7 @@
       "id": "redfin-los-angeles-county-median_sale_ppsf",
       "domain": "Prices",
       "provider": "Redfin",
-      "release": "2026-09-18-r170830",
+      "release": "2026-09-24-r175406",
       "metric": "median_sale_ppsf",
       "metric_label": "Median sale price per square foot",
       "geography": "Los Angeles County",
@@ -258,7 +258,7 @@
       "id": "redfin-orange-county-median_dom",
       "domain": "Liquidity",
       "provider": "Redfin",
-      "release": "2026-09-18-r170830",
+      "release": "2026-09-24-r175406",
       "metric": "median_dom",
       "metric_label": "Median days on market",
       "geography": "Orange County",
@@ -389,7 +389,7 @@
       "id": "redfin-orange-county-sold_above_original_share",
       "domain": "Competitiveness",
       "provider": "Redfin",
-      "release": "2026-09-18-r170830",
+      "release": "2026-09-24-r175406",
       "metric": "sold_above_original_share",
       "metric_label": "Homes sold above original list",
       "geography": "Orange County",
@@ -451,7 +451,7 @@
       "id": "redfin-los-angeles-county-months_supply",
       "domain": "Availability",
       "provider": "Redfin",
-      "release": "2026-09-18-r170830",
+      "release": "2026-09-24-r175406",
       "metric": "months_supply",
       "metric_label": "Months of supply",
       "geography": "Los Angeles County",
@@ -513,7 +513,7 @@
       "id": "redfin-orange-county-price_drop_share",
       "domain": "Seller adjustment",
       "provider": "Redfin",
-      "release": "2026-09-18-r170830",
+      "release": "2026-09-24-r175406",
       "metric": "price_drop_share",
       "metric_label": "Active listings with price drops",
       "geography": "Orange County",
@@ -544,7 +544,7 @@
       "id": "redfin-orange-county-months_supply",
       "domain": "Availability",
       "provider": "Redfin",
-      "release": "2026-09-18-r170830",
+      "release": "2026-09-24-r175406",
       "metric": "months_supply",
       "metric_label": "Months of supply",
       "geography": "Orange County",
@@ -637,7 +637,7 @@
       "id": "redfin-los-angeles-county-sold_above_original_share",
       "domain": "Competitiveness",
       "provider": "Redfin",
-      "release": "2026-09-18-r170830",
+      "release": "2026-09-24-r175406",
       "metric": "sold_above_original_share",
       "metric_label": "Homes sold above original list",
       "geography": "Los Angeles County",
@@ -668,7 +668,7 @@
       "id": "redfin-orange-county-median_sale_ppsf",
       "domain": "Prices",
       "provider": "Redfin",
-      "release": "2026-09-18-r170830",
+      "release": "2026-09-24-r175406",
       "metric": "median_sale_ppsf",
       "metric_label": "Median sale price per square foot",
       "geography": "Orange County",
@@ -699,7 +699,7 @@
       "id": "redfin-los-angeles-county-price_drop_share",
       "domain": "Seller adjustment",
       "provider": "Redfin",
-      "release": "2026-09-18-r170830",
+      "release": "2026-09-24-r175406",
       "metric": "price_drop_share",
       "metric_label": "Active listings with price drops",
       "geography": "Los Angeles County",
@@ -730,7 +730,7 @@
       "id": "redfin-los-angeles-county-median_dom",
       "domain": "Liquidity",
       "provider": "Redfin",
-      "release": "2026-09-18-r170830",
+      "release": "2026-09-24-r175406",
       "metric": "median_dom",
       "metric_label": "Median days on market",
       "geography": "Los Angeles County",
@@ -820,5 +820,5 @@
       "reference_count": 85
     }
   ],
-  "packet_sha256": "11891a20516701036021998729f906b67975f9d15808be74dbb4803e8a525d46"
+  "packet_sha256": "4cc80de64e7d838ad63993d323b479a6bdd2f2b963fbab5c423dce57ace6e16d"
 }

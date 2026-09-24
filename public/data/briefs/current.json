@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "status": "automatic_snapshot",
-  "generated_at": "2026-09-19T07:15:01.629458+00:00",
+  "generated_at": "2026-09-24T17:54:06.969138+00:00",
   "data_cutoff": "2026-08-31",
-  "source_packet_sha256": "11891a20516701036021998729f906b67975f9d15808be74dbb4803e8a525d46",
+  "source_packet_sha256": "4cc80de64e7d838ad63993d323b479a6bdd2f2b963fbab5c423dce57ace6e16d",
   "method": "Deterministic screening only; the rules identify review candidates and do not infer causes or forecasts.",
   "monitoring": {
     "question_count": 27,
@@ -25,8 +25,8 @@
     },
     {
       "provider": "Redfin",
-      "release": "2026-09-18-r170830",
-      "sha256": "b758291760f8fdb431faa2af86aa9fbad92c198e85d3c72ac713a185a8f0cb13"
+      "release": "2026-09-24-r175406",
+      "sha256": "99c7d13db49b6d7c7c6a3a102748d8e02887b350cd99ef48ea30156faf138e7b"
     },
     {
       "provider": "Realtor.com® Economic Research — Inventory",
@@ -207,7 +207,7 @@
       "source_releases": [
         {
           "provider": "Redfin",
-          "release": "2026-09-18-r170830"
+          "release": "2026-09-24-r175406"
         }
       ],
       "coverage": "41 of 42 local markets had calculable year-over-year changes",
