@@ -32,6 +32,7 @@ gtag('js', new Date());
 gtag('config', '${GOOGLE_ANALYTICS_ID}');`,
           }}
         />
+        <script defer src={`${process.env.GITHUB_PAGES === "true" ? "/housing-market-lab" : ""}/analytics.js`} data-ga-id={GOOGLE_ANALYTICS_ID} data-project="housing-market-lab" />
       </head>
       <body className="antialiased">
         <ThemeProvider

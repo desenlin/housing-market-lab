@@ -1,0 +1,13 @@
+{
+  "site_url": "https://desenlin.com/housing-market-lab/",
+  "measurement_id": "G-MDGMSFPEH2",
+  "mode": "react",
+  "tracker": "public/analytics.js",
+  "project": "housing-market-lab",
+  "exclude": {},
+  "smoke": [
+    {
+      "path": ""
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+name: Analytics tracking audit
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      live:
+        description: Audit the deployed site as well as source coverage
+        type: boolean
+        default: true
+  schedule:
+    # Weekly on Monday, staggered across repositories (UTC).
+    - cron: "29 17 * * 1"
+  workflow_run:
+    workflows: ["Validate data and deploy Pages"]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: analytics-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  audit:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    uses: desenlin/desenlin.github.io/.github/workflows/analytics-reusable.yml@main
+    with:
+      live: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_run' || (github.event_name == 'workflow_dispatch' && inputs.live) }}
