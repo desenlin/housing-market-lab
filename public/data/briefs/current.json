@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "status": "automatic_snapshot",
-  "generated_at": "2026-09-24T17:54:06.969138+00:00",
+  "generated_at": "2026-09-26T18:06:36Z",
   "data_cutoff": "2026-08-31",
-  "source_packet_sha256": "4cc80de64e7d838ad63993d323b479a6bdd2f2b963fbab5c423dce57ace6e16d",
+  "source_packet_sha256": "cdef506325c0ad22719a4abcdd11d8062d6af8a9a59eca4c1e92e7c33e1bb1c3",
   "method": "Deterministic screening only; the rules identify review candidates and do not infer causes or forecasts.",
   "monitoring": {
     "question_count": 27,
@@ -40,8 +40,8 @@
     },
     {
       "provider": "Census BPS — preliminary current-year observations",
-      "release": "2026-09-07-r170136",
-      "sha256": "345bd05738fa513a52792d018e87c38b957ee7012ea187be0be13153ae2a3244"
+      "release": "2026-09-26-r180636",
+      "sha256": "68718fe382d4c4b6d94974cbd3b993dcdb35a108181e7b82f1a747e1df687080"
     },
     {
       "provider": "Census BPS — final comparison history",
@@ -52,18 +52,18 @@
   "sections": [
     {
       "question": "Is residential permitting increasing?",
-      "answer": "Yes. Los Angeles metro YTD permits rose 42.8%.",
+      "answer": "Yes. Los Angeles metro YTD permits rose 43.4%.",
       "trigger_fact_id": "permits-los-angeles-metro-ytd",
       "fact_ids": [
         "permits-los-angeles-metro-ytd",
         "permits-los-angeles-county-ytd",
         "permits-orange-county-ytd"
       ],
-      "period_end": "2026-07-31",
-      "observation_period": "2026-01 through 2026-07",
+      "period_end": "2026-08-31",
+      "observation_period": "2026-01 through 2026-08",
       "status": "preliminary",
       "evidence": [
-        "Los Angeles metro: 21,092 units authorized YTD vs. 14,775 in the same months last year."
+        "Los Angeles metro: 24,953 units authorized YTD vs. 17,407 in the same months last year."
       ],
       "sources": "U.S. Census Bureau Building Permits Survey",
       "coverage": "Matched permit jurisdictions in Los Angeles and Orange counties; sum of county counts, not an official BPS metro series",
@@ -88,7 +88,7 @@
       "source_releases": [
         {
           "provider": "U.S. Census Bureau Building Permits Survey",
-          "release": "2026-09-07-r170136"
+          "release": "2026-09-26-r180636"
         }
       ]
     },

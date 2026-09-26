@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "status": "operational",
-  "generated_at": "2026-09-24T17:54:06.969138+00:00",
+  "generated_at": "2026-09-26T18:06:36Z",
   "data_cutoff": "2026-08-31",
   "method": "Deterministic calculations only; no language model generated these facts.",
   "source_releases": {
@@ -22,8 +22,8 @@
       "sha256": "aae2b6f71d457e90a24df1b8a8740143484ee4a89741a5a5c01765db1eb653d0"
     },
     "permits_provisional": {
-      "release": "2026-09-07-r170136",
-      "sha256": "345bd05738fa513a52792d018e87c38b957ee7012ea187be0be13153ae2a3244"
+      "release": "2026-09-26-r180636",
+      "sha256": "68718fe382d4c4b6d94974cbd3b993dcdb35a108181e7b82f1a747e1df687080"
     },
     "permits_history": {
       "release": "2026-09-07-r170319",
@@ -41,15 +41,15 @@
       "id": "permits-los-angeles-county-ytd",
       "domain": "Construction",
       "provider": "U.S. Census Bureau Building Permits Survey",
-      "release": "2026-09-07-r170136",
+      "release": "2026-09-26-r180636",
       "metric": "permits_ytd",
       "metric_label": "Housing units authorized",
       "geography": "Los Angeles County",
-      "period": "2026-01 through 2026-07",
-      "value": 17045.0,
-      "value_display": "17,045",
-      "change": 0.4972768798313423,
-      "change_display": "+49.7%",
+      "period": "2026-01 through 2026-08",
+      "value": 20632.0,
+      "value_display": "20,632",
+      "change": 0.49996364958197015,
+      "change_display": "+50.0%",
       "previous_change": null,
       "previous_change_display": null,
       "comparison": "Same months of 2025",
@@ -58,24 +58,24 @@
       "score": 96.0,
       "confidence": "review",
       "coverage": "89 matched permit jurisdictions",
-      "evidence": "17,045 units were authorized, compared with 11,384 in the same months one year earlier.",
+      "evidence": "20,632 units were authorized, compared with 13,755 in the same months one year earlier.",
       "caveat": "Current-year observations are preliminary and may be revised or imputed; permits are authorizations, not starts or completions.",
       "provisional": true,
-      "prior_value": 11384.0
+      "prior_value": 13755.0
     },
     {
       "id": "permits-los-angeles-metro-ytd",
       "domain": "Construction",
       "provider": "U.S. Census Bureau Building Permits Survey",
-      "release": "2026-09-07-r170136",
+      "release": "2026-09-26-r180636",
       "metric": "permits_metro_ytd",
       "metric_label": "Housing units authorized",
       "geography": "Los Angeles metro",
-      "period": "2026-01 through 2026-07",
-      "value": 21092.0,
-      "value_display": "21,092",
-      "change": 0.42754653130287656,
-      "change_display": "+42.8%",
+      "period": "2026-01 through 2026-08",
+      "value": 24953.0,
+      "value_display": "24,953",
+      "change": 0.43350376285402414,
+      "change_display": "+43.4%",
       "previous_change": null,
       "previous_change_display": null,
       "comparison": "Same months of 2025",
@@ -84,10 +84,10 @@
       "score": 96.0,
       "confidence": "review",
       "coverage": "Matched permit jurisdictions in Los Angeles and Orange counties; sum of county counts, not an official BPS metro series",
-      "evidence": "21,092 units authorized YTD vs. 14,775 in the same months last year.",
+      "evidence": "24,953 units authorized YTD vs. 17,407 in the same months last year.",
       "caveat": "Current-year observations are preliminary and may be revised or imputed; permits are authorizations, not starts or completions.",
       "provisional": true,
-      "prior_value": 14775.0,
+      "prior_value": 17407.0,
       "component_fact_ids": [
         "permits-los-angeles-county-ytd",
         "permits-orange-county-ytd"
@@ -151,27 +151,27 @@
       "id": "permits-orange-county-ytd",
       "domain": "Construction",
       "provider": "U.S. Census Bureau Building Permits Survey",
-      "release": "2026-09-07-r170136",
+      "release": "2026-09-26-r180636",
       "metric": "permits_ytd",
       "metric_label": "Housing units authorized",
       "geography": "Orange County",
-      "period": "2026-01 through 2026-07",
-      "value": 4047.0,
-      "value_display": "4,047",
-      "change": 0.193453258625774,
-      "change_display": "+19.3%",
+      "period": "2026-01 through 2026-08",
+      "value": 4321.0,
+      "value_display": "4,321",
+      "change": 0.1831872946330777,
+      "change_display": "+18.3%",
       "previous_change": null,
       "previous_change_display": null,
       "comparison": "Same months of 2025",
       "direction": "increased",
       "material": true,
-      "score": 67.6,
+      "score": 66.2,
       "confidence": "review",
       "coverage": "35 matched permit jurisdictions",
-      "evidence": "4,047 units were authorized, compared with 3,391 in the same months one year earlier.",
+      "evidence": "4,321 units were authorized, compared with 3,652 in the same months one year earlier.",
       "caveat": "Current-year observations are preliminary and may be revised or imputed; permits are authorizations, not starts or completions.",
       "provisional": true,
-      "prior_value": 3391.0
+      "prior_value": 3652.0
     },
     {
       "id": "zillow-la-metro-zhvi",
@@ -820,5 +820,5 @@
       "reference_count": 85
     }
   ],
-  "packet_sha256": "4cc80de64e7d838ad63993d323b479a6bdd2f2b963fbab5c423dce57ace6e16d"
+  "packet_sha256": "cdef506325c0ad22719a4abcdd11d8062d6af8a9a59eca4c1e92e7c33e1bb1c3"
 }
