@@ -12,7 +12,9 @@ test("routine release checks include Zillow and keep provider results in the run
     assert.match(workflow, new RegExp(`cron: "23 13 ${day} \\* \\*"`));
   }
   assert.match(workflow, /python pipeline\/update_data\.py/);
-  assert.match(workflow, /hashFiles\('public\/data\/latest\.json'\) == ''/);
+  assert.match(workflow, /python scripts\/data_health\.py --plan-refresh/);
+  assert.match(workflow, /if: \$\{\{ !inputs\.deploy_only \}\}/);
+  assert.match(workflow, /if: steps\.refresh_plan\.outputs\.needed == 'true'/);
   assert.match(workflow, /python pipeline\/update_redfin\.py/);
   assert.match(workflow, /python pipeline\/update_realtor\.py/);
   assert.match(workflow, /python pipeline\/update_cpi\.py/);

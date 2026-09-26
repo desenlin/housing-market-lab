@@ -56,47 +56,79 @@ jobs:
           python -m pip install -r requirements.txt
           python -m unittest discover tests
 
+      - name: Plan scheduled refreshes and catch up overdue sources
+        id: refresh_plan
+        if: ${{ !inputs.deploy_only }}
+        env:
+          REFRESH_ALL: ${{ github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-data]') }}
+        run: |
+          plan_args=()
+          if [ "$REFRESH_ALL" = "true" ]; then
+            plan_args+=(--refresh-all)
+          fi
+          python scripts/data_health.py --plan-refresh "${plan_args[@]}" --output "$GITHUB_OUTPUT"
+
       - name: Refresh and validate provider data
         id: refresh
-        if: "${{ !inputs.deploy_only && (github.event_name != 'push' || hashFiles('public/data/latest.json') == '' || hashFiles('public/data/redfin/latest.json') == '' || hashFiles('public/data/realtor/inventory/latest.json') == '' || hashFiles('public/data/realtor/hotness/latest.json') == '' || hashFiles('public/data/cpi/latest.json') == '' || hashFiles('public/data/permits/history/latest.json') == '' || hashFiles('public/data/permits/provisional/latest.json') == '' || contains(github.event.head_commit.message, '[refresh-data]')) }}"
+        if: steps.refresh_plan.outputs.needed == 'true'
         env:
+          REFRESH_ZILLOW: ${{ steps.refresh_plan.outputs.zillow }}
+          REFRESH_REDFIN: ${{ steps.refresh_plan.outputs.redfin }}
+          REFRESH_REALTOR: ${{ steps.refresh_plan.outputs.realtor }}
+          REFRESH_CPI: ${{ steps.refresh_plan.outputs.cpi }}
+          REFRESH_PERMITS: ${{ steps.refresh_plan.outputs.permits }}
           RECHECK_HISTORY: ${{ inputs.recheck_history }}
           QUARTERLY_CHECK: ${{ github.event.schedule == '23 13 28 * *' }}
         run: |
           python scripts/data_update_report.py snapshot --output "$RUNNER_TEMP/data-before.json"
           set +e
-          python pipeline/update_data.py
-          zillow_status=$?
-          python pipeline/update_redfin.py
-          redfin_status=$?
-          python pipeline/update_realtor.py
-          realtor_status=$?
-          python pipeline/update_cpi.py
-          cpi_status=$?
+          zillow_status=not_checked
+          if [ "$REFRESH_ZILLOW" = "true" ]; then
+            python pipeline/update_data.py
+            zillow_status=$?
+          fi
+          redfin_status=not_checked
+          if [ "$REFRESH_REDFIN" = "true" ]; then
+            python pipeline/update_redfin.py
+            redfin_status=$?
+          fi
+          realtor_status=not_checked
+          if [ "$REFRESH_REALTOR" = "true" ]; then
+            python pipeline/update_realtor.py
+            realtor_status=$?
+          fi
+          cpi_status=not_checked
+          if [ "$REFRESH_CPI" = "true" ]; then
+            python pipeline/update_cpi.py
+            cpi_status=$?
+          fi
           permit_args=()
           if [ "$RECHECK_HISTORY" = "true" ] || { [ "$QUARTERLY_CHECK" = "true" ] && [[ "$(date -u +%m)" =~ ^(01|04|07|10)$ ]]; }; then
             permit_args+=(--force-history)
           fi
-          python pipeline/update_permits.py "${permit_args[@]}"
-          permits_status=$?
+          permits_status=not_checked
+          if [ "$REFRESH_PERMITS" = "true" ]; then
+            python pipeline/update_permits.py "${permit_args[@]}"
+            permits_status=$?
+          fi
           set -e
           python scripts/data_update_report.py record-status \
             --output "$RUNNER_TEMP/data-refresh-status.json" \
             zillow="$zillow_status" redfin="$redfin_status" realtor="$realtor_status" \
             cpi="$cpi_status" permits="$permits_status"
-          if [ "$zillow_status" -ne 0 ]; then
+          if [ "$zillow_status" != "not_checked" ] && [ "$zillow_status" -ne 0 ]; then
             echo "::warning::Zillow refresh failed; retaining its prior validated release."
           fi
-          if [ "$redfin_status" -ne 0 ]; then
+          if [ "$redfin_status" != "not_checked" ] && [ "$redfin_status" -ne 0 ]; then
             echo "::warning::Redfin refresh failed; retaining its prior validated release."
           fi
-          if [ "$realtor_status" -ne 0 ]; then
+          if [ "$realtor_status" != "not_checked" ] && [ "$realtor_status" -ne 0 ]; then
             echo "::warning::Realtor.com refresh failed; retaining its prior validated releases."
           fi
-          if [ "$cpi_status" -ne 0 ]; then
+          if [ "$cpi_status" != "not_checked" ] && [ "$cpi_status" -ne 0 ]; then
             echo "::warning::BLS CPI refresh failed; retaining its prior validated release."
           fi
-          if [ "$permits_status" -ne 0 ]; then
+          if [ "$permits_status" != "not_checked" ] && [ "$permits_status" -ne 0 ]; then
             echo "::warning::Census building permits refresh failed; retaining its prior validated releases."
           fi
 

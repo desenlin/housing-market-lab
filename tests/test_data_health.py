@@ -5,7 +5,8 @@ import subprocess
 import tempfile
 import unittest
 
-from scripts.data_health import assess, expected_period, record_attempts, render_report
+from scripts.data_health import PAGES_PROVIDERS, assess, expected_period, record_attempts, refresh_plan, render_report
+from scripts.data_update_report import DATA_SOURCES
 from tests import test_data_update_report as reports
 
 
@@ -14,6 +15,65 @@ POLICY = json.loads((ROOT / "config/data_health_policy.json").read_text())
 
 
 class DataHealthTests(unittest.TestCase):
+    def write_current_sources(self, root):
+        for source in DATA_SOURCES:
+            reports.DataUpdateReportTests().write_release(root, source.pointer, "current", {
+                "latest_observations": {"test": "2026-08-31"},
+                "series": {"us": {"latest_observation": "2026-08-31"}},
+                "latest_observation": "2026-08-31",
+                "latest_final_year": 2025,
+                "latest_year": 2024,
+            })
+
+    def test_push_catches_up_only_overdue_permits_after_grace(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.write_current_sources(root)
+            reports.DataUpdateReportTests().write_release(root, "public/data/permits/provisional/latest.json", "old", {
+                "latest_observation": "2026-07-31",
+            })
+            state = {"providers": {}}
+            self.assertFalse(any(refresh_plan(root, POLICY, state, date(2026, 9, 24)).values()))
+            plan = refresh_plan(root, POLICY, state, date(2026, 9, 26))
+            self.assertEqual([group for group, needed in plan.items() if needed], ["permits"])
+            self.assertEqual(state, {"providers": {}})
+
+    def test_push_recovers_missing_release_and_repeated_failure_only(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.write_current_sources(root)
+            (root / "public/data/redfin/releases/current/manifest.json").unlink()
+            state = {"providers": {"cpi": {"consecutive_failures": 2}, "zillow": {"consecutive_failures": 1}}}
+            plan = refresh_plan(root, POLICY, state, date(2026, 9, 26))
+            self.assertEqual([group for group, needed in plan.items() if needed], ["redfin", "cpi"])
+
+    def test_full_refresh_checks_all_routine_providers_but_keeps_annual_workflows_separate(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.write_current_sources(root)
+            state = {"providers": {"acs": {"consecutive_failures": 2}, "hcd": {"consecutive_failures": 2}}}
+            self.assertFalse(any(refresh_plan(root, POLICY, state, date(2026, 9, 26)).values()))
+            self.assertEqual(refresh_plan(root, POLICY, state, date(2026, 9, 26), full=True),
+                             dict.fromkeys(PAGES_PROVIDERS, True))
+
+    def test_refresh_plan_cli_is_read_only_and_emits_action_outputs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.write_current_sources(root)
+            (root / "config").mkdir()
+            (root / "config/data_health_policy.json").write_text(json.dumps(POLICY))
+            (root / ".github").mkdir()
+            state = root / ".github/data-update-state.json"
+            original = '{"schema_version":1,"providers":{"cpi":{"consecutive_failures":2}}}'
+            state.write_text(original)
+            output = root / "output"
+            subprocess.run([
+                "python", str(ROOT / "scripts/data_health.py"), "--root", str(root),
+                "--plan-refresh", "--output", str(output), "--today", "2026-09-26",
+            ], check=True, capture_output=True)
+            self.assertEqual(output.read_text(), "needed=true\nzillow=false\nredfin=false\nrealtor=false\ncpi=true\npermits=false\n")
+            self.assertEqual(state.read_text(), original)
+
     def test_local_permits_wait_for_revised_release_and_grace(self):
         rule = POLICY["sources"]["permits_provisional"]
         self.assertEqual(expected_period(rule, date(2026, 9, 20)), "2026-07")

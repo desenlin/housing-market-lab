@@ -19,6 +19,9 @@ except ModuleNotFoundError:
     from data_update_report import DATA_SOURCES, REPOSITORY_ROOT, current_pointers, manifest_for
 
 
+PAGES_PROVIDERS = ("zillow", "redfin", "realtor", "cpi", "permits")
+
+
 def shift_month(value: date, months: int) -> date:
     year, month = divmod(value.year * 12 + value.month - 1 + months, 12)
     return date(year, month + 1, 1)
@@ -127,6 +130,18 @@ def render_report(rows: list[dict], policy: dict, today: date) -> str:
     return "\n".join(lines) + "\n"
 
 
+def refresh_plan(root: Path, policy: dict, state: dict, today: date, full: bool = False) -> dict[str, bool]:
+    """Catch up actionable sources on pushes without querying healthy providers.
+
+    ACS and HCD remain in their independent annual workflows. Planning is
+    read-only: only the subsequent provider attempts may update failure state.
+    """
+    return {
+        group: full or any(row["issues"] for row in assess(root, policy, state, today, {group}))
+        for group in PAGES_PROVIDERS
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=REPOSITORY_ROOT)
@@ -136,11 +151,24 @@ def main() -> None:
     parser.add_argument("--output", type=Path)
     parser.add_argument("--groups", nargs="+")
     parser.add_argument("--today", type=date.fromisoformat)
+    parser.add_argument("--plan-refresh", action="store_true")
+    parser.add_argument("--refresh-all", action="store_true")
     args = parser.parse_args()
     policy = json.loads((args.root / "config/data_health_policy.json").read_text())
     state_path = args.root / ".github/data-update-state.json"
     state = json.loads(state_path.read_text())
     today = args.today or datetime.now(timezone.utc).date()
+    if args.plan_refresh:
+        plan = refresh_plan(args.root, policy, state, today, args.refresh_all)
+        outputs = {"needed": any(plan.values()), **plan}
+        text = "".join(f"{key}={str(value).lower()}\n" for key, value in outputs.items())
+        print("Provider refresh plan: " + (", ".join(key for key, value in plan.items() if value) or "none"))
+        if args.output:
+            with args.output.open("a") as stream:
+                stream.write(text)
+        else:
+            print(text, end="")
+        return
     statuses = json.loads(args.statuses.read_text()) if args.statuses else {}
     if statuses:
         if not args.run_id:
