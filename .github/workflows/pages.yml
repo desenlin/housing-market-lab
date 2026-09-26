@@ -223,3 +223,13 @@ jobs:
             echo "::error::Data health needs attention. See the build job's Data health summary. Validated releases can still deploy."
             exit 1
           fi
+
+  analytics:
+    name: Verify analytics after deployment
+    needs: deploy
+    if: always() && needs.deploy.result == 'success'
+    uses: desenlin/desenlin.github.io/.github/workflows/analytics-reusable.yml@main
+    permissions:
+      contents: read
+    with:
+      live: true

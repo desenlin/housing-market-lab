@@ -11,10 +11,6 @@ on:
   schedule:
     # Weekly on Monday, staggered across repositories (UTC).
     - cron: "29 17 * * 1"
-  workflow_run:
-    workflows: ["Validate data and deploy Pages"]
-    types: [completed]
-    branches: [main]
 permissions:
   contents: read
 concurrency:
