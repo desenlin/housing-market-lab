@@ -1,7 +1,9 @@
 "use client";
 
+import { MeasuredChart } from "@/components/measured-chart";
+
 import { useMemo, useState, type ReactNode } from "react";
-import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Legend, Line, LineChart, Tooltip as ChartTooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { DefinitionHelp } from "@/components/definition-help";
@@ -75,14 +77,14 @@ function LoadedInflationPanel({ dataset, categories, lensControl }: { dataset: C
         </CardHeader>
         <CardContent className="p-3 pt-0 sm:p-5 sm:pt-0">
           {!plotted.length ? <div className="chart-empty" role="status">Select a spending category to display the chart.</div> : <div className="h-[360px] min-w-0 w-full" aria-label="Regional consumer price inflation chart">
-            <ResponsiveContainer width="100%" height="100%"><LineChart data={chart} margin={{ top: 12, right: 12, left: 8, bottom: 8 }}>
+            <MeasuredChart><LineChart data={chart} margin={{ top: 12, right: 12, left: 8, bottom: 8 }}>
               <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 4" vertical={false} />
               <XAxis dataKey="date" ticks={ticks} tickFormatter={date => chart.length <= 18 ? inflationDate(String(date)) : String(date).slice(0, 4)} tick={{ fill: "var(--chart-label)", fontSize: 12 }} axisLine={{ stroke: "var(--chart-axis)" }} tickLine={false} />
               <YAxis width={78} domain={valueAxisDomain(chart, plotted.map(series => series.id), "yoy")} tickFormatter={value => `${Math.round(Number(value) * 1000) / 10}%`} tick={{ fill: "var(--chart-label)", fontSize: 12 }} axisLine={false} tickLine={false} />
               <ChartTooltip labelFormatter={date => inflationDate(String(date))} formatter={(value, name) => [inflationRate(Number(value)), plotted.find(series => series.id === String(name))?.label ?? String(name)]} contentStyle={{ borderRadius: 8, borderColor: "var(--chart-tooltip-border)", background: "var(--chart-tooltip-bg)", color: "var(--chart-tooltip-text)", boxShadow: "var(--chart-tooltip-shadow)" }} />
               <Legend wrapperStyle={{ paddingTop: 16 }} formatter={id => plotted.find(series => series.id === String(id))?.label ?? String(id)} />
               {plotted.map(series => <Line key={series.id} dataKey={series.id} type="monotone" stroke={series.color} strokeDasharray={series.dash} strokeWidth={series.id === "la" || series.id === "us" ? 3 : 2} dot={false} connectNulls={false} isAnimationActive={false} />)}
-            </LineChart></ResponsiveContainer>
+            </LineChart></MeasuredChart>
           </div>}
           <FigureAttribution sources={["bls"]} />
         </CardContent>

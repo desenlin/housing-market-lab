@@ -1,12 +1,13 @@
 "use client";
 
+import { MeasuredChart } from "@/components/measured-chart";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink, RotateCcw, X } from "lucide-react";
 import {
   CartesianGrid,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip as ChartTooltip,
   XAxis,
   YAxis,
@@ -533,7 +534,7 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
               {selected.map((region, index) => <li key={region.id}><i style={{ background: COLORS[index] }} aria-hidden="true" />{region.name}</li>)}
             </ul>
             <div className="permit-chart" aria-label={`${metricInfo.label} trend`}>
-              <ResponsiveContainer width="100%" height="100%">
+              <MeasuredChart>
                 <LineChart data={chartData} margin={{ top: 14, right: 16, bottom: 5, left: 4 }}>
                   <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 4" />
                   <XAxis dataKey="date" minTickGap={frequency === "monthly" ? 45 : 24} tickFormatter={formatDate} tick={{ fill: "var(--chart-label)", fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -550,7 +551,7 @@ export function PermitPanel({ mapData, onManifest, lensControl }: { mapData: Map
                   />
                   {selected.map((region, index) => <Line key={region.id} type="monotone" dataKey={region.id} name={region.name} stroke={COLORS[index]} strokeWidth={index === 0 ? 2.8 : 1.8} dot={false} connectNulls={false} isAnimationActive={false} />)}
                 </LineChart>
-              </ResponsiveContainer>
+              </MeasuredChart>
             </div>
             <FigureAttribution sources={metric === "units_per_1000_stock" ? ["census-bps", "census-acs"] : ["census-bps"]} />
             <p className="data-note">Census-imputed observations remain included and are identified in the status card. The optional trailing three-month average is calculated only when all three monthly observations are available and affects this trend figure only.</p>

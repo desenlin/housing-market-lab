@@ -6,7 +6,7 @@
   const id = script.dataset.gaId;
   if (!/^G-[A-Z0-9]+$/.test(id || '')) return;
   const project = script.dataset.project || location.pathname.split('/').filter(Boolean)[0] || 'academic-site';
-  const cleanURL = value => { if (!value) return ''; try { const url = new URL(value, location.href); return /^https?:$/.test(url.protocol) ? url.origin + url.pathname : ''; } catch (_) { return ''; } };
+  const cleanURL = value => { if (!value) return ''; try { const url = new URL(value, location.href); return /^https?:$/.test(url.protocol) ? url.origin + url.pathname : ''; } catch { return ''; } };
   if (typeof window.gtag !== 'function') {
     window.dataLayer = window.dataLayer || [];
     window.gtag = function () { window.dataLayer.push(arguments); };
@@ -59,7 +59,7 @@
     const link = target.closest('a[href]');
     if (!link) return;
     let url;
-    try { url = new URL(link.href); } catch (_) { return; }
+    try { url = new URL(link.href); } catch { return; }
     const destination = labDestination(url);
     const parameters = {link_location: slug(link.dataset.analyticsLocation) || location.pathname, link_url: cleanURL(url.href)};
     if (destination && cleanURL(url.href) !== cleanURL(location.href)) send('lab_launch', Object.assign({lab_id: destination}, parameters));

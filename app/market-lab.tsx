@@ -1,5 +1,7 @@
 "use client";
 
+import { MeasuredChart } from "@/components/measured-chart";
+
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   CartesianGrid,
@@ -9,7 +11,6 @@ import {
   Line,
   LineChart,
   ReferenceLine,
-  ResponsiveContainer,
   Scatter,
   ScatterChart,
   Tooltip as ChartTooltip,
@@ -824,7 +825,7 @@ function SeriesChart({
 
   return (
     <div className="h-[360px] min-w-0 w-full" aria-label="Housing market time-series chart">
-      <ResponsiveContainer width="100%" height="100%">
+      <MeasuredChart>
         <LineChart data={chart.rows} margin={{ top: 12, right: 12, left: 8, bottom: 8 }}>
           <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 4" vertical={false} />
           <XAxis
@@ -931,7 +932,7 @@ function SeriesChart({
             />
           ))}
         </LineChart>
-      </ResponsiveContainer>
+      </MeasuredChart>
     </div>
   );
 }
@@ -1041,7 +1042,7 @@ function RegionalCycleChart({
   return (
     <>
       <div className="regional-cycle-chart" aria-label="Metro housing cycle position chart">
-        <ResponsiveContainer width="100%" height="100%">
+        <MeasuredChart>
           <ScatterChart margin={{ top: 32, right: 28, bottom: 34, left: 8 }}>
             <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 4" />
             <XAxis
@@ -1082,7 +1083,7 @@ function RegionalCycleChart({
               <LabelList dataKey="label" position="top" offset={7} fill="var(--chart-label-strong)" fontSize={10} fontWeight={700} />
             </Scatter>
           </ScatterChart>
-        </ResponsiveContainer>
+        </MeasuredChart>
       </div>
       <div className="cycle-key">
         <span>As of {shortDate(`${snapshot.month}-01`)}</span>
@@ -1194,7 +1195,7 @@ function HotnessQuadrant({
       </CardHeader>
       <CardContent className="hotness-chart-wrap">
         <div className="hotness-chart" aria-label="Demand score versus supply score by ZIP code">
-          <ResponsiveContainer width="100%" height="100%">
+          <MeasuredChart>
             <ScatterChart margin={{ top: 12, right: 24, bottom: 14, left: 0 }}>
               <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 4" />
               <XAxis type="number" dataKey="demand" name="Demand score" domain={[0, 100]} tick={{ fill: "var(--chart-label)", fontSize: 11 }} label={{ value: "Demand score →", position: "insideBottom", offset: -8, fill: "var(--chart-label)", fontSize: 11 }} />
@@ -1209,7 +1210,7 @@ function HotnessQuadrant({
                 <LabelList dataKey="label" position="top" fill="var(--chart-selected-label)" fontSize={11} fontWeight={700} />
               </Scatter>
             </ScatterChart>
-          </ResponsiveContainer>
+          </MeasuredChart>
         </div>
         <div className="quadrant-key">
           <span><i className="reported" />Reported</span>

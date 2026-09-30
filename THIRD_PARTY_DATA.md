@@ -8,7 +8,7 @@ The compact files under `public/data/` are filtered and transformed for this ins
 
 - **Material used:** Zillow Home Value Index (ZHVI), Zillow Observed Rent Index (ZORI), and selected aggregate housing-market series.
 - **Source:** [Zillow Research housing data](https://www.zillow.com/research/data/)
-- **Guidance and terms:** [ZHVI User Guide](https://www.zillow.com/research/zhvi-user-guide/) and [Zillow Terms of Use](https://www.zillow.com/corporate/terms-of-use/)
+- **Guidance and terms:** [ZHVI Methodology](https://www.zillow.com/research/zhvi-methodology/) and [Zillow Terms of Use](https://www.zillow.com/corporate/terms-of-use/)
 - **Required project attribution:** Data provided by Zillow Group.
 
 Zillow's Research data page provides downloads for use in a user's own analyses. Its general terms separately grant limited personal use, permit non-personal analysis and attributed derivative displays for "Aggregate Data" from Zillow Local-Info Pages, and state that other Zillow data may not be displayed without prior written approval. The Research CSV downloads used here are not expressly identified as Local-Info Page Aggregate Data or covered by a general downstream-redistribution license.

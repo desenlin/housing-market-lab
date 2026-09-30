@@ -1,5 +1,7 @@
 "use client";
 
+import { MeasuredChart } from "@/components/measured-chart";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CartesianGrid,
@@ -10,7 +12,6 @@ import {
   XAxis,
   YAxis,
   ZAxis,
-  ResponsiveContainer,
 } from "recharts";
 import { ExternalLink, RotateCcw } from "lucide-react";
 
@@ -372,7 +373,7 @@ function RelationshipChart({ relationship, points, domains, selectedId }: {
         <h3 className="metric-heading">{incomeValue ? "Median income vs. home value" : "Rent burden vs. asking rent"}</h3>
       </div>
       <div className="acs-relationship-chart">
-        <ResponsiveContainer width="100%" height="100%">
+        <MeasuredChart>
           <ScatterChart margin={{ top: 14, right: 12, bottom: 26, left: 6 }}>
             <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 3" />
             <XAxis
@@ -406,7 +407,7 @@ function RelationshipChart({ relationship, points, domains, selectedId }: {
               {points.map((point) => <Cell key={point.id} fill={point.id === selectedId ? "var(--chart-1)" : "var(--chart-2)"} fillOpacity={point.id === selectedId ? 1 : 0.52} stroke={point.id === selectedId ? "var(--chart-selected-accent)" : "none"} />)}
             </Scatter>
           </ScatterChart>
-        </ResponsiveContainer>
+        </MeasuredChart>
       </div>
       <p className="data-note">{incomeValue
         ? "Ask: When similarly valued communities have different household incomes, what roles might wealth, access, expectations, or housing supply play? The relationship is descriptive, not causal."

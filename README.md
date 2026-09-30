@@ -148,8 +148,16 @@ Build and test:
 ```bash
 npm run lint
 npm test
+npx playwright install chromium
+npm run test:browser
+npm audit --audit-level=moderate
 python -m unittest discover tests
 ```
+
+The independent **Dependency security audit** workflow checks the full lockfile
+on dependency changes and every Monday. Moderate-or-higher advisories fail that
+workflow and appear in GitHub Actions; the check does not block provider refreshes
+or deployment of otherwise validated data.
 
 GitHub Pages must use **GitHub Actions** as its deployment source in repository **Settings → Pages**.
 
