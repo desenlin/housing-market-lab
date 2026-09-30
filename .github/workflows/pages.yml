@@ -222,9 +222,10 @@ jobs:
           npm test
 
       - name: Verify chart tab and lens transitions in Chromium
+        timeout-minutes: 5
         run: |
-          npx playwright install --with-deps chromium
-          npm run test:browser
+          chrome_path="$(command -v google-chrome)"
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE="$chrome_path" npm run test:browser
 
       - name: Configure Pages
         uses: actions/configure-pages@v6
