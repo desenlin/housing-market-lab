@@ -48,3 +48,6 @@ __pycache__/
 /.sites-runtime/
 /outputs/
 /work/
+
+# Unfiltered security audit artifact
+security-audit.json

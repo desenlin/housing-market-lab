@@ -7,11 +7,21 @@ on:
       - package.json
       - package-lock.json
       - .github/workflows/security-audit.yml
+      - scripts/patch-braces.mjs
+      - scripts/security-audit.mjs
+      - patches/**
+      - tests/security-*.test.mjs
+      - tests/fixtures/braces-audit.json
   pull_request:
     paths:
       - package.json
       - package-lock.json
       - .github/workflows/security-audit.yml
+      - scripts/patch-braces.mjs
+      - scripts/security-audit.mjs
+      - patches/**
+      - tests/security-*.test.mjs
+      - tests/fixtures/braces-audit.json
   workflow_dispatch:
   schedule:
     - cron: "47 16 * * 1"
@@ -33,5 +43,18 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-      - name: Check the complete dependency lockfile
-        run: npm audit --package-lock-only --audit-level=moderate
+      - name: Install locked dependencies without dependency lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Apply and verify the bounded braces mitigation
+        run: |
+          npm run postinstall
+          node --test tests/security-*.test.mjs
+      - name: Check the complete dependency lockfile with verified mitigation
+        run: npm run audit:security
+      - name: Preserve the unfiltered npm audit report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dependency-security-audit
+          path: security-audit.json
+          retention-days: 30

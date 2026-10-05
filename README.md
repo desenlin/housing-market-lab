@@ -150,14 +150,20 @@ npm run lint
 npm test
 npx playwright install chromium
 npm run test:browser
-npm audit --audit-level=moderate
+npm run audit:security
 python -m unittest discover tests
 ```
 
 The independent **Dependency security audit** workflow checks the full lockfile
 on dependency changes and every Monday. Moderate-or-higher advisories fail that
 workflow and appear in GitHub Actions; the check does not block provider refreshes
-or deployment of otherwise validated data.
+or deployment of otherwise validated data. One temporary exception covers
+GHSA-vfj7-8cjw-p6xm only after verifying a local depth-limit patch for the exact
+development-only `braces@3.0.3` installation. The original finding remains visible
+as a warning and in the uploaded, unfiltered audit report. The exception expires
+on November 5, 2026. See [the mitigation record](patches/README.md) for its scope,
+checks, and removal instructions. Plain `npm audit` still reports the upstream
+advisory because there is no official patched release.
 
 GitHub Pages must use **GitHub Actions** as its deployment source in repository **Settings → Pages**.
 
