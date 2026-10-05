@@ -61,8 +61,8 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Check annual Housing Supply review rules
-        run: python -m unittest discover -s tests -p 'test_market_brief_supply.py'
+      - name: Check market brief review rules and PR handling
+        run: python -m unittest discover -s tests -p 'test_market_brief_*.py'
 
       - name: Rebuild the deterministic fact packet
         run: python pipeline/build_fact_engine.py
@@ -83,10 +83,27 @@ jobs:
           python pipeline/prepare_market_brief.py "${args[@]}"
           cat "$RUNNER_TEMP/market-brief-review.md" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Open or update a draft pull request
+      - name: Save the candidate review package
         if: steps.brief.outputs.ready == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          ISSUE_MONTH: ${{ steps.brief.outputs.issue_month }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/market-brief-review"
+          cp "public/data/briefs/${ISSUE_MONTH}.json" public/data/briefs/index.json "$RUNNER_TEMP/market-brief-review/"
+          cp "$RUNNER_TEMP/market-brief-review.md" "$RUNNER_TEMP/market-brief-review/review.md"
+
+      - name: Upload the candidate for review
+        if: steps.brief.outputs.ready == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: market-brief-review-${{ steps.brief.outputs.issue_month }}
+          path: ${{ runner.temp }}/market-brief-review/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Save the draft branch
+        if: steps.brief.outputs.ready == 'true'
+        env:
           ISSUE_MONTH: ${{ steps.brief.outputs.issue_month }}
         run: |
           branch="automation/market-brief-${ISSUE_MONTH}"
@@ -94,16 +111,19 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -C "$branch"
           git add public/data/briefs
-          git commit -m "brief: prepare ${ISSUE_MONTH} market report"
+          if ! git diff --cached --quiet; then
+            git commit -m "brief: prepare ${ISSUE_MONTH} market report"
+          fi
           if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
             remote_sha="$(git ls-remote --heads origin "$branch" | cut -f1)"
             git push --force-with-lease="refs/heads/${branch}:${remote_sha}" origin "HEAD:refs/heads/${branch}"
           else
             git push origin "HEAD:refs/heads/${branch}"
           fi
-          pr_number="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')"
-          if [ -n "$pr_number" ]; then
-            gh pr edit "$pr_number" --title "Market brief: ${ISSUE_MONTH}" --body-file "$RUNNER_TEMP/market-brief-review.md"
-          else
-            gh pr create --draft --base main --head "$branch" --title "Market brief: ${ISSUE_MONTH}" --body-file "$RUNNER_TEMP/market-brief-review.md"
-          fi
+
+      - name: Open a draft pull request or provide a manual review link
+        if: steps.brief.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_MONTH: ${{ steps.brief.outputs.issue_month }}
+        run: bash scripts/open-market-brief-pr.sh

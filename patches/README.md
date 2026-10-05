@@ -55,6 +55,40 @@ lint/build/tests are also checked when introducing this backport.
 
 ## Retirement
 
+### Release and alternatives review: October 5, 2026
+
+The npm registry still lists `braces@3.0.3` as latest, and the advisory lists no
+patched version. PR #72 is closed without being merged; it must not be described
+as an accepted upstream fix or a promised release. The latest checked releases
+of `micromatch` (4.0.8), `fast-glob` (3.3.3), `eslint-config-next` (16.3.8), and
+`vinext` (1.0.1) do not remove the affected dependency chain. Upgrading Vinext from
+the locked beta to 1.0.1 would still retain its CommonJS/dynamic-import glob path.
+
+This is also affecting other projects. RummerLab's
+[merged PR #219](https://github.com/RummerLab/rummerlab-website/pull/219) uses a
+local depth-limit patch and a scoped scanner policy while awaiting a release.
+Tailwind's [open PR #20541](https://github.com/tailwindlabs/tailwindcss/pull/20541)
+proposes replacing the affected dependency chain for v3; it is not a released
+fix. DeepAgents' [open PR #925](https://github.com/langchain-ai/deepagentsjs/pull/925)
+proposes dependency replacement plus input limits and documents compatibility
+differences between glob libraries.
+
+A blanket `fast-glob` override to `tinyglobby` is not compatible with this tree:
+Next's ESLint plugin uses `globSync`, but `vite-plugin-dynamic-import@1.6.0` calls
+the default export's `.sync` method, which `tinyglobby@0.2.17` does not provide.
+Removing the entire chain therefore requires compatible upstream changes or an
+explicitly maintained adapter/fork with glob behavior and build tests. Retain
+the verified local mitigation for now rather than silently substituting an
+incompatible package.
+
+November 5 is our review deadline, not an upstream release date. If no official
+fix exists then, reassess the advisory, dependency paths, exposure and regression
+tests before deliberately renewing the narrow exception, or migrate away from
+the affected chain. The patch continues to apply after expiry; the audit fails
+to make that review visible.
+
+### Removing the temporary mitigation
+
 At the next dependency update, check the advisory and official npm release.
 When an official compatible fix is available, update the lockfile, remove this
 patch, its scripts/tests/fixture, the root `postinstall`, and the temporary audit
