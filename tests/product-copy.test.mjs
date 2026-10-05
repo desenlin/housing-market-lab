@@ -249,13 +249,15 @@ test("market brief prioritizes questions, quality controls, and direct evidence"
 
 test("market brief automation remains review gated", async () => {
   const workflow = await readProjectFile(".github/workflows/prepare-market-brief.yml");
+  const prScript = await readProjectFile("scripts/open-market-brief-pr.sh");
   const pages = await readProjectFile(".github/workflows/pages.yml");
   const acs = await readProjectFile(".github/workflows/update-acs.yml");
   const generator = await readProjectFile("pipeline/prepare_market_brief.py");
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /workflow_run:/);
-  assert.match(workflow, /gh pr create --draft/);
-  assert.doesNotMatch(workflow, /gh pr merge/);
+  assert.match(workflow, /bash scripts\/open-market-brief-pr\.sh/);
+  assert.match(prScript, /gh pr create [^\n]*--draft/);
+  assert.doesNotMatch(`${workflow}\n${prScript}`, /gh pr merge/);
   assert.match(workflow, /actions\/download-artifact@v8/);
   assert.match(workflow, /validated-site-sha\.txt/);
   assert.match(pages, /actions\/upload-artifact@v7/);
