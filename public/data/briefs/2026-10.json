@@ -1,0 +1,233 @@
+{
+  "schema_version": 3,
+  "status": "published",
+  "issue_month": "2026-10",
+  "observation_cutoff": "2026-08-31",
+  "prepared_at": "2026-10-05",
+  "title": "October 2026 Housing Market Brief",
+  "headline": "New evidence on residential permitting, inflation-adjusted home values, and asking rents",
+  "summary": "Yes. Los Angeles metro YTD permits rose 43.4%. No. Los Angeles metro home values changed +1.2% from one year earlier, while LA-area CPI-U changed +3.6% over the same period. The implied inflation-adjusted change was -2.3%. Los Angeles metro typical asking rent changed +1.6% from one year earlier.",
+  "reconstruction_note": "Prepared from the Lab’s validated fact packet. Each finding retains its observation period and source release; later provider revisions do not silently alter this archived edition.",
+  "source_packet_sha256": "cdef506325c0ad22719a4abcdd11d8062d6af8a9a59eca4c1e92e7c33e1bb1c3",
+  "source_releases": [
+    {
+      "provider": "Zillow Research",
+      "release": "2026-09-18-r170716",
+      "sha256": "6d0e90853b3d78d47ff19babfaa1be76662a1d7cb571941b6b438b3b0cc0cb45"
+    },
+    {
+      "provider": "Redfin",
+      "release": "2026-09-24-r175406",
+      "sha256": "99c7d13db49b6d7c7c6a3a102748d8e02887b350cd99ef48ea30156faf138e7b"
+    },
+    {
+      "provider": "Realtor.com® Economic Research — Inventory",
+      "release": "2026-09-08-r003529",
+      "sha256": "2b48b0eb596d5f72b506c08ee9b762a27f11cc0c67570bcb74f8f172a819197c"
+    },
+    {
+      "provider": "U.S. Bureau of Labor Statistics",
+      "release": "2026-09-19-r071501",
+      "sha256": "aae2b6f71d457e90a24df1b8a8740143484ee4a89741a5a5c01765db1eb653d0"
+    },
+    {
+      "provider": "Census BPS — preliminary current-year observations",
+      "release": "2026-09-26-r180636",
+      "sha256": "68718fe382d4c4b6d94974cbd3b993dcdb35a108181e7b82f1a747e1df687080"
+    },
+    {
+      "provider": "Census BPS — final comparison history",
+      "release": "2026-09-07-r170319",
+      "sha256": "9a3aeb453c4968c833fb0586db71809b93c1bf131e2f6a45cc370d1df0706cb2"
+    }
+  ],
+  "selection_method": {
+    "question_pool": 27,
+    "qualification_paths": {
+      "material_movement": "The primary measure crossed its fixed editorial threshold.",
+      "broad_local_shift": "At least 65% of covered local markets moved in one direction and the median change reached half of its editorial threshold.",
+      "direction_change": "The year-over-year comparison changed sign, with the current and preceding changes each reaching at least half of the editorial threshold.",
+      "indicator_divergence": "Two pre-specified related indicators moved in meaningfully different directions or separated by a pre-specified gap."
+    },
+    "maximum_findings": 4,
+    "maximum_per_theme": 1
+  },
+  "sections": [
+    {
+      "question": "Is residential permitting increasing?",
+      "answer": "Yes. Los Angeles metro YTD permits rose 43.4%.",
+      "trigger_fact_id": "permits-los-angeles-metro-ytd",
+      "fact_ids": [
+        "permits-los-angeles-metro-ytd",
+        "permits-los-angeles-county-ytd",
+        "permits-orange-county-ytd"
+      ],
+      "period_end": "2026-08-31",
+      "observation_period": "2026-01 through 2026-08",
+      "status": "preliminary",
+      "evidence": [
+        "Los Angeles metro: 24,953 units authorized YTD vs. 17,407 in the same months last year."
+      ],
+      "sources": "U.S. Census Bureau Building Permits Survey",
+      "coverage": "Matched permit jurisdictions in Los Angeles and Orange counties; sum of county counts, not an official BPS metro series",
+      "caveat": "Current-year observations are preliminary and may be revised or imputed; permits are authorizations, not starts or completions.",
+      "question_id": "permits_metro_ytd-los-angeles-metro",
+      "theme": "construction",
+      "kicker": "Construction pipeline",
+      "topic": "residential permitting",
+      "trigger_fact_ids": [
+        "permits-los-angeles-metro-ytd"
+      ],
+      "destination": "permits",
+      "link_label": "Explore Census permit activity",
+      "qualifications": [
+        {
+          "id": "material_movement",
+          "label": "Material movement",
+          "explanation": "The primary measure crossed its fixed editorial threshold."
+        }
+      ],
+      "selection_score": 104.0,
+      "source_releases": [
+        {
+          "provider": "U.S. Census Bureau Building Permits Survey",
+          "release": "2026-09-26-r180636"
+        }
+      ]
+    },
+    {
+      "question": "Are home values keeping pace with local inflation?",
+      "answer": "No. Los Angeles metro home values changed +1.2% from one year earlier, while LA-area CPI-U changed +3.6% over the same period. The implied inflation-adjusted change was -2.3%.",
+      "trigger_fact_id": "derived-la-real-zhvi",
+      "fact_ids": [
+        "derived-la-real-zhvi",
+        "zillow-la-metro-zhvi",
+        "bls-la-cpi"
+      ],
+      "period_end": "2026-08-31",
+      "observation_period": "August 2026",
+      "status": "validated",
+      "evidence": [
+        "Nominal ZHVI changed +1.2% while LA-area CPI-U changed +3.6%.",
+        "$952,601 compared with $941,363 one year earlier."
+      ],
+      "sources": "Zillow Research + U.S. Bureau of Labor Statistics",
+      "coverage": "Common-month Zillow ZHVI and LA-area CPI-U",
+      "caveat": "Real change is a purchasing-power comparison, not an affordability measure. Not seasonally adjusted; the area index covers Los Angeles and Orange Counties.",
+      "question_id": "real_zhvi-los-angeles-metro",
+      "theme": "prices",
+      "kicker": "Prices after inflation",
+      "topic": "inflation-adjusted home values",
+      "trigger_fact_ids": [
+        "derived-la-real-zhvi"
+      ],
+      "destination": "local",
+      "link_label": "Explore prices and rents",
+      "qualifications": [
+        {
+          "id": "material_movement",
+          "label": "Material movement",
+          "explanation": "The primary measure crossed its fixed editorial threshold."
+        }
+      ],
+      "selection_score": 85.3,
+      "source_releases": [
+        {
+          "provider": "Zillow Research + BLS CPI-U",
+          "release": "2026-09-18-r170716 + 2026-09-19-r071501"
+        },
+        {
+          "provider": "Zillow Research",
+          "release": "2026-09-18-r170716"
+        },
+        {
+          "provider": "U.S. Bureau of Labor Statistics",
+          "release": "2026-09-19-r071501"
+        }
+      ]
+    },
+    {
+      "question": "How fast are asking rents changing?",
+      "answer": "Los Angeles metro typical asking rent changed +1.6% from one year earlier.",
+      "trigger_fact_id": "zillow-la-metro-zori",
+      "fact_ids": [
+        "zillow-la-metro-zori"
+      ],
+      "period_end": "2026-08-31",
+      "observation_period": "August 2026",
+      "status": "validated",
+      "evidence": [
+        "$2,941 compared with $2,894 one year earlier."
+      ],
+      "sources": "Zillow Research",
+      "coverage": "One focus metropolitan series",
+      "caveat": "Descriptive metropolitan estimate; not a causal or predictive measure.",
+      "question_id": "zori-los-angeles-metro",
+      "theme": "rents",
+      "kicker": "Asking rents",
+      "topic": "asking rents",
+      "trigger_fact_ids": [
+        "zillow-la-metro-zori"
+      ],
+      "destination": "local",
+      "link_label": "Explore rent trends",
+      "qualifications": [
+        {
+          "id": "material_movement",
+          "label": "Material movement",
+          "explanation": "The primary measure crossed its fixed editorial threshold."
+        }
+      ],
+      "selection_score": 67.9,
+      "source_releases": [
+        {
+          "provider": "Zillow Research",
+          "release": "2026-09-18-r170716"
+        }
+      ]
+    }
+  ],
+  "housing_supply_review": {
+    "status": "unchanged",
+    "review_required": false,
+    "provider": "California HCD APR",
+    "release": "2026-09-14-ab3bd5659d98",
+    "sha256": "ab3bd5659d98bba41d07dbf78f1209599d618e5a50a723a08a9170537625aee6",
+    "latest_year": 2025,
+    "validated_at": "2026-09-14T02:37:40.449286+00:00",
+    "coverage": [
+      {
+        "county": "Los Angeles County",
+        "reporting_cities": 79,
+        "reference_cities": 88
+      },
+      {
+        "county": "Orange County",
+        "reporting_cities": 33,
+        "reference_cities": 34
+      }
+    ],
+    "reason": "Annual context only; this does not advance a monthly question or certify complete reporting."
+  },
+  "housing_context_review": {
+    "status": "unchanged",
+    "review_required": false,
+    "provider": "U.S. Census Bureau ACS five-year estimates",
+    "release": "2026-09-08-r094930",
+    "sha256": "57cfe49837fe1c0679727061696c64788cd6ec608f9af1478a0f596d75f198fd",
+    "latest_year": 2024,
+    "comparison_year": 2019,
+    "validated_at": "2026-09-08T09:49:30Z",
+    "coverage": [
+      {
+        "geography": "city",
+        "regions": 189
+      },
+      {
+        "geography": "zip",
+        "regions": 360
+      }
+    ],
+    "reason": "Structural context only; this does not advance a monthly question or imply a current market change."
+  }
+}
