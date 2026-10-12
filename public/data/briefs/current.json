@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "status": "automatic_snapshot",
-  "generated_at": "2026-09-26T18:06:36Z",
-  "data_cutoff": "2026-08-31",
-  "source_packet_sha256": "cdef506325c0ad22719a4abcdd11d8062d6af8a9a59eca4c1e92e7c33e1bb1c3",
+  "generated_at": "2026-10-12T21:48:47.525130+00:00",
+  "data_cutoff": "2026-09-30",
+  "source_packet_sha256": "735f384298d707f91ea96f41b08ba470bad413951ba47efb6da21cad526ddf49",
   "method": "Deterministic screening only; the rules identify review candidates and do not infer causes or forecasts.",
   "monitoring": {
     "question_count": 27,
@@ -25,13 +25,13 @@
     },
     {
       "provider": "Redfin",
-      "release": "2026-09-24-r175406",
-      "sha256": "99c7d13db49b6d7c7c6a3a102748d8e02887b350cd99ef48ea30156faf138e7b"
+      "release": "2026-10-12-r214822",
+      "sha256": "23d1cb84421290408c7d3d227baff30d24ece855b960c5cab132d25368ba285a"
     },
     {
       "provider": "Realtor.com® Economic Research — Inventory",
-      "release": "2026-09-08-r003529",
-      "sha256": "2b48b0eb596d5f72b506c08ee9b762a27f11cc0c67570bcb74f8f172a819197c"
+      "release": "2026-10-12-r214847",
+      "sha256": "6d7914e1b3b45f6ad4a7ea326d7adf7a74d6161376de5fdd0a0edf23d4bdc47d"
     },
     {
       "provider": "U.S. Bureau of Labor Statistics",
@@ -144,6 +144,51 @@
       ]
     },
     {
+      "question_id": "median_dom-orange-county",
+      "theme": "market_speed",
+      "kicker": "Local market speed",
+      "question": "Are homes moving faster or slower across Orange County?",
+      "topic": "market speed in Orange County",
+      "answer": "Orange County median days on market decreased by 6.0 days; 32 of 41 covered local markets decreased.",
+      "trigger_fact_id": "redfin-orange-county-median_dom",
+      "trigger_fact_ids": [
+        "redfin-orange-county-median_dom"
+      ],
+      "fact_ids": [
+        "redfin-orange-county-median_dom"
+      ],
+      "period_end": "2026-09-30",
+      "observation_period": "September 2026",
+      "status": "validated",
+      "evidence": [
+        "Orange County: The median local change was -6.0 days; among 41 markets with calculable changes, 8 increased, 32 decreased, and 1 was unchanged."
+      ],
+      "sources": "Redfin",
+      "source_releases": [
+        {
+          "provider": "Redfin",
+          "release": "2026-10-12-r214822"
+        }
+      ],
+      "coverage": "41 of 42 local markets had calculable year-over-year changes",
+      "caveat": "Unweighted median across covered cities using Redfin rolling three-month estimates; it is not a county aggregate.",
+      "destination": "activity",
+      "link_label": "Explore Redfin market conditions",
+      "qualifications": [
+        {
+          "id": "material_movement",
+          "label": "Material movement",
+          "explanation": "The primary measure crossed its fixed editorial threshold."
+        },
+        {
+          "id": "broad_local_shift",
+          "label": "Broad local shift",
+          "explanation": "32 of 41 covered local markets decreased; the median change also reached at least half of its editorial threshold."
+        }
+      ],
+      "selection_score": 72.0
+    },
+    {
       "question": "How fast are asking rents changing?",
       "answer": "Los Angeles metro typical asking rent changed +1.6% from one year earlier.",
       "trigger_fact_id": "zillow-la-metro-zori",
@@ -182,46 +227,6 @@
           "release": "2026-09-18-r170716"
         }
       ]
-    },
-    {
-      "question_id": "median_dom-orange-county",
-      "theme": "market_speed",
-      "kicker": "Local market speed",
-      "question": "Are homes moving faster or slower across Orange County?",
-      "topic": "market speed in Orange County",
-      "answer": "Orange County median days on market decreased by 4.0 days; 32 of 41 covered local markets decreased.",
-      "trigger_fact_id": "redfin-orange-county-median_dom",
-      "trigger_fact_ids": [
-        "redfin-orange-county-median_dom"
-      ],
-      "fact_ids": [
-        "redfin-orange-county-median_dom"
-      ],
-      "period_end": "2026-08-31",
-      "observation_period": "August 2026",
-      "status": "validated",
-      "evidence": [
-        "Orange County: The median local change was -4.0 days; among 41 markets with calculable changes, 8 increased, 32 decreased, and 1 was unchanged."
-      ],
-      "sources": "Redfin",
-      "source_releases": [
-        {
-          "provider": "Redfin",
-          "release": "2026-09-24-r175406"
-        }
-      ],
-      "coverage": "41 of 42 local markets had calculable year-over-year changes",
-      "caveat": "Unweighted median across covered cities using Redfin rolling three-month estimates; it is not a county aggregate.",
-      "destination": "activity",
-      "link_label": "Explore Redfin market conditions",
-      "qualifications": [
-        {
-          "id": "broad_local_shift",
-          "label": "Broad local shift",
-          "explanation": "32 of 41 covered local markets decreased; the median change also reached at least half of its editorial threshold."
-        }
-      ],
-      "selection_score": 58.5
     }
   ]
 }
