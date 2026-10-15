@@ -7,6 +7,13 @@
       "last_run_id": "38312764367",
       "last_success_at": "2026-10-12T21:48:50+00:00"
     },
+    "hcd": {
+      "consecutive_failures": 0,
+      "last_attempt_at": "2026-10-15T18:39:27+00:00",
+      "last_exit_code": 0,
+      "last_run_id": "38787385276",
+      "last_success_at": "2026-10-15T18:39:27+00:00"
+    },
     "permits": {
       "consecutive_failures": 0,
       "last_attempt_at": "2026-10-12T21:48:50+00:00",
