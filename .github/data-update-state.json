@@ -1,11 +1,11 @@
 {
   "providers": {
     "cpi": {
-      "consecutive_failures": 1,
-      "last_attempt_at": "2026-10-24T16:43:09+00:00",
-      "last_exit_code": 1,
-      "last_run_id": "40112753499",
-      "last_success_at": "2026-10-18T16:38:45+00:00"
+      "consecutive_failures": 0,
+      "last_attempt_at": "2026-10-28T18:54:09+00:00",
+      "last_exit_code": 0,
+      "last_run_id": "40749152298",
+      "last_success_at": "2026-10-28T18:54:09+00:00"
     },
     "hcd": {
       "consecutive_failures": 0,
@@ -16,31 +16,31 @@
     },
     "permits": {
       "consecutive_failures": 0,
-      "last_attempt_at": "2026-10-24T16:43:09+00:00",
+      "last_attempt_at": "2026-10-28T18:54:09+00:00",
       "last_exit_code": 0,
-      "last_run_id": "40112753499",
-      "last_success_at": "2026-10-24T16:43:09+00:00"
+      "last_run_id": "40749152298",
+      "last_success_at": "2026-10-28T18:54:09+00:00"
     },
     "realtor": {
       "consecutive_failures": 0,
-      "last_attempt_at": "2026-10-24T16:43:09+00:00",
+      "last_attempt_at": "2026-10-28T18:54:09+00:00",
       "last_exit_code": 0,
-      "last_run_id": "40112753499",
-      "last_success_at": "2026-10-24T16:43:09+00:00"
+      "last_run_id": "40749152298",
+      "last_success_at": "2026-10-28T18:54:09+00:00"
     },
     "redfin": {
       "consecutive_failures": 0,
-      "last_attempt_at": "2026-10-24T16:43:09+00:00",
+      "last_attempt_at": "2026-10-28T18:54:09+00:00",
       "last_exit_code": 0,
-      "last_run_id": "40112753499",
-      "last_success_at": "2026-10-24T16:43:09+00:00"
+      "last_run_id": "40749152298",
+      "last_success_at": "2026-10-28T18:54:09+00:00"
     },
     "zillow": {
       "consecutive_failures": 0,
-      "last_attempt_at": "2026-10-24T16:43:09+00:00",
+      "last_attempt_at": "2026-10-28T18:54:09+00:00",
       "last_exit_code": 0,
-      "last_run_id": "40112753499",
-      "last_success_at": "2026-10-24T16:43:09+00:00"
+      "last_run_id": "40749152298",
+      "last_success_at": "2026-10-28T18:54:09+00:00"
     }
   },
   "schema_version": 1

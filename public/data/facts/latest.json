@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "status": "operational",
-  "generated_at": "2026-10-18T16:38:44.862092+00:00",
+  "generated_at": "2026-10-28T18:54:08Z",
   "data_cutoff": "2026-09-30",
   "method": "Deterministic calculations only; no language model generated these facts.",
   "source_releases": {
@@ -26,8 +26,8 @@
       "sha256": "68718fe382d4c4b6d94974cbd3b993dcdb35a108181e7b82f1a747e1df687080"
     },
     "permits_history": {
-      "release": "2026-09-07-r170319",
-      "sha256": "9a3aeb453c4968c833fb0586db71809b93c1bf131e2f6a45cc370d1df0706cb2"
+      "release": "2026-10-28-r185408",
+      "sha256": "28fe6b95a1063f1c42a389bec7c41d2a2fc799f404d78872f0f9ea6dab0840c2"
     }
   },
   "summary": {
@@ -820,5 +820,5 @@
       "reference_count": 140
     }
   ],
-  "packet_sha256": "6a4976a21cfb74da302ac91ee50c99d4d4c85386b07c3f8ff99c870c2d5900fd"
+  "packet_sha256": "16f9c0d3dcbec6e32ea6a2533b3bd4342b687b7867cc91829f6d2efba98cb459"
 }
