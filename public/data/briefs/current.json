@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "status": "automatic_snapshot",
-  "generated_at": "2026-10-28T18:54:08Z",
+  "generated_at": "2026-10-28T21:19:31Z",
   "data_cutoff": "2026-09-30",
-  "source_packet_sha256": "16f9c0d3dcbec6e32ea6a2533b3bd4342b687b7867cc91829f6d2efba98cb459",
+  "source_packet_sha256": "d342695c3245addccb84c166ed2fe857c365f6e745ddcc60682d3be26683b510",
   "method": "Deterministic screening only; the rules identify review candidates and do not infer causes or forecasts.",
   "monitoring": {
     "question_count": 27,
@@ -40,8 +40,8 @@
     },
     {
       "provider": "Census BPS — preliminary current-year observations",
-      "release": "2026-09-26-r180636",
-      "sha256": "68718fe382d4c4b6d94974cbd3b993dcdb35a108181e7b82f1a747e1df687080"
+      "release": "2026-10-28-r211931",
+      "sha256": "f5417708682d119400eff8e72853fffe88350de721f6d169d34c3eddc86aac46"
     },
     {
       "provider": "Census BPS — final comparison history",
@@ -52,18 +52,18 @@
   "sections": [
     {
       "question": "Is residential permitting increasing?",
-      "answer": "Yes. Los Angeles metro YTD permits rose 43.4%.",
+      "answer": "Yes. Los Angeles metro YTD permits rose 37.6%.",
       "trigger_fact_id": "permits-los-angeles-metro-ytd",
       "fact_ids": [
         "permits-los-angeles-metro-ytd",
         "permits-los-angeles-county-ytd",
         "permits-orange-county-ytd"
       ],
-      "period_end": "2026-08-31",
-      "observation_period": "2026-01 through 2026-08",
+      "period_end": "2026-09-30",
+      "observation_period": "2026-01 through 2026-09",
       "status": "preliminary",
       "evidence": [
-        "Los Angeles metro: 24,953 units authorized YTD vs. 17,407 in the same months last year."
+        "Los Angeles metro: 26,937 units authorized YTD vs. 19,572 in the same months last year."
       ],
       "sources": "U.S. Census Bureau Building Permits Survey",
       "coverage": "Matched permit jurisdictions in Los Angeles and Orange counties; sum of county counts, not an official BPS metro series",
@@ -84,11 +84,11 @@
           "explanation": "The primary measure crossed its fixed editorial threshold."
         }
       ],
-      "selection_score": 104.0,
+      "selection_score": 100.7,
       "source_releases": [
         {
           "provider": "U.S. Census Bureau Building Permits Survey",
-          "release": "2026-09-26-r180636"
+          "release": "2026-10-28-r211931"
         }
       ]
     },
