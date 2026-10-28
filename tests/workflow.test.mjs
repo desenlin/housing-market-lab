@@ -92,3 +92,22 @@ test("market brief automation evaluates the exact successful Pages revision", as
   assert.match(workflow, /run-id: \$\{\{ github\.event\.workflow_run\.id \}\}/);
   assert.match(workflow, /git checkout --detach "\$validated_sha"/);
 });
+
+test("Pages retries deploy their completed build's artifact without name collisions", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/pages.yml", import.meta.url), "utf8");
+  const outputName = workflow.match(/^      pages_artifact_name: (.+)$/m)?.[1];
+  const upload = workflow.split("      - name: Upload Pages artifact\n")[1].split("\n  deploy:\n")[0];
+  const uploadedName = upload.match(/^          name: (.+)$/m)?.[1];
+  assert.ok(outputName && uploadedName, "the build must expose the artifact it uploaded");
+  assert.equal(outputName, uploadedName);
+  assert.match(uploadedName, /\$\{\{ github\.run_attempt \}\}/);
+  assert.notEqual(
+    uploadedName.replace("${{ github.run_attempt }}", "1"),
+    uploadedName.replace("${{ github.run_attempt }}", "2"),
+  );
+  const deploy = workflow.split("\n  deploy:\n")[1].split("\n  data-health:\n")[0];
+  assert.match(deploy, /artifact_name: \$\{\{ needs\.build\.outputs\.pages_artifact_name \}\}/);
+  assert.doesNotMatch(deploy, /github\.run_attempt/, "a deploy-only retry must reuse the existing build");
+  const revision = workflow.split("      - name: Preserve the validated revision for the brief workflow\n")[1].split("      - name:")[0];
+  assert.match(revision, /name: validated-site-ref\s+overwrite: true/);
+});
