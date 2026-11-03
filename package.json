@@ -66,6 +66,13 @@
     "wrangler": "4.149.0"
   },
   "overrides": {
+    "minimatch@<11.0.1": "11.0.4",
+    "vinext@1.0.0-beta.9": {
+      "@vercel/og": "1.0.3"
+    },
+    "satori@0.33.5": {
+      "fflate": "0.7.5"
+    },
     "miniflare@5.20261006.1-alpha": {
       "undici": "7.30.1"
     },

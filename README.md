@@ -163,7 +163,7 @@ or deployment of otherwise validated data. The unfiltered audit report is
 uploaded for each completed audit, with no advisory exceptions. The earlier
 `braces` patch and November 5 exception were retired after GitHub withdrew the
 advisory on October 23, 2026. See [the dependency security record](patches/README.md)
-for the withdrawal and the current scoped dependency override.
+for the withdrawal, current dependency fixes, and lint compatibility checks.
 
 GitHub Pages must use **GitHub Actions** as its deployment source in repository **Settings → Pages**.
 
