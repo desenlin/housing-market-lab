@@ -160,33 +160,60 @@ def stream_selected_rows(
     return selected, latest, scanned
 
 
+class BoundedSource(io.RawIOBase):
+    """Enforce the input budget even without a reliable Content-Length header."""
+
+    def __init__(self, response, limit: int, source_key: str):
+        super().__init__()
+        self.response = response
+        self.limit = limit
+        self.source_key = source_key
+        self.bytes_read = 0
+
+    def readable(self) -> bool:
+        return True
+
+    def readinto(self, buffer) -> int:
+        chunk = self.response.read(min(len(buffer), self.limit - self.bytes_read + 1))
+        self.bytes_read += len(chunk)
+        if self.bytes_read > self.limit:
+            raise ValueError(f"{self.source_key} exceeds the streaming limit of {self.limit:,} bytes")
+        buffer[:len(chunk)] = chunk
+        return len(chunk)
+
+
 def fetch_source(
     config: dict[str, Any],
     source: dict[str, Any],
     reference: dict[str, dict[str, str | None]],
 ) -> tuple[dict[str, dict[str, dict[str, int | float | None]]], dict[str, Any]]:
     url = source_url(config, source)
+    max_bytes = int(source.get("max_source_bytes", config["max_source_bytes"]))
+    if max_bytes <= 0:
+        raise ValueError(f"{source['key']} requires a positive source byte limit")
     with request(url) as response:
         declared_bytes = int(response.headers.get("Content-Length") or 0)
-        if declared_bytes and declared_bytes > int(config["max_source_bytes"]):
+        if declared_bytes and declared_bytes > max_bytes:
             raise ValueError(f"{source['key']} is unexpectedly large: {declared_bytes:,} bytes")
-        text = io.TextIOWrapper(response, encoding="utf-8-sig", newline="")
-        reader = csv.DictReader(text)
-        required = {"FREQUENCY", "PERIOD END", "REGION NAME", source["selection_weight"]}
-        required.update(config["metrics"][metric]["field"] for metric in source["metrics"])
-        missing = required.difference(reader.fieldnames or [])
-        if missing:
-            raise ValueError(f"{source['key']} missing columns: {sorted(missing)}")
-        rows, latest, scanned = stream_selected_rows(
-            reader,
-            source,
-            config["metrics"],
-            reference,
-            config["start_date"],
-        )
+        bounded = BoundedSource(response, max_bytes, source["key"])
+        with io.TextIOWrapper(io.BufferedReader(bounded), encoding="utf-8-sig", newline="") as text:
+            reader = csv.DictReader(text)
+            required = {"FREQUENCY", "PERIOD END", "REGION NAME", source["selection_weight"]}
+            required.update(config["metrics"][metric]["field"] for metric in source["metrics"])
+            missing = required.difference(reader.fieldnames or [])
+            if missing:
+                raise ValueError(f"{source['key']} missing columns: {sorted(missing)}")
+            rows, latest, scanned = stream_selected_rows(
+                reader,
+                source,
+                config["metrics"],
+                reference,
+                config["start_date"],
+            )
     return rows, {
         "url": url,
         "bytes": declared_bytes,
+        "bytes_read": bounded.bytes_read,
         "latest_observation": latest,
         "rows_scanned": scanned,
         "regions": len(rows),

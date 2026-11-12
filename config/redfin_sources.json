@@ -11,6 +11,7 @@
   "sources": [
     {
       "key": "housing_city",
+      "max_source_bytes": 2000000000,
       "geography": "city",
       "path": "housing_market/monthly/all_cities.csv",
       "metrics": ["months_supply", "median_dom", "sold_above_original_share", "median_sale_ppsf"],

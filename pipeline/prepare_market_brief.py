@@ -46,8 +46,10 @@ def month_end(value: str) -> str:
     return f"{year:04d}-{month:02d}-{day:02d}"
 
 
-def fact_by_metric(packet: dict[str, Any], metric: str) -> dict[str, Any]:
+def fact_by_metric(packet: dict[str, Any], metric: str, *, required: bool = True) -> dict[str, Any] | None:
     matches = [item for item in packet["facts"] if item["metric"] == metric]
+    if not matches and not required:
+        return None
     if len(matches) != 1:
         raise ValueError(f"Expected one {metric} fact; found {len(matches)}")
     return matches[0]
@@ -81,9 +83,9 @@ def brief_headline_and_summary(
 
 
 def question_sections(packet: dict[str, Any]) -> list[dict[str, Any]]:
-    real_price = fact_by_metric(packet, "real_zhvi")
+    real_price = fact_by_metric(packet, "real_zhvi", required=False)
     nominal_price = fact_by_metric(packet, "zhvi")
-    inflation = fact_by_metric(packet, "cpi_la")
+    inflation = fact_by_metric(packet, "cpi_la", required=False)
     inventory = fact_by_metric(packet, "inventory")
     rent = fact_by_metric(packet, "zori")
     permits = sorted(
@@ -98,13 +100,6 @@ def question_sections(packet: dict[str, Any]) -> list[dict[str, Any]]:
     if any(item["provider"] != "U.S. Census Bureau Building Permits Survey" or not item["provisional"] for item in permits):
         raise ValueError("The recurring permitting question requires preliminary Census BPS evidence, not HCD delivery")
 
-    price_kept_pace = real_price["change"] >= 0
-    price_answer = (
-        f"{'Yes' if price_kept_pace else 'No'}. Los Angeles metro home values changed "
-        f"{real_price['nominal_change_display']} from one year earlier, while LA-area CPI-U changed "
-        f"{real_price['inflation_change_display']} over the same period. The implied inflation-adjusted change was "
-        f"{real_price['change_display']}."
-    )
     metro_permits = fact_by_metric(packet, "permits_metro_ytd")
     if metro_permits["period"] != permits[0]["period"] or metro_permits["value"] != sum(item["value"] for item in permits):
         raise ValueError("Metro permits must match the county counts and comparison window")
@@ -127,8 +122,16 @@ def question_sections(packet: dict[str, Any]) -> list[dict[str, Any]]:
         else f"Below the Lab’s 1.5% reporting threshold. Los Angeles metro typical asking rent changed {rent['change_display']} from one year earlier."
     )
 
-    return [
-        {
+    sections: list[dict[str, Any]] = []
+    if real_price is not None and inflation is not None:
+        price_kept_pace = real_price["change"] >= 0
+        price_answer = (
+            f"{'Yes' if price_kept_pace else 'No'}. Los Angeles metro home values changed "
+            f"{real_price['nominal_change_display']} from one year earlier, while LA-area CPI-U changed "
+            f"{real_price['inflation_change_display']} over the same period. The implied inflation-adjusted change was "
+            f"{real_price['change_display']}."
+        )
+        sections.append({
             "question": "Are home values keeping pace with local inflation?",
             "answer": price_answer,
             "trigger_fact_id": real_price["id"],
@@ -140,7 +143,8 @@ def question_sections(packet: dict[str, Any]) -> list[dict[str, Any]]:
             "sources": "Zillow Research + U.S. Bureau of Labor Statistics",
             "coverage": real_price["coverage"],
             "caveat": f"{real_price['caveat']} {inflation['caveat']}",
-        },
+        })
+    return sections + [
         {
             "question": "Is residential permitting increasing?",
             "answer": permit_answer,
@@ -298,10 +302,8 @@ def expanded_question_pool(packet: dict[str, Any]) -> list[dict[str, Any]]:
     by_metric = BRIEF_CONFIG["questions_by_metric"]
     sections: list[dict[str, Any]] = []
     base_by_metric = {
-        "real_zhvi": question_sections(packet)[0],
-        "permits_metro_ytd": question_sections(packet)[1],
-        "inventory": question_sections(packet)[2],
-        "zori": question_sections(packet)[3],
+        facts[section["trigger_fact_id"]]["metric"]: section
+        for section in question_sections(packet)
     }
     for metric, base in base_by_metric.items():
         item = facts[base["trigger_fact_id"]]
@@ -322,7 +324,7 @@ def expanded_question_pool(packet: dict[str, Any]) -> list[dict[str, Any]]:
         }
         section["source_releases"] = _section_source_releases(facts, section["fact_ids"])
         sections.append(section)
-    handled = set(base_by_metric)
+    handled = {"real_zhvi", "permits_metro_ytd", "inventory", "zori"}
     for item in packet["facts"]:
         if item["metric"] in handled or item["metric"] not in by_metric:
             continue

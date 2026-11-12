@@ -1,3 +1,4 @@
+import io
 import json
 import tempfile
 import unittest
@@ -27,6 +28,58 @@ METRICS = {
 
 
 class RedfinPipelineTest(unittest.TestCase):
+    def source_fixture(self):
+        config = json.loads(update_redfin.CONFIG_PATH.read_text())
+        source = config["sources"][0]
+        payload = (
+            'FREQUENCY,PERIOD END,REGION NAME,HOMES SOLD,MONTHS OF SUPPLY,'
+            'MEDIAN DAYS ON MARKET (DAYS),SHARE SOLD ABOVE ORIGINAL LIST (%),'
+            'MEDIAN SALE PRICE PER SQ.FT. ($)\n'
+            'Rolling 3 Months,2026-09-30,"Fullerton, CA",10,2.5,30,40,500\n'
+        ).encode()
+        return config, source, payload
+
+    def fetch_fixture(self, config, source, payload, declared_bytes=None):
+        response = io.BytesIO(payload)
+        response.headers = {} if declared_bytes is None else {"Content-Length": str(declared_bytes)}
+        with patch.object(update_redfin, "request", return_value=response):
+            return update_redfin.fetch_source(config, source, {"Fullerton, CA": {"id": "1"}})
+
+    def test_city_source_accepts_reported_november_size_under_scoped_budget(self):
+        config, source, payload = self.source_fixture()
+        rows, metadata = self.fetch_fixture(config, source, payload, 1_741_630_761)
+        self.assertEqual(rows["1"]["2026-09-30"]["months_supply"], 2.5)
+        self.assertEqual(metadata["bytes_read"], len(payload))
+        self.assertEqual(config["max_source_bytes"], 1_300_000_000)
+        self.assertTrue(all("max_source_bytes" not in item for item in config["sources"][1:]))
+
+    def test_source_limits_still_reject_oversized_declared_files(self):
+        config, source, payload = self.source_fixture()
+        with self.assertRaisesRegex(ValueError, "unexpectedly large"):
+            self.fetch_fixture(config, source, payload, source["max_source_bytes"] + 1)
+        with self.assertRaisesRegex(ValueError, "unexpectedly large"):
+            self.fetch_fixture(config, config["sources"][1], payload, config["max_source_bytes"] + 1)
+
+    def test_stream_budget_handles_absent_and_understated_length_headers(self):
+        for declared in [None, 0, 1]:
+            with self.subTest(declared=declared):
+                config, source, payload = self.source_fixture()
+                source["max_source_bytes"] = len(payload) - 1
+                with self.assertRaisesRegex(ValueError, "streaming limit"):
+                    self.fetch_fixture(config, source, payload, declared)
+
+    def test_stream_accepts_an_exact_budget_without_a_length_header(self):
+        config, source, payload = self.source_fixture()
+        source["max_source_bytes"] = len(payload)
+        rows, metadata = self.fetch_fixture(config, source, payload)
+        self.assertIn("1", rows)
+        self.assertEqual(metadata["bytes_read"], len(payload))
+
+    def test_larger_source_still_requires_the_expected_schema(self):
+        config, source, _ = self.source_fixture()
+        with self.assertRaisesRegex(ValueError, "missing columns"):
+            self.fetch_fixture(config, source, b"unexpected,column\n1,2\n", 1_741_630_761)
+
     def test_percentage_scaling_and_missing_values(self):
         self.assertEqual(parse_value("25.5", 5, 0.01), 0.255)
         self.assertIsNone(parse_value("NA", 1))
