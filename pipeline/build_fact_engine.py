@@ -207,24 +207,49 @@ def breadth_facts(family: str, provider: str, release: str, release_dir: Path,
     return output
 
 
+def finite_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
 def cpi_and_real_fact(cpi_release: str, cpi_dir: Path, zillow_release: str,
                       zillow_values: dict[str, Any]) -> list[dict[str, Any]]:
     data = read_json(cpi_dir / "cpi.json")
     la = data["series"]["la"]
-    i = max(i for i, value in enumerate(la["values"]) if value is not None)
-    inflation = float(la["yoy"][i])
-    facts = [fact(
-        fact_id="bls-la-cpi", provider="U.S. Bureau of Labor Statistics", release=cpi_release,
-        metric="cpi_la", geography="Los Angeles–Long Beach–Anaheim", period=la["dates"][i],
-        value=float(la["values"][i]), change=inflation, comparison="Same month one year earlier",
-        breadth=1, coverage="Official LA-area CPI-U series",
-        evidence=f"CPI-U was {la['values'][i]:.3f}, an increase of {inflation * 100:.1f}% from one year earlier.",
-        caveat="Not seasonally adjusted; the area index covers Los Angeles and Orange Counties."
-    )]
+    facts: list[dict[str, Any]] = []
+    observed = [i for i, value in enumerate(la["values"]) if finite_number(value)]
+    comparable = [
+        i for i in observed
+        if i >= 12 and la["values"][i] > 0
+        and finite_number(la["values"][i - 12]) and la["values"][i - 12] > 0
+        and finite_number(la["yoy"][i])
+    ]
+    if comparable:
+        # A current index can exist without a prior-year observation. Preserve
+        # that gap and date the fact to the latest calculable annual change.
+        i = comparable[-1]
+        inflation = float(la["yoy"][i])
+        caveat = "Not seasonally adjusted; the area index covers Los Angeles and Orange Counties."
+        if i != observed[-1]:
+            caveat += (
+                f" The latest index observation ({la['dates'][observed[-1]]}) has no calculable "
+                f"year-over-year change; this comparison uses {la['dates'][i]}."
+            )
+        facts.append(fact(
+            fact_id="bls-la-cpi", provider="U.S. Bureau of Labor Statistics", release=cpi_release,
+            metric="cpi_la", geography="Los Angeles–Long Beach–Anaheim", period=la["dates"][i],
+            value=float(la["values"][i]), change=inflation, comparison="Same month one year earlier",
+            breadth=1, coverage="Official LA-area CPI-U series",
+            evidence=f"CPI-U was {la['values'][i]:.3f}, a change of {inflation * 100:+.1f}% from one year earlier.",
+            caveat=caveat,
+        ))
     zhvi = zillow_values.get("zhvi")
     if zhvi and zhvi["period"][:7] in {date[:7] for date in la["dates"]}:
         cpi_index = next(j for j, date in enumerate(la["dates"]) if date[:7] == zhvi["period"][:7])
-        if cpi_index >= 12 and la["values"][cpi_index - 12]:
+        # Deflate only the exact Zillow month, with valid current and prior
+        # index levels. Never substitute another month's inflation or zero.
+        comparison_values = [la["values"][cpi_index], la["values"][cpi_index - 12],
+                             zhvi["value"], zhvi["prior"]] if cpi_index >= 12 else []
+        if comparison_values and all(finite_number(value) and value > 0 for value in comparison_values):
             nominal = zhvi["value"] / zhvi["prior"]
             inflation_ratio = float(la["values"][cpi_index]) / float(la["values"][cpi_index - 12])
             real_change = nominal / inflation_ratio - 1
