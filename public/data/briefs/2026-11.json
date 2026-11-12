@@ -1,0 +1,278 @@
+{
+  "schema_version": 3,
+  "status": "published",
+  "issue_month": "2026-11",
+  "observation_cutoff": "2026-10-31",
+  "prepared_at": "2026-11-12",
+  "title": "November 2026 Housing Market Brief",
+  "headline": "New evidence on residential permitting, inflation-adjusted home values, active listings in Orange County, and seller repricing in Orange County",
+  "summary": "Yes. Los Angeles metro YTD permits rose 37.6%. No. Los Angeles metro home values changed +1.3% from one year earlier, while LA-area CPI-U changed +3.7% over the same period. The implied inflation-adjusted change was -2.4%. Orange County active listings increased by 20.7% from one year earlier. Orange County active listings with price drops increased by 4.3 percentage points; 34 of 41 covered local markets increased.",
+  "reconstruction_note": "Prepared from the Lab’s validated fact packet. Each finding retains its observation period and source release; later provider revisions do not silently alter this archived edition.",
+  "source_packet_sha256": "28ea7199b23ae09dc66e671cefbe619ac58e1f71898dec3213577ba9a4fc99fe",
+  "source_releases": [
+    {
+      "provider": "Zillow Research",
+      "release": "2026-10-18-r163719",
+      "sha256": "b5c68b054f171f15b8793b510a30977e814cdcb9ee6978e36c228ac2b53899a9"
+    },
+    {
+      "provider": "Redfin",
+      "release": "2026-11-12-r233440",
+      "sha256": "093a721b6125c56c523ddabb3afa65cf37db472f9a7e59275a054f65b5cd6d6c"
+    },
+    {
+      "provider": "Realtor.com® Economic Research — Inventory",
+      "release": "2026-11-12-r233458",
+      "sha256": "6faccafc757f167bfa3f9b6a596967cdd8fbad17b437f0d0ef8d2b76c5955381"
+    },
+    {
+      "provider": "U.S. Bureau of Labor Statistics",
+      "release": "2026-11-12-r233500",
+      "sha256": "4808a997b9eb93772e36d1bd0a73d9e9bb91dca629c3705f68ea9927d8d62844"
+    },
+    {
+      "provider": "Census BPS — preliminary current-year observations",
+      "release": "2026-10-28-r211931",
+      "sha256": "f5417708682d119400eff8e72853fffe88350de721f6d169d34c3eddc86aac46"
+    },
+    {
+      "provider": "Census BPS — final comparison history",
+      "release": "2026-10-28-r185408",
+      "sha256": "28fe6b95a1063f1c42a389bec7c41d2a2fc799f404d78872f0f9ea6dab0840c2"
+    }
+  ],
+  "selection_method": {
+    "question_pool": 27,
+    "qualification_paths": {
+      "material_movement": "The primary measure crossed its fixed editorial threshold.",
+      "broad_local_shift": "At least 65% of covered local markets moved in one direction and the median change reached half of its editorial threshold.",
+      "direction_change": "The year-over-year comparison changed sign, with the current and preceding changes each reaching at least half of the editorial threshold.",
+      "indicator_divergence": "Two pre-specified related indicators moved in meaningfully different directions or separated by a pre-specified gap."
+    },
+    "maximum_findings": 4,
+    "maximum_per_theme": 1
+  },
+  "sections": [
+    {
+      "question": "Is residential permitting increasing?",
+      "answer": "Yes. Los Angeles metro YTD permits rose 37.6%.",
+      "trigger_fact_id": "permits-los-angeles-metro-ytd",
+      "fact_ids": [
+        "permits-los-angeles-metro-ytd",
+        "permits-los-angeles-county-ytd",
+        "permits-orange-county-ytd"
+      ],
+      "period_end": "2026-09-30",
+      "observation_period": "2026-01 through 2026-09",
+      "status": "preliminary",
+      "evidence": [
+        "Los Angeles metro: 26,937 units authorized YTD vs. 19,572 in the same months last year."
+      ],
+      "sources": "U.S. Census Bureau Building Permits Survey",
+      "coverage": "Matched permit jurisdictions in Los Angeles and Orange counties; sum of county counts, not an official BPS metro series",
+      "caveat": "Current-year observations are preliminary and may be revised or imputed; permits are authorizations, not starts or completions.",
+      "question_id": "permits_metro_ytd-los-angeles-metro",
+      "theme": "construction",
+      "kicker": "Construction pipeline",
+      "topic": "residential permitting",
+      "trigger_fact_ids": [
+        "permits-los-angeles-metro-ytd"
+      ],
+      "destination": "permits",
+      "link_label": "Explore Census permit activity",
+      "qualifications": [
+        {
+          "id": "material_movement",
+          "label": "Material movement",
+          "explanation": "The primary measure crossed its fixed editorial threshold."
+        }
+      ],
+      "selection_score": 100.7,
+      "source_releases": [
+        {
+          "provider": "U.S. Census Bureau Building Permits Survey",
+          "release": "2026-10-28-r211931"
+        }
+      ]
+    },
+    {
+      "question": "Are home values keeping pace with local inflation?",
+      "answer": "No. Los Angeles metro home values changed +1.3% from one year earlier, while LA-area CPI-U changed +3.7% over the same period. The implied inflation-adjusted change was -2.4%.",
+      "trigger_fact_id": "derived-la-real-zhvi",
+      "fact_ids": [
+        "derived-la-real-zhvi",
+        "zillow-la-metro-zhvi",
+        "bls-la-cpi"
+      ],
+      "period_end": "2026-09-30",
+      "observation_period": "September 2026",
+      "status": "validated",
+      "evidence": [
+        "Nominal ZHVI changed +1.3% while LA-area CPI-U changed +3.7%.",
+        "$950,020 compared with $938,188 one year earlier."
+      ],
+      "sources": "Zillow Research + U.S. Bureau of Labor Statistics",
+      "coverage": "Common-month Zillow ZHVI and LA-area CPI-U",
+      "caveat": "Real change is a purchasing-power comparison, not an affordability measure. Not seasonally adjusted; the area index covers Los Angeles and Orange Counties. The latest index observation (2026-10-31) has no calculable year-over-year change; this comparison uses 2026-09-30.",
+      "question_id": "real_zhvi-los-angeles-metro",
+      "theme": "prices",
+      "kicker": "Prices after inflation",
+      "topic": "inflation-adjusted home values",
+      "trigger_fact_ids": [
+        "derived-la-real-zhvi"
+      ],
+      "destination": "local",
+      "link_label": "Explore prices and rents",
+      "qualifications": [
+        {
+          "id": "material_movement",
+          "label": "Material movement",
+          "explanation": "The primary measure crossed its fixed editorial threshold."
+        }
+      ],
+      "selection_score": 85.6,
+      "source_releases": [
+        {
+          "provider": "Zillow Research + BLS CPI-U",
+          "release": "2026-10-18-r163719 + 2026-11-12-r233500"
+        },
+        {
+          "provider": "Zillow Research",
+          "release": "2026-10-18-r163719"
+        },
+        {
+          "provider": "U.S. Bureau of Labor Statistics",
+          "release": "2026-11-12-r233500"
+        }
+      ]
+    },
+    {
+      "question_id": "active_listing_count-orange-county",
+      "theme": "availability",
+      "kicker": "Local active inventory",
+      "question": "Is active inventory changing broadly across Orange County?",
+      "topic": "active listings in Orange County",
+      "answer": "Orange County active listings increased by 20.7% from one year earlier.",
+      "trigger_fact_id": "realtor-orange-county-active_listing_count",
+      "trigger_fact_ids": [
+        "realtor-orange-county-active_listing_count"
+      ],
+      "fact_ids": [
+        "realtor-orange-county-active_listing_count"
+      ],
+      "period_end": "2026-10-01",
+      "observation_period": "October 2026",
+      "status": "validated",
+      "evidence": [
+        "Orange County: The median local change was +20.7%; among 57 markets with calculable changes, 38 increased, 18 decreased, and 1 was unchanged."
+      ],
+      "sources": "Realtor.com® Economic Research",
+      "source_releases": [
+        {
+          "provider": "Realtor.com® Economic Research",
+          "release": "2026-11-12-r233458"
+        }
+      ],
+      "coverage": "57 of 85 local markets had calculable year-over-year changes",
+      "caveat": "Unweighted median across covered local markets; it is not a county aggregate.",
+      "destination": "activity",
+      "link_label": "Explore Realtor.com inventory",
+      "qualifications": [
+        {
+          "id": "material_movement",
+          "label": "Material movement",
+          "explanation": "The primary measure crossed its fixed editorial threshold."
+        }
+      ],
+      "selection_score": 80.3
+    },
+    {
+      "question_id": "price_drop_share-orange-county",
+      "theme": "seller_adjustment",
+      "kicker": "Local repricing",
+      "question": "Are sellers changing prices more often across Orange County?",
+      "topic": "seller repricing in Orange County",
+      "answer": "Orange County active listings with price drops increased by 4.3 percentage points; 34 of 41 covered local markets increased.",
+      "trigger_fact_id": "redfin-orange-county-price_drop_share",
+      "trigger_fact_ids": [
+        "redfin-orange-county-price_drop_share"
+      ],
+      "fact_ids": [
+        "redfin-orange-county-price_drop_share"
+      ],
+      "period_end": "2026-10-31",
+      "observation_period": "October 2026",
+      "status": "validated",
+      "evidence": [
+        "Orange County: The median local change was +4.3 percentage points; among 41 markets with calculable changes, 34 increased, 7 decreased, and 0 were unchanged."
+      ],
+      "sources": "Redfin",
+      "source_releases": [
+        {
+          "provider": "Redfin",
+          "release": "2026-11-12-r233440"
+        }
+      ],
+      "coverage": "41 of 42 local markets had calculable year-over-year changes",
+      "caveat": "Unweighted median across covered cities using Redfin rolling three-month estimates; it is not a county aggregate.",
+      "destination": "activity",
+      "link_label": "Explore Redfin market conditions",
+      "qualifications": [
+        {
+          "id": "material_movement",
+          "label": "Material movement",
+          "explanation": "The primary measure crossed its fixed editorial threshold."
+        },
+        {
+          "id": "broad_local_shift",
+          "label": "Broad local shift",
+          "explanation": "34 of 41 covered local markets increased; the median change also reached at least half of its editorial threshold."
+        }
+      ],
+      "selection_score": 76.3
+    }
+  ],
+  "housing_supply_review": {
+    "status": "revised_annual_snapshot",
+    "review_required": true,
+    "provider": "California HCD APR",
+    "release": "2026-10-15-6c7ecb473c45",
+    "sha256": "6c7ecb473c453e99dc3e3ab976378f075773d24c9df753e33d58a1c87145669d",
+    "latest_year": 2025,
+    "validated_at": "2026-10-15T18:39:27.540285+00:00",
+    "coverage": [
+      {
+        "county": "Los Angeles County",
+        "reporting_cities": 79,
+        "reference_cities": 88
+      },
+      {
+        "county": "Orange County",
+        "reporting_cities": 33,
+        "reference_cities": 34
+      }
+    ],
+    "reason": "Annual context only; this does not advance a monthly question or certify complete reporting."
+  },
+  "housing_context_review": {
+    "status": "unchanged",
+    "review_required": false,
+    "provider": "U.S. Census Bureau ACS five-year estimates",
+    "release": "2026-09-08-r094930",
+    "sha256": "57cfe49837fe1c0679727061696c64788cd6ec608f9af1478a0f596d75f198fd",
+    "latest_year": 2024,
+    "comparison_year": 2019,
+    "validated_at": "2026-09-08T09:49:30Z",
+    "coverage": [
+      {
+        "geography": "city",
+        "regions": 189
+      },
+      {
+        "geography": "zip",
+        "regions": 360
+      }
+    ],
+    "reason": "Structural context only; this does not advance a monthly question or imply a current market change."
+  }
+}
