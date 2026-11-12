@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "status": "automatic_snapshot",
-  "generated_at": "2026-10-28T21:19:31Z",
-  "data_cutoff": "2026-09-30",
-  "source_packet_sha256": "d342695c3245addccb84c166ed2fe857c365f6e745ddcc60682d3be26683b510",
+  "generated_at": "2026-11-12T23:35:00.387362+00:00",
+  "data_cutoff": "2026-10-31",
+  "source_packet_sha256": "28ea7199b23ae09dc66e671cefbe619ac58e1f71898dec3213577ba9a4fc99fe",
   "method": "Deterministic screening only; the rules identify review candidates and do not infer causes or forecasts.",
   "monitoring": {
     "question_count": 27,
-    "qualified_before_editorial_cap": 5,
+    "qualified_before_editorial_cap": 13,
     "displayed_findings": 4,
-    "suppressed_related_findings": 1
+    "suppressed_related_findings": 9
   },
   "qualification_rules": {
     "material_movement": "The primary measure crossed its fixed editorial threshold.",
@@ -25,18 +25,18 @@
     },
     {
       "provider": "Redfin",
-      "release": "2026-10-18-r163841",
-      "sha256": "5b80ef202930198a1240a8e97bae65d72b80abf0e01c2dcc05d15e8beae28d5e"
+      "release": "2026-11-12-r233440",
+      "sha256": "093a721b6125c56c523ddabb3afa65cf37db472f9a7e59275a054f65b5cd6d6c"
     },
     {
       "provider": "Realtor.com® Economic Research — Inventory",
-      "release": "2026-10-12-r214847",
-      "sha256": "6d7914e1b3b45f6ad4a7ea326d7adf7a74d6161376de5fdd0a0edf23d4bdc47d"
+      "release": "2026-11-12-r233458",
+      "sha256": "6faccafc757f167bfa3f9b6a596967cdd8fbad17b437f0d0ef8d2b76c5955381"
     },
     {
       "provider": "U.S. Bureau of Labor Statistics",
-      "release": "2026-10-18-r163844",
-      "sha256": "8ad6d9207e66349a6ba0e8c19fcddd26f9b5cd658a1a41c534c611b796e9c2e7"
+      "release": "2026-11-12-r233500",
+      "sha256": "4808a997b9eb93772e36d1bd0a73d9e9bb91dca629c3705f68ea9927d8d62844"
     },
     {
       "provider": "Census BPS — preliminary current-year observations",
@@ -110,7 +110,7 @@
       ],
       "sources": "Zillow Research + U.S. Bureau of Labor Statistics",
       "coverage": "Common-month Zillow ZHVI and LA-area CPI-U",
-      "caveat": "Real change is a purchasing-power comparison, not an affordability measure. Not seasonally adjusted; the area index covers Los Angeles and Orange Counties.",
+      "caveat": "Real change is a purchasing-power comparison, not an affordability measure. Not seasonally adjusted; the area index covers Los Angeles and Orange Counties. The latest index observation (2026-10-31) has no calculable year-over-year change; this comparison uses 2026-09-30.",
       "question_id": "real_zhvi-los-angeles-metro",
       "theme": "prices",
       "kicker": "Prices after inflation",
@@ -131,7 +131,7 @@
       "source_releases": [
         {
           "provider": "Zillow Research + BLS CPI-U",
-          "release": "2026-10-18-r163719 + 2026-10-18-r163844"
+          "release": "2026-10-18-r163719 + 2026-11-12-r233500"
         },
         {
           "provider": "Zillow Research",
@@ -139,35 +139,75 @@
         },
         {
           "provider": "U.S. Bureau of Labor Statistics",
-          "release": "2026-10-18-r163844"
+          "release": "2026-11-12-r233500"
         }
       ]
     },
     {
-      "question_id": "median_dom-orange-county",
-      "theme": "market_speed",
-      "kicker": "Local market speed",
-      "question": "Are homes moving faster or slower across Orange County?",
-      "topic": "market speed in Orange County",
-      "answer": "Orange County median days on market decreased by 6.0 days; 32 of 41 covered local markets decreased.",
-      "trigger_fact_id": "redfin-orange-county-median_dom",
+      "question_id": "active_listing_count-orange-county",
+      "theme": "availability",
+      "kicker": "Local active inventory",
+      "question": "Is active inventory changing broadly across Orange County?",
+      "topic": "active listings in Orange County",
+      "answer": "Orange County active listings increased by 20.7% from one year earlier.",
+      "trigger_fact_id": "realtor-orange-county-active_listing_count",
       "trigger_fact_ids": [
-        "redfin-orange-county-median_dom"
+        "realtor-orange-county-active_listing_count"
       ],
       "fact_ids": [
-        "redfin-orange-county-median_dom"
+        "realtor-orange-county-active_listing_count"
       ],
-      "period_end": "2026-09-30",
-      "observation_period": "September 2026",
+      "period_end": "2026-10-01",
+      "observation_period": "October 2026",
       "status": "validated",
       "evidence": [
-        "Orange County: The median local change was -6.0 days; among 41 markets with calculable changes, 8 increased, 32 decreased, and 1 was unchanged."
+        "Orange County: The median local change was +20.7%; among 57 markets with calculable changes, 38 increased, 18 decreased, and 1 was unchanged."
+      ],
+      "sources": "Realtor.com® Economic Research",
+      "source_releases": [
+        {
+          "provider": "Realtor.com® Economic Research",
+          "release": "2026-11-12-r233458"
+        }
+      ],
+      "coverage": "57 of 85 local markets had calculable year-over-year changes",
+      "caveat": "Unweighted median across covered local markets; it is not a county aggregate.",
+      "destination": "activity",
+      "link_label": "Explore Realtor.com inventory",
+      "qualifications": [
+        {
+          "id": "material_movement",
+          "label": "Material movement",
+          "explanation": "The primary measure crossed its fixed editorial threshold."
+        }
+      ],
+      "selection_score": 80.3
+    },
+    {
+      "question_id": "price_drop_share-orange-county",
+      "theme": "seller_adjustment",
+      "kicker": "Local repricing",
+      "question": "Are sellers changing prices more often across Orange County?",
+      "topic": "seller repricing in Orange County",
+      "answer": "Orange County active listings with price drops increased by 4.3 percentage points; 34 of 41 covered local markets increased.",
+      "trigger_fact_id": "redfin-orange-county-price_drop_share",
+      "trigger_fact_ids": [
+        "redfin-orange-county-price_drop_share"
+      ],
+      "fact_ids": [
+        "redfin-orange-county-price_drop_share"
+      ],
+      "period_end": "2026-10-31",
+      "observation_period": "October 2026",
+      "status": "validated",
+      "evidence": [
+        "Orange County: The median local change was +4.3 percentage points; among 41 markets with calculable changes, 34 increased, 7 decreased, and 0 were unchanged."
       ],
       "sources": "Redfin",
       "source_releases": [
         {
           "provider": "Redfin",
-          "release": "2026-10-18-r163841"
+          "release": "2026-11-12-r233440"
         }
       ],
       "coverage": "41 of 42 local markets had calculable year-over-year changes",
@@ -183,50 +223,10 @@
         {
           "id": "broad_local_shift",
           "label": "Broad local shift",
-          "explanation": "32 of 41 covered local markets decreased; the median change also reached at least half of its editorial threshold."
+          "explanation": "34 of 41 covered local markets increased; the median change also reached at least half of its editorial threshold."
         }
       ],
-      "selection_score": 72.0
-    },
-    {
-      "question": "How fast are asking rents changing?",
-      "answer": "Los Angeles metro typical asking rent changed +1.8% from one year earlier.",
-      "trigger_fact_id": "zillow-la-metro-zori",
-      "fact_ids": [
-        "zillow-la-metro-zori"
-      ],
-      "period_end": "2026-09-30",
-      "observation_period": "September 2026",
-      "status": "validated",
-      "evidence": [
-        "$2,929 compared with $2,878 one year earlier."
-      ],
-      "sources": "Zillow Research",
-      "coverage": "One focus metropolitan series",
-      "caveat": "Descriptive metropolitan estimate; not a causal or predictive measure.",
-      "question_id": "zori-los-angeles-metro",
-      "theme": "rents",
-      "kicker": "Asking rents",
-      "topic": "asking rents",
-      "trigger_fact_ids": [
-        "zillow-la-metro-zori"
-      ],
-      "destination": "local",
-      "link_label": "Explore rent trends",
-      "qualifications": [
-        {
-          "id": "material_movement",
-          "label": "Material movement",
-          "explanation": "The primary measure crossed its fixed editorial threshold."
-        }
-      ],
-      "selection_score": 69.2,
-      "source_releases": [
-        {
-          "provider": "Zillow Research",
-          "release": "2026-10-18-r163719"
-        }
-      ]
+      "selection_score": 76.3
     }
   ]
 }
