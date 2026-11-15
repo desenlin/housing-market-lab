@@ -19,6 +19,26 @@ after(async () => {
   await vite.close();
 });
 
+test("unchanged source checks and failed retries preserve the snapshot's validation date", async () => {
+  const { SourceCheckDates } = await vite.ssrLoadModule("/components/source-check-dates.tsx");
+  const props = {
+    validatedAt: "2026-10-18T16:37:19Z",
+    check: { last_success_at: "2026-11-12T23:35:00Z", last_exit_code: 0 },
+  };
+  const unchanged = renderToStaticMarkup(React.createElement(SourceCheckDates, props));
+  assert.match(unchanged, /Snapshot validated Oct 18, 2026/);
+  assert.match(unchanged, /Source last checked Nov 12, 2026/);
+  assert.doesNotMatch(unchanged, /Refresh failed/);
+  const failed = renderToStaticMarkup(React.createElement(SourceCheckDates, {
+    ...props, check: { ...props.check, last_attempt_at: "2026-11-18T14:00:00Z", last_exit_code: 1 },
+  }));
+  assert.match(failed, /Snapshot validated Oct 18, 2026/);
+  assert.match(failed, /Source last checked Nov 12, 2026/);
+  assert.match(failed, /Refresh failed Nov 18, 2026; prior snapshot retained/);
+  const unrecorded = renderToStaticMarkup(React.createElement(SourceCheckDates, { validatedAt: props.validatedAt }));
+  assert.doesNotMatch(unrecorded, /Source last checked/);
+});
+
 test("permit ranking changes use unit differences and matched calendar periods", async () => {
   const { permitChange, formatPermitChange } = await vite.ssrLoadModule("/lib/permit-change.ts");
   assert.equal(permitChange([0, 240], ["2024", "2025"], 1, "units"), 240);

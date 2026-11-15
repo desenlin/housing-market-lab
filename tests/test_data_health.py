@@ -96,6 +96,15 @@ class DataHealthTests(unittest.TestCase):
         self.assertEqual(expected_period(rule, date(2026, 9, 28), "metro_zhvi"), "2026-08")
         self.assertEqual(expected_period(rule, date(2026, 9, 28), "metro_sale_to_list"), "2026-07")
 
+    def test_zillow_waits_for_monthly_downloads_then_flags_a_missed_release(self):
+        rule = POLICY["sources"]["zillow"]
+        # The early-month market report precedes the 16th's downloadable files.
+        for day in (5, 15, 17):
+            self.assertEqual(expected_period(rule, date(2026, 11, day), "metro_zhvi"), "2026-09")
+            self.assertEqual(expected_period(rule, date(2026, 11, day), "metro_sale_to_list"), "2026-08")
+        self.assertEqual(expected_period(rule, date(2026, 11, 18), "metro_zhvi"), "2026-10")
+        self.assertEqual(expected_period(rule, date(2026, 11, 18), "metro_sale_to_list"), "2026-09")
+
     def test_annual_sources_use_annual_windows(self):
         for key, before, after, old, new in [
             ("acs", date(2027, 2, 28), date(2027, 3, 1), "2024", "2025"),
