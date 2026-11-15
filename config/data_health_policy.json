@@ -10,7 +10,12 @@
     "Refresh the BLS and Census release-date overrides in config/data_health_policy.json; document any delayed releases."
   ],
   "sources": {
-    "zillow": {"frequency": "monthly", "check_day": 28, "lag_months": 1, "series_lag_months": {"metro_sale_to_list": 2}},
+    "zillow": {
+      "frequency": "monthly", "check_day": 18, "lag_months": 1,
+      "series_lag_months": {"metro_sale_to_list": 2},
+      "schedule_source": "https://www.zillow.com/research/calendar/",
+      "reviewed_on": "2026-11-15"
+    },
     "redfin": {"frequency": "monthly", "check_day": 28, "lag_months": 1},
     "realtor_inventory": {"frequency": "monthly", "check_day": 18, "lag_months": 1},
     "realtor_hotness": {"frequency": "monthly", "check_day": 24, "lag_months": 1},

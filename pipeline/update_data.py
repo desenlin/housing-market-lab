@@ -637,6 +637,7 @@ def main() -> None:
                     cached_path.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(path, cached_path)
             result = extract_source(path, source, config)
+            print(f"{source['id']}: {len(result['regions'])} regions, latest {result['latest_date']}")
             extracted.append(result)
             source_manifest[source["id"]] = {
                 **source_info,
