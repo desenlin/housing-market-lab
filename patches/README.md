@@ -1,6 +1,33 @@
 # Dependency security record
 
-Reviewed November 3, 2026.
+Reviewed November 16, 2026.
+
+## November 16 dependency audit
+
+The scheduled audit at `22ff705` reported two affected package entries:
+
+- [GHSA-mfr8-8qww-v76h](https://github.com/vercel/next.js/security/advisories/GHSA-mfr8-8qww-v76h):
+  moderate information disclosure when a Next.js `use cache` function that reads
+  root params is also called through `unstable_cache()`. Next.js 16.4.3 is in the
+  affected range; 16.4.5 is the first patched version in this release line.
+  Next.js and its ESLint config are updated together to the official 16.4.6 release.
+- [GHSA-xqc2-xf4c-x3h3](https://github.com/react/react/security/advisories/GHSA-xqc2-xf4c-x3h3):
+  critical remote code execution in React Server Components.
+  `react-server-dom-webpack` is updated from 19.3.0 to the official patched
+  19.3.1 release. Its peer dependencies require React and React DOM at least
+  19.3.1; both are updated to 19.3.1 to keep the renderer and server-component
+  package aligned.
+
+The regenerated lockfile installs those patch releases. Existing scoped overrides and
+the complete production/development audit remain in place, with no advisory
+exceptions or threshold changes.
+
+The public GitHub Pages workflow uploads only the static `dist/client` export;
+it does not deploy a Next.js or React Server Components server. The application
+also has no `use cache` / `unstable_cache()` nesting. Those public deployment
+paths therefore do not expose the server-side conditions described by these
+advisories. The dependency updates remove the affected versions from the build
+and development toolchain before any future server deployment.
 
 ## November 2 dependency audit
 
