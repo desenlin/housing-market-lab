@@ -86,8 +86,7 @@ class BpsQuestionGuardTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "same year-to-date window"):
             question_sections(packet)
 
-    def test_metro_answer_uses_combined_counts(self):
-        from pipeline.prepare_market_brief import question_sections
+    def test_metro_counts_match_counties(self):
         root = Path(__file__).resolve().parents[1]
         packet = json.loads((root / "public/data/facts/latest.json").read_text())
         counties = [f for f in packet["facts"] if f["metric"] == "permits_ytd"]
@@ -95,10 +94,31 @@ class BpsQuestionGuardTests(unittest.TestCase):
         self.assertEqual(metro["value"], sum(f["value"] for f in counties))
         self.assertEqual(metro["prior_value"], sum(f["prior_value"] for f in counties))
         self.assertAlmostEqual(metro["change"], metro["value"] / metro["prior_value"] - 1)
-        section = question_sections(packet)[1]
-        self.assertIn(f"{abs(metro['change']):.1%}", section["answer"])
-        self.assertEqual(len(section["evidence"]), 1)
-        self.assertNotIn("%", section["evidence"][0])
-        for change, expected in [(0.1, "Yes. Los Angeles metro YTD permits rose 10.0%."), (-0.1, "No. Los Angeles metro YTD permits fell 10.0%."), (0, "No. Los Angeles metro YTD permits were unchanged at 0.0%.")]:
-            metro["change"] = change
-            self.assertEqual(question_sections(packet)[1]["answer"], expected)
+
+    def test_metro_answer_uses_combined_counts(self):
+        from pipeline.prepare_market_brief import question_sections
+        root = Path(__file__).resolve().parents[1]
+        # Price/inflation sections are optional, so identify the permit section
+        # by its fact rather than its position in the question list.
+        for omitted in [set(), {"real_zhvi"}, {"real_zhvi", "cpi_la"}]:
+            with self.subTest(omitted=omitted):
+                packet = json.loads((root / "tests/fixtures/fact-packet-2026-09-17.json").read_text())
+                packet["facts"] = [item for item in packet["facts"] if item["metric"] not in omitted]
+                metro = next(f for f in packet["facts"] if f["metric"] == "permits_metro_ytd")
+
+                def permit_section():
+                    return next(section for section in question_sections(packet)
+                                if section["trigger_fact_id"] == metro["id"])
+
+                section = permit_section()
+                self.assertIn(f"{abs(metro['change']):.1%}", section["answer"])
+                self.assertEqual(len(section["evidence"]), 1)
+                self.assertNotIn("%", section["evidence"][0])
+                for change, expected in [
+                    (0.1, "Yes. Los Angeles metro YTD permits rose 10.0%."),
+                    (-0.1, "No. Los Angeles metro YTD permits fell 10.0%."),
+                    (0, "No. Los Angeles metro YTD permits were unchanged at 0.0%."),
+                ]:
+                    with self.subTest(change=change):
+                        metro["change"] = change
+                        self.assertEqual(permit_section()["answer"], expected)
