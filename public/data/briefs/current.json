@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "status": "automatic_snapshot",
-  "generated_at": "2026-11-12T23:35:00.387362+00:00",
+  "generated_at": "2026-11-18T21:30:06.408145+00:00",
   "data_cutoff": "2026-10-31",
-  "source_packet_sha256": "28ea7199b23ae09dc66e671cefbe619ac58e1f71898dec3213577ba9a4fc99fe",
+  "source_packet_sha256": "79b744f882bc9dbb58e41c810698e732c096a39158ae0262f6ae5f0a5582b6a7",
   "method": "Deterministic screening only; the rules identify review candidates and do not infer causes or forecasts.",
   "monitoring": {
-    "question_count": 27,
-    "qualified_before_editorial_cap": 13,
+    "question_count": 26,
+    "qualified_before_editorial_cap": 12,
     "displayed_findings": 4,
-    "suppressed_related_findings": 9
+    "suppressed_related_findings": 8
   },
   "qualification_rules": {
     "material_movement": "The primary measure crossed its fixed editorial threshold.",
@@ -20,13 +20,13 @@
   "source_releases": [
     {
       "provider": "Zillow Research",
-      "release": "2026-10-18-r163719",
-      "sha256": "b5c68b054f171f15b8793b510a30977e814cdcb9ee6978e36c228ac2b53899a9"
+      "release": "2026-11-18-r212826",
+      "sha256": "95f94fb307f66ab0f2526481c72665b3385c817c8681ff2e9ff7e31ef04d9a31"
     },
     {
       "provider": "Redfin",
-      "release": "2026-11-12-r233440",
-      "sha256": "093a721b6125c56c523ddabb3afa65cf37db472f9a7e59275a054f65b5cd6d6c"
+      "release": "2026-11-18-r213006",
+      "sha256": "703304556b04ddc0f83566ec78b11aa04e1df56772dfc89012a138dc46f5aaa3"
     },
     {
       "provider": "Realtor.com® Economic Research — Inventory",
@@ -89,57 +89,6 @@
         {
           "provider": "U.S. Census Bureau Building Permits Survey",
           "release": "2026-10-28-r211931"
-        }
-      ]
-    },
-    {
-      "question": "Are home values keeping pace with local inflation?",
-      "answer": "No. Los Angeles metro home values changed +1.3% from one year earlier, while LA-area CPI-U changed +3.7% over the same period. The implied inflation-adjusted change was -2.4%.",
-      "trigger_fact_id": "derived-la-real-zhvi",
-      "fact_ids": [
-        "derived-la-real-zhvi",
-        "zillow-la-metro-zhvi",
-        "bls-la-cpi"
-      ],
-      "period_end": "2026-09-30",
-      "observation_period": "September 2026",
-      "status": "validated",
-      "evidence": [
-        "Nominal ZHVI changed +1.3% while LA-area CPI-U changed +3.7%.",
-        "$950,020 compared with $938,188 one year earlier."
-      ],
-      "sources": "Zillow Research + U.S. Bureau of Labor Statistics",
-      "coverage": "Common-month Zillow ZHVI and LA-area CPI-U",
-      "caveat": "Real change is a purchasing-power comparison, not an affordability measure. Not seasonally adjusted; the area index covers Los Angeles and Orange Counties. The latest index observation (2026-10-31) has no calculable year-over-year change; this comparison uses 2026-09-30.",
-      "question_id": "real_zhvi-los-angeles-metro",
-      "theme": "prices",
-      "kicker": "Prices after inflation",
-      "topic": "inflation-adjusted home values",
-      "trigger_fact_ids": [
-        "derived-la-real-zhvi"
-      ],
-      "destination": "local",
-      "link_label": "Explore prices and rents",
-      "qualifications": [
-        {
-          "id": "material_movement",
-          "label": "Material movement",
-          "explanation": "The primary measure crossed its fixed editorial threshold."
-        }
-      ],
-      "selection_score": 85.6,
-      "source_releases": [
-        {
-          "provider": "Zillow Research + BLS CPI-U",
-          "release": "2026-10-18-r163719 + 2026-11-12-r233500"
-        },
-        {
-          "provider": "Zillow Research",
-          "release": "2026-10-18-r163719"
-        },
-        {
-          "provider": "U.S. Bureau of Labor Statistics",
-          "release": "2026-11-12-r233500"
         }
       ]
     },
@@ -207,7 +156,7 @@
       "source_releases": [
         {
           "provider": "Redfin",
-          "release": "2026-11-12-r233440"
+          "release": "2026-11-18-r213006"
         }
       ],
       "coverage": "41 of 42 local markets had calculable year-over-year changes",
@@ -227,6 +176,46 @@
         }
       ],
       "selection_score": 76.3
+    },
+    {
+      "question_id": "pending_ratio-orange-county",
+      "theme": "market_speed",
+      "kicker": "Pending activity",
+      "question": "Is pending activity changing relative to active inventory in Orange County?",
+      "topic": "pending activity in Orange County",
+      "answer": "Orange County pending-to-active ratio decreased by 14.8 percentage points from one year earlier.",
+      "trigger_fact_id": "realtor-orange-county-pending_ratio",
+      "trigger_fact_ids": [
+        "realtor-orange-county-pending_ratio"
+      ],
+      "fact_ids": [
+        "realtor-orange-county-pending_ratio"
+      ],
+      "period_end": "2026-10-01",
+      "observation_period": "October 2026",
+      "status": "validated",
+      "evidence": [
+        "Orange County: The median local change was -14.8 percentage points; among 57 markets with calculable changes, 10 increased, 47 decreased, and 0 were unchanged."
+      ],
+      "sources": "Realtor.com® Economic Research",
+      "source_releases": [
+        {
+          "provider": "Realtor.com® Economic Research",
+          "release": "2026-11-12-r233458"
+        }
+      ],
+      "coverage": "57 of 85 local markets had calculable year-over-year changes",
+      "caveat": "Unweighted median across covered local markets; it is not a county aggregate.",
+      "destination": "activity",
+      "link_label": "Explore Realtor.com demand",
+      "qualifications": [
+        {
+          "id": "material_movement",
+          "label": "Material movement",
+          "explanation": "The primary measure crossed its fixed editorial threshold."
+        }
+      ],
+      "selection_score": 74.1
     }
   ]
 }
