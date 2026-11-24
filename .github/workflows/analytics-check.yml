@@ -8,9 +8,8 @@ on:
         description: Audit the deployed site as well as source coverage
         type: boolean
         default: true
-  schedule:
-    # Weekly on Monday, staggered across repositories (UTC).
-    - cron: "29 17 * * 1"
+  # Weekly live coverage runs in desenlin/desenlin.github.io. Local source and
+  # manual audits stay here; pages.yml also audits successful deployments.
 permissions:
   contents: read
 concurrency:
@@ -21,4 +20,4 @@ jobs:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     uses: desenlin/desenlin.github.io/.github/workflows/analytics-reusable.yml@main
     with:
-      live: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_run' || (github.event_name == 'workflow_dispatch' && inputs.live) }}
+      live: ${{ github.event_name == 'workflow_run' || (github.event_name == 'workflow_dispatch' && inputs.live) }}
